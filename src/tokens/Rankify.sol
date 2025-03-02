@@ -20,9 +20,8 @@ contract Rankify is ERC20Votes, Ownable {
     error ERC20InvalidCap(uint256 cap);
 
     constructor(
-        string memory name,
-        string memory symbol
-    ) ERC20(name, symbol) EIP712(name, "1") Ownable(msg.sender) {
+        address owner
+    ) ERC20("Rankify", "RFY") EIP712("RankifyToken", "0.12.0") Ownable(owner) {
         _cap = 10 ** 18;
     }
 
