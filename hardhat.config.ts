@@ -37,7 +37,6 @@ subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) 
     }
   });
   await Promise.all(promises);
-  getSuperInterface('./abi/super-interface.json');
   env.run('getSuperInterface', { outputPathAbi: './all-signatures.json' });
   return output;
 });
@@ -73,8 +72,8 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 });
 
 task('getSuperInterface', 'Prints the super interface of a contract')
-  .setAction(async (taskArgs: { outputPathAbi: string }, hre) => {
-    const su = getSuperInterface();
+  .setAction(async (taskArgs: { outputPath: string }, hre) => {
+    const su = getSuperInterface(taskArgs.outputPath + '/super-interface.json');
     let return_value: Record<string, string> = {};
     const originalConsoleLog = console.log;
     console.log = () => {};
@@ -87,10 +86,10 @@ task('getSuperInterface', 'Prints the super interface of a contract')
     Object.values(su.errors).forEach(x => {
       return_value[su.getSighash(x)] = x.format(FormatTypes.full);
     });
-    fs.writeFileSync(taskArgs.outputPathAbi, JSON.stringify(return_value, null, 2));
+    fs.writeFileSync(taskArgs.outputPath + '/signatures.json', JSON.stringify(return_value, null, 2));
     console.log = originalConsoleLog;
   })
-  .addParam('outputPathAbi', 'The path to the abi file');
+  .addParam('outputPath', 'The path to the abi file');
 
 export default {
   zkit: {
@@ -140,11 +139,13 @@ export default {
     deployer: {
       hardhat: '0xF52E5dF676f51E410c456CC34360cA6F27959420',
       anvil: '0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583',
+      arbsepolia: '0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583',
       default: '0xF52E5dF676f51E410c456CC34360cA6F27959420', //TODO this must be set for networks
     },
     owner: {
       default: '0x520E00225C4a43B6c55474Db44a4a44199b4c3eE',
       anvil: '0x507c2d32185667156de5B4C440FEEf3800078bDb',
+      arbsepolia: '0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583',
     },
     gameMaster: {
       localhost: '0xaA63aA2D921F23f204B6Bcb43c2844Fb83c82eb9',
@@ -154,6 +155,7 @@ export default {
     },
     DAO: {
       default: '0x520E00225C4a43B6c55474Db44a4a44199b4c3eE',
+      arbsepolia: '0xf5ea7A32aBcaFE1c7Ef79396402180B549bA4aa4',
     },
     player1: {
       default: '0xFE87428cC8C72A3a79eD1cC7e2B5892c088d0af0',
@@ -199,6 +201,7 @@ export default {
       accounts: {
         mnemonic: process.env.ARB_SEPOLIA_MNEMONIC ?? 'x',
       },
+      tags: ['ERC7744'],
     },
   },
   paths: {
