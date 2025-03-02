@@ -193,6 +193,13 @@ export default {
         mnemonic: process.env.DEVNET_MNEMONIC ?? 'x',
       },
     },
+    arbsepolia: {
+      name: 'arbitrum sepolia',
+      url: process.env.ARB_SEPOLIA_RPC_URL ?? '',
+      accounts: {
+        mnemonic: process.env.ARB_SEPOLIA_MNEMONIC ?? 'x',
+      },
+    },
   },
   paths: {
     sources: './src',
