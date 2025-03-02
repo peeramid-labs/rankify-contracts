@@ -37,7 +37,6 @@ subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) 
     }
   });
   await Promise.all(promises);
-  env.run('getSuperInterface', { outputPathAbi: './all-signatures.json' });
   return output;
 });
 

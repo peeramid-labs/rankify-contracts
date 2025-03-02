@@ -19,9 +19,7 @@ contract Rankify is ERC20Votes, Ownable {
      */
     error ERC20InvalidCap(uint256 cap);
 
-    constructor(
-        address owner
-    ) ERC20("Rankify", "RFY") EIP712("RankifyToken", "0.12.0") Ownable(owner) {
+    constructor(address owner) ERC20("Rankify", "RFY") EIP712("RankifyToken", "0.12.0") Ownable(owner) {
         _cap = 10 ** 18;
     }
 
@@ -43,11 +41,7 @@ contract Rankify is ERC20Votes, Ownable {
     /**
      * @dev See {ERC20-_update}.
      */
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal virtual override {
+    function _update(address from, address to, uint256 value) internal virtual override {
         super._update(from, to, value);
 
         if (from == address(0)) {
@@ -59,7 +53,7 @@ contract Rankify is ERC20Votes, Ownable {
         }
     }
 
-        /**
+    /**
      * @dev Destroys a `value` amount of tokens from the caller.
      *
      * See {ERC20-_burn}.
