@@ -45,7 +45,7 @@ describe('Rank Token Test', async function () {
     const { owner } = await getNamedAccounts();
     const oSigner = await ethers.getSigner(owner);
     const tokenContract = new ethers.Contract(token.address, token.abi, oSigner) as Rankify;
-    await tokenContract.mint(oSigner.address, ethers.utils.formatUnits('100', 9));
+    await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
     await tokenContract.approve(env.distributor.address, ethers.constants.MaxUint256);
     const distributorsDistId = await hre.run('defaultDistributionId');
     if (!distributorsDistId) throw new Error('Distribution name not found');
