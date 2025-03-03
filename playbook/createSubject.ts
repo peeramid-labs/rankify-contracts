@@ -36,7 +36,7 @@ task('createSubject', 'Creates a new subject with MAO distribution')
       rankifySettings: {
         rankTokenContractURI: taskArgs.rankTokenContractUri,
         rankTokenURI: taskArgs.rankTokenUri,
-        principalCost: ethers.utils.formatUnits(taskArgs.principalCost, 9),
+        principalCost: ethers.utils.parseUnits(taskArgs.principalCost, 9),
         principalTimeConstant: taskArgs.principalTimeConstant,
       },
     };
