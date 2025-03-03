@@ -304,7 +304,11 @@ const setupAddresses = async (hre: HardhatRuntimeEnvironment): Promise<AdrSetupR
     gameOwner,
   };
 };
-export const setupMockedEnvironment = async (hre: HardhatRuntimeEnvironment, useFixture: boolean = true, withDeploy = true) => {
+export const setupMockedEnvironment = async (
+  hre: HardhatRuntimeEnvironment,
+  useFixture: boolean = true,
+  withDeploy = true,
+) => {
   const { deployments, getNamedAccounts, ethers: _eth } = hre;
   const { deployer, owner } = await hre.getNamedAccounts();
 
@@ -356,27 +360,25 @@ export const setupMockedEnvironment = async (hre: HardhatRuntimeEnvironment, use
   const { ethers } = hre;
   await env.rankifyToken
     .connect(adr.gameOwner.wallet)
-    .mint(adr.gameCreator1.wallet.address, ethers.utils.parseEther('1000000'));
+    .mint(adr.gameCreator1.wallet.address, ethers.utils.parseUnits('100', 9));
   await env.rankifyToken
     .connect(adr.gameOwner.wallet)
-    .mint(adr.gameCreator2.wallet.address, ethers.utils.parseEther('1000000'));
+    .mint(adr.gameCreator2.wallet.address, ethers.utils.parseUnits('100', 9));
   await env.rankifyToken
     .connect(adr.gameOwner.wallet)
-    .mint(adr.gameCreator3.wallet.address, ethers.utils.parseEther('1000000'));
+    .mint(adr.gameCreator3.wallet.address, ethers.utils.parseUnits('100', 9));
   for (const player of adr.players) {
-    await env.rankifyToken
-      .connect(adr.gameOwner.wallet)
-      .mint(player.wallet.address, ethers.utils.parseEther('1000000'));
+    await env.rankifyToken.connect(adr.gameOwner.wallet).mint(player.wallet.address, ethers.utils.parseUnits('100', 9));
   }
   await env.rankifyToken
     .connect(adr.gameOwner.wallet)
-    .mint(adr.maliciousActor1.wallet.address, ethers.utils.parseEther('1000000'));
+    .mint(adr.maliciousActor1.wallet.address, ethers.utils.parseUnits('100', 9));
   await env.rankifyToken
     .connect(adr.gameOwner.wallet)
-    .mint(adr.maliciousActor2.wallet.address, ethers.utils.parseEther('1000000'));
+    .mint(adr.maliciousActor2.wallet.address, ethers.utils.parseUnits('100', 9));
   await env.rankifyToken
     .connect(adr.gameOwner.wallet)
-    .mint(adr.maliciousActor3.wallet.address, ethers.utils.parseEther('1000000'));
+    .mint(adr.maliciousActor3.wallet.address, ethers.utils.parseUnits('100', 9));
   return {
     env,
     adr,

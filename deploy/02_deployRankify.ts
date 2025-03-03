@@ -18,8 +18,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const rankifyContract = (await ethers.getContractAt(deployment.abi, deployment.address)) as Rankify;
   const signer = await ethers.getSigner(owner);
   // 100,000,000 as we are using 9 decimals precision
-  await rankifyContract.connect(signer).mint(owner, ethers.utils.parseEther('0.1'));
-};
+  await rankifyContract.connect(signer).mint(owner, ethers.utils.parseUnits('1', 17));
 
 export default func;
 func.tags = ['rankify'];

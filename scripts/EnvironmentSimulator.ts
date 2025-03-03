@@ -184,14 +184,14 @@ export const constantParams = {
   RInstance_MIN_PLAYERS: 5,
   RInstance_MAX_TURNS: 3,
   RInstance_TIME_TO_JOIN: '200',
-  RInstance_GAME_PRICE: utils.parseEther('0.001'),
-  RInstance_JOIN_GAME_PRICE: utils.parseEther('0.001'),
+  RInstance_GAME_PRICE: utils.parseUnits('0.001', 9),
+  RInstance_JOIN_GAME_PRICE: utils.parseUnits('0.001', 9),
   RInstance_NUM_WINNERS: 3,
   RInstance_VOTE_CREDITS: 14,
   RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
   RInstance_MIN_GAME_TIME: 360,
-  PRINCIPAL_COST: utils.parseEther('1'),
+  PRINCIPAL_COST: utils.parseUnits('1', 9),
 };
 class EnvironmentSimulator {
   hre: HardhatRuntimeEnvironment;
