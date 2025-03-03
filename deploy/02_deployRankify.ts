@@ -2,6 +2,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { Rankify } from '../types';
 import { ethers } from 'hardhat';
+
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts } = hre;
   const { deploy } = deployments;
@@ -19,6 +20,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const signer = await ethers.getSigner(owner);
   // 100,000,000 as we are using 9 decimals precision
   await rankifyContract.connect(signer).mint(owner, ethers.utils.parseUnits('1', 17));
+}
 
 export default func;
 func.tags = ['rankify'];
