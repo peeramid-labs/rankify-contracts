@@ -12,7 +12,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await deploy('DAODistributor', {
     from: deployer,
-    args: [owner, token.address, ethers.utils.parseEther('1')],
+    args: [owner, token.address, ethers.utils.parseUnits('1', 9)],
     skipIfAlreadyDeployed: true,
   });
 };

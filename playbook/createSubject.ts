@@ -36,7 +36,7 @@ task('createSubject', 'Creates a new subject with MAO distribution')
       rankifySettings: {
         rankTokenContractURI: taskArgs.rankTokenContractUri,
         rankTokenURI: taskArgs.rankTokenUri,
-        principalCost: ethers.utils.parseEther(taskArgs.principalCost),
+        principalCost: ethers.utils.formatUnits(taskArgs.principalCost, 9),
         principalTimeConstant: taskArgs.principalTimeConstant,
       },
     };
@@ -60,7 +60,7 @@ task('createSubject', 'Creates a new subject with MAO distribution')
     const { DAO: owner } = await hre.getNamedAccounts();
     const oSigner = await hre.ethers.getSigner(owner);
     const tokenContract = new hre.ethers.Contract(token.address, token.abi, oSigner) as Rankify;
-    (await tokenContract.mint(oSigner.address, hre.ethers.utils.parseEther('100'))).wait(1);
+    (await tokenContract.mint(oSigner.address, hre.ethers.utils.parseUnits('100', 9))).wait(1);
     (await tokenContract.approve(distributorContract.address, hre.ethers.constants.MaxUint256)).wait(1);
     const tx = await distributorContract.connect(oSigner).instantiate(distributorsID, data);
     const receipt = await tx.wait(1);
