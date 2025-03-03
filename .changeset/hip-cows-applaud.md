@@ -1,5 +1,5 @@
 ---
-'rankify-contracts': minor
+'rankify-contracts': patch
 ---
 
-Fixed created distrubution check... added new flag to setupMockEnvironment
+Fixed created distribution check... added new flag to setupMockEnvironment
