@@ -284,4 +284,4 @@ zk_artifacts/
 src/verifiers/
 .zkproofs-cache/
 
-all-signatures.json
+signatures.json

@@ -72,7 +72,7 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   const { owner } = await getNamedAccounts();
   const oSigner = await ethers.getSigner(owner);
   const tokenContract = new ethers.Contract(token.address, token.abi, oSigner) as Rankify;
-  await tokenContract.mint(oSigner.address, ethers.utils.parseEther('100'));
+  await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
   await tokenContract.approve(env.distributor.address, ethers.constants.MaxUint256);
   await env.distributor.connect(oSigner).instantiate(distributorsDistId, data);
 

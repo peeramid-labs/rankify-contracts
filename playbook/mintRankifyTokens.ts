@@ -13,7 +13,7 @@ task('mintTokensTo', 'Mints tokens to owner')
       await hre.ethers.getSigner(owner),
     ) as Rankify;
 
-    const tx = await rankifyContract.mint(taskArgs.address, hre.ethers.utils.parseEther('10000'));
+    const tx = await rankifyContract.mint(taskArgs.address, hre.ethers.utils.parseUnits('10000', 9));
     await tx.wait(1);
 
     const balance = await rankifyContract.balanceOf(taskArgs.address);
