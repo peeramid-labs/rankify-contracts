@@ -1,5 +1,15 @@
 # rankify-contracts
 
+## 0.12.1
+
+### Patch Changes
+
+- [#136](https://github.com/peeramid-labs/rankify-contracts/pull/136) [`82efeb0f2301797a0e6435cf3a54cc7c4440e1a5`](https://github.com/peeramid-labs/rankify-contracts/commit/82efeb0f2301797a0e6435cf3a54cc7c4440e1a5) Thanks [@theKosmoss](https://github.com/theKosmoss)! - Fixed created distribution check... added new flag to setupMockEnvironment
+
+- [#143](https://github.com/peeramid-labs/rankify-contracts/pull/143) [`f3fa6b8ef1d101a93d86b09df3978a07f449c5a2`](https://github.com/peeramid-labs/rankify-contracts/commit/f3fa6b8ef1d101a93d86b09df3978a07f449c5a2) Thanks [@peersky](https://github.com/peersky)! - Minor improvements and tweaks
+
+- [#143](https://github.com/peeramid-labs/rankify-contracts/pull/143) [`f3fa6b8ef1d101a93d86b09df3978a07f449c5a2`](https://github.com/peeramid-labs/rankify-contracts/commit/f3fa6b8ef1d101a93d86b09df3978a07f449c5a2) Thanks [@peersky](https://github.com/peersky)! - Arbitrum Seplolia contract deployment
+
 ## 0.12.0
 
 ### Minor Changes
