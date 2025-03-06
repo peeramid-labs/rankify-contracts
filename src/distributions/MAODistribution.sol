@@ -173,7 +173,17 @@ contract MAODistribution is IDistribution, CodeIndexer {
         UserRankifySettings memory args,
         address derivedToken
     ) internal returns (address[] memory instances, bytes32, uint256) {
-        address rankToken = _rankTokenBase.clone();
+
+        address rankToken;
+        addres predicate = _rankTokenBase.predictDeterministicAddress(_rankTokenBase, abi.encode(args), address(this));
+        if(predicate.codehash) {
+            rankToken = predicate;
+        }
+        else {
+            rankToken = _rankTokenBase.cloneDeterministic(abi.encode(args));
+        }
+
+        predicate = _accessManagerBase.predictDeterministicAddress(_accessManagerBase, abi.encode(args), address(this));
 
         bytes4[] memory rankTokenSelectors = new bytes4[](6);
         rankTokenSelectors[0] = RankToken.mint.selector;
