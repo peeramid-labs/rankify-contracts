@@ -1,5 +1,11 @@
 # rankify-contracts
 
+## 0.12.2
+
+### Patch Changes
+
+- [#152](https://github.com/peeramid-labs/rankify-contracts/pull/152) [`459f582e93cb52ca4de6a02d9c7f35c3f238f35a`](https://github.com/peeramid-labs/rankify-contracts/commit/459f582e93cb52ca4de6a02d9c7f35c3f238f35a) Thanks [@peersky](https://github.com/peersky)! - made game canceled state more explicit
+
 ## 0.12.1
 
 ### Patch Changes
