@@ -49,6 +49,8 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
     distrId: await getCodeIdFromArtifact(hre)('MAODistribution'),
     signer: adr.gameOwner.wallet,
   });
+  const { owner } = await getNamedAccounts();
+  const oSigner = await ethers.getSigner(owner);
   const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
     tokenSettings: {
       tokenName: 'tokenName',
@@ -59,6 +61,7 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
       rankTokenURI: 'https://example.com/rank',
       principalCost: constantParams.PRINCIPAL_COST,
       principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
+      owner,
     },
   };
   const data = generateDistributorData(distributorArguments);
@@ -69,8 +72,7 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   if (typeof distributorsDistId !== 'string') throw new Error('Distribution name must be a string');
 
   const token = await deployments.get('Rankify');
-  const { owner } = await getNamedAccounts();
-  const oSigner = await ethers.getSigner(owner);
+
   const tokenContract = new ethers.Contract(token.address, token.abi, oSigner) as Rankify;
   await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
   await tokenContract.approve(env.distributor.address, ethers.constants.MaxUint256);

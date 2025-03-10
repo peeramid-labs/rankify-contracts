@@ -29,6 +29,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         uint96 principalTimeConstant;
         string rankTokenURI;
         string rankTokenContractURI;
+        address owner;
     }
 
     struct TokenArguments {
@@ -214,7 +215,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
             args.rankTokenURI,
             args.rankTokenContractURI,
             address(rankTokenAccessManager),
-            msg.sender
+            args.owner
         );
 
         (

@@ -24,6 +24,8 @@ describe('Rank Token Test', async function () {
       distrId: await getCodeIdFromArtifact(hre)('MAODistribution'),
       signer: adr.gameOwner.wallet,
     });
+    const { owner } = await getNamedAccounts();
+    const oSigner = await ethers.getSigner(owner);
     const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
       tokenSettings: {
         tokenName: 'tokenName',
@@ -34,16 +36,15 @@ describe('Rank Token Test', async function () {
         principalCost: constantParams.PRINCIPAL_COST,
         principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
         rankTokenURI: 'https://example.com/rank',
+        owner,
       },
     };
     // Use generateDistributorData to encode the arguments
     const data = generateDistributorData(distributorArguments);
     const maoCode = await hre.ethers.provider.getCode(env.maoDistribution.address);
     const maoId = ethers.utils.keccak256(maoCode);
-
     const token = await deployments.get('Rankify');
-    const { owner } = await getNamedAccounts();
-    const oSigner = await ethers.getSigner(owner);
+
     const tokenContract = new ethers.Contract(token.address, token.abi, oSigner) as Rankify;
     await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
     await tokenContract.approve(env.distributor.address, ethers.constants.MaxUint256);
