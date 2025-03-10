@@ -190,7 +190,6 @@ library LibTBG {
         delete tbg.instances[gameId].settings.timeToJoin;
         delete tbg.instances[gameId].settings.maxTurns;
         delete tbg.instances[gameId].settings.voteCredits;
-
     }
 
     /**
