@@ -38,6 +38,7 @@ task('createSubject', 'Creates a new subject with MAO distribution')
         rankTokenURI: taskArgs.rankTokenUri,
         principalCost: ethers.utils.parseUnits(taskArgs.principalCost, 9),
         principalTimeConstant: taskArgs.principalTimeConstant,
+        owner: taskArgs.owner,
       },
     };
 

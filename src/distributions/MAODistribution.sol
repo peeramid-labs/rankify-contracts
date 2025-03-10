@@ -29,6 +29,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         uint96 principalTimeConstant;
         string rankTokenURI;
         string rankTokenContractURI;
+        address owner;
     }
 
     struct TokenArguments {
@@ -210,7 +211,12 @@ contract MAODistribution is IDistribution, CodeIndexer {
         RankTokenAccessSettings[5].distributionComponentsOnly = true;
 
         rankTokenAccessManager.initialize(RankTokenAccessSettings, rankToken, IDistributor(msg.sender)); // msg.sender must be IDistributor or it will revert
-        RankToken(rankToken).initialize(args.rankTokenURI, args.rankTokenContractURI, address(rankTokenAccessManager));
+        RankToken(rankToken).initialize(
+            args.rankTokenURI,
+            args.rankTokenContractURI,
+            address(rankTokenAccessManager),
+            args.owner
+        );
 
         (
             address[] memory RankifyDistrAddresses,

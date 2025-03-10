@@ -8,7 +8,7 @@ import "@peeramid-labs/eds/src/abstracts/ERC7746Middleware.sol";
 import "@peeramid-labs/eds/src/libraries/LibMiddleware.sol";
 import {IERC1155} from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
-
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 //ToDo: it was planned to make it track for highest token users hold (their rank), right now it's not implemented. Yet.
 
 /**
@@ -16,7 +16,7 @@ import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
  * @author Peersky
  * @notice RankToken is a composite ERC1155 token that is used to track user ranks
  */
-contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware {
+contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpgradeable {
     struct Storage {
         string _contractURI;
     }
@@ -30,12 +30,17 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware {
         }
     }
 
-    constructor(string memory uri_, string memory cURI, address accessLayer) {
-        initialize(uri_, cURI, accessLayer);
+    constructor(string memory uri_, string memory cURI, address accessLayer, address owner_) {
+        initialize(uri_, cURI, accessLayer, owner_);
     }
 
-    function initialize(string memory uri_, string memory cURI, address accessLayer) public initializer {
-        // __Ownable_init(owner_);
+    function initialize(
+        string memory uri_,
+        string memory cURI,
+        address accessLayer,
+        address owner_
+    ) public initializer {
+        __Ownable_init(owner_);
         _setURI(uri_);
         getStorage()._contractURI = cURI;
         LibMiddleware.LayerStruct[] memory layers = new LibMiddleware.LayerStruct[](1);
@@ -51,14 +56,6 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware {
 
     function contractURI() public view returns (string memory) {
         return getStorage()._contractURI;
-    }
-
-    function setURI(string memory uri_) public ERC7746C(msg.sig, msg.sender, msg.data, 0) {
-        _setURI(uri_);
-    }
-
-    function setContractURI(string memory uri_) public ERC7746C(msg.sig, msg.sender, msg.data, 0) {
-        getStorage()._contractURI = uri_;
     }
 
     function _mintRank(address to, uint256 amount, uint256 level, bytes memory data) private {
@@ -131,5 +128,13 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware {
         uint256 value
     ) public override(LockableERC1155, ILockableERC1155) ERC7746C(msg.sig, msg.sender, msg.data, 0) {
         super.burn(account, id, value);
+    }
+
+    function setContractURI(string memory uri_) public onlyOwner {
+        getStorage()._contractURI = uri_;
+    }
+
+    function setURI(string memory uri_) public onlyOwner {
+        _setURI(uri_);
     }
 }
