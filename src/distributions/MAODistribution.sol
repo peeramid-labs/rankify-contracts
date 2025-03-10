@@ -210,7 +210,12 @@ contract MAODistribution is IDistribution, CodeIndexer {
         RankTokenAccessSettings[5].distributionComponentsOnly = true;
 
         rankTokenAccessManager.initialize(RankTokenAccessSettings, rankToken, IDistributor(msg.sender)); // msg.sender must be IDistributor or it will revert
-        RankToken(rankToken).initialize(args.rankTokenURI, args.rankTokenContractURI, address(rankTokenAccessManager), msg.sender);
+        RankToken(rankToken).initialize(
+            args.rankTokenURI,
+            args.rankTokenContractURI,
+            address(rankTokenAccessManager),
+            msg.sender
+        );
 
         (
             address[] memory RankifyDistrAddresses,

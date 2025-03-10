@@ -34,7 +34,12 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpg
         initialize(uri_, cURI, accessLayer, owner_);
     }
 
-    function initialize(string memory uri_, string memory cURI, address accessLayer, address owner_) public initializer {
+    function initialize(
+        string memory uri_,
+        string memory cURI,
+        address accessLayer,
+        address owner_
+    ) public initializer {
         __Ownable_init(owner_);
         _setURI(uri_);
         getStorage()._contractURI = cURI;
@@ -52,7 +57,6 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpg
     function contractURI() public view returns (string memory) {
         return getStorage()._contractURI;
     }
-
 
     function _mintRank(address to, uint256 amount, uint256 level, bytes memory data) private {
         require(to != address(0), "RankToken->mint: Address not specified");
