@@ -53,13 +53,6 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpg
         return getStorage()._contractURI;
     }
 
-    function setURI(string memory uri_) public ERC7746C(msg.sig, msg.sender, msg.data, 0) {
-        _setURI(uri_);
-    }
-
-    function setContractURI(string memory uri_) public ERC7746C(msg.sig, msg.sender, msg.data, 0) {
-        getStorage()._contractURI = uri_;
-    }
 
     function _mintRank(address to, uint256 amount, uint256 level, bytes memory data) private {
         require(to != address(0), "RankToken->mint: Address not specified");
