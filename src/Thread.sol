@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
-import {LibRankify} from "../libraries/LibRankify.sol";
-import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
-import "../abstracts/DiamondReentrancyGuard.sol";
+import {LibTBG} from "./libraries/LibTurnBasedGame.sol";
+import {LibRankify} from "./libraries/LibRankify.sol";
+import {IRankifyInstance} from "./interfaces/IRankifyInstance.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../abstracts/draft-EIP712Diamond.sol";
-import {LibCoinVending} from "../libraries/LibCoinVending.sol";
+import "./abstracts/draft-EIP712Diamond.sol";
+import {LibCoinVending} from "./libraries/LibCoinVending.sol";
 import "hardhat/console.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "../vendor/diamond/libraries/LibDiamond.sol";
-import {IErrors} from "../interfaces/IErrors.sol";
-import {ProposalsIntegrity15Groth16Verifier} from "../verifiers/ProposalsIntegrity15Groth16Verifier.sol";
+import "./vendor/diamond/libraries/LibDiamond.sol";
+import {IErrors} from "./interfaces/IErrors.sol";
+import {ProposalsIntegrity15Groth16Verifier} from "./verifiers/ProposalsIntegrity15Groth16Verifier.sol";
 
 interface IPoseidon5 {
     function poseidon(bytes32[5] memory inputs) external view returns (bytes32);
@@ -33,7 +33,7 @@ interface IPoseidon2 {
  * @dev Implements game master specific operations like vote submission and game management
  * @author Peeramid Labs, 2024
  */
-contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
+contract Thread is ReentrancyGuardUpgradeable, EIP712 {
     // This is the precompiled value of Poseidon2(0,0)
     uint256 private constant zeroPoseidon2 =
         14744269619966411208579211824598458697587494354926760081771325075741142829156;
