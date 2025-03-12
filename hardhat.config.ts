@@ -72,10 +72,10 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 
 task('getSuperInterface', 'Prints the super interface of a contract')
   .setAction(async (taskArgs: { outputPath: string }, hre) => {
+    console.log = () => {};
     const su = getSuperInterface(taskArgs.outputPath + '/super-interface.json');
     let return_value: Record<string, string> = {};
     const originalConsoleLog = console.log;
-    console.log = () => {};
     Object.values(su.functions).forEach(x => {
       return_value[su.getSighash(x.format())] = x.format(FormatTypes.full);
     });
