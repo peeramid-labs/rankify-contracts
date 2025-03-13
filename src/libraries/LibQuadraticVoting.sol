@@ -52,6 +52,27 @@ library LibQuadraticVoting {
     }
 
     /**
+     * @dev Computes the maximal viable spend for a given number of positions.
+     *
+     * Returns:
+     *
+     * - The maximal viable spend.
+     */
+    function computeMaximalViableSpend(
+        qVotingStruct memory q,
+        uint256 actualPositionLength
+    ) internal pure returns (uint256) {
+        uint256 expectedSpent = q.voteCredits;
+        uint256 iterator = 0;
+        uint256 accumulator = 1;
+        do {
+            accumulator = accumulator + (accumulator + iterator) ** 2;
+            iterator++;
+        } while (iterator < (actualPositionLength) && accumulator < q.voteCredits);
+        return expectedSpent;
+    }
+
+    /**
      * @dev Computes the scores for each proposal by voter preference index. `q` is the precomputed quadratic voting values. `VotersVotes` is a 2D array of votes, where each row corresponds to a voter and each column corresponds to a proposal. `isActive` is an array indicating whether each voter has voted.
      *
      * Returns:
@@ -66,8 +87,10 @@ library LibQuadraticVoting {
         uint256 notVotedGivesEveryone = q.maxQuadraticPoints;
         uint256[] memory scores = new uint256[](tally.length);
         uint256[] memory creditsUsed = new uint256[](tally.length);
+        uint256 numInactive = 0;
 
         for (uint256 participant = 0; participant < tally.length; participant++) {
+            if (!isActive[participant]) numInactive++;
             //For each proposal
             // console.log("New tally iter");
             uint256[] memory votedFor = tally[participant];
@@ -83,9 +106,15 @@ library LibQuadraticVoting {
                     creditsUsed[participant] += votedFor[candidate] ** 2;
                 }
             }
+            uint256 expectedSpent = q.voteCredits;
+            uint256 actualPlayersLength = tally.length - numInactive;
+            if (q.minQuadraticPositions < actualPlayersLength) {
+                expectedSpent = computeMaximalViableSpend(q, actualPlayersLength);
+            }
+
             require(
-                creditsUsed[participant] <= q.voteCredits,
-                quadraticVotingError("Quadratic: vote credits overrun", q.voteCredits, creditsUsed[participant])
+                creditsUsed[participant] <= expectedSpent,
+                quadraticVotingError("Quadratic: vote credits overrun", expectedSpent, creditsUsed[participant])
             );
         }
         return scores;
