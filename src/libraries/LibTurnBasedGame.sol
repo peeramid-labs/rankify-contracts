@@ -182,6 +182,14 @@ library LibTBG {
         delete tbg.instances[gameId].state.registrationOpenAt;
         delete tbg.instances[gameId].state.turnStartedAt;
         delete tbg.instances[gameId].state.numActivePlayers;
+        delete tbg.instances[gameId].settings.gameMaster;
+        delete tbg.instances[gameId].settings.implementationStoragePointer;
+        delete tbg.instances[gameId].settings.timePerTurn;
+        delete tbg.instances[gameId].settings.maxPlayerCnt;
+        delete tbg.instances[gameId].settings.minPlayerCnt;
+        delete tbg.instances[gameId].settings.timeToJoin;
+        delete tbg.instances[gameId].settings.maxTurns;
+        delete tbg.instances[gameId].settings.voteCredits;
     }
 
     /**
