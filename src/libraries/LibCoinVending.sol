@@ -65,7 +65,7 @@ library LibCoinVending {
         address[] contractAddresses;
         uint256[] contractIds;
         bool _isConfigured;
-    }
+    } 
     enum RequirementTypes {
         HAVE,
         LOCK,
@@ -136,11 +136,11 @@ library LibCoinVending {
 
     bytes32 constant COIN_VENDING_STORAGE_POSITION = keccak256("coin.vending.storage.position");
 
-    function coinVendingPosition(bytes32 position) internal view returns (Condition storage) {
+    function coinVendingPosition(bytes32 position) public view returns (Condition storage) {
         return coinVendingStorage().positions[keccak256(abi.encode(position))];
     }
 
-    function coinVendingStorage() internal pure returns (LibCoinVendingStorage storage es) {
+    function coinVendingStorage() public pure returns (LibCoinVendingStorage storage es) {
         bytes32 position = COIN_VENDING_STORAGE_POSITION;
         assembly {
             es.slot := position
@@ -160,7 +160,7 @@ library LibCoinVending {
      *
      * - The token balances of the `from` and `to` addresses, or the total supply of tokens if `to` is the zero address.
      */
-    function transferFromAny(address erc20Addr, address from, address to, uint256 value) private {
+    function transferFromAny(address erc20Addr, address from, address to, uint256 value) public {
         MockERC20 token = MockERC20(erc20Addr);
         if (value != 0) {
             if (from == address(this)) {
@@ -200,7 +200,7 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-    ) private {
+    ) public {
         transferFromAny(erc20Addr, from, lockAddress, tokenReq.lock.amount);
         transferFromAny(erc20Addr, from, burnAddress, tokenReq.burn.amount);
         transferFromAny(erc20Addr, from, payee, tokenReq.pay.amount);
@@ -237,7 +237,7 @@ library LibCoinVending {
      *  2: implement onERC721Received such that there is NFT vault in the contract, later fill funding position from that vault. That way applicant could pre-send NFT's to the contract and calling fund later would pull those out from the vault.
 
      */
-    function fulfillERC72Balance(address erc721addr, ContractCondition storage tokenReq, address from) private view {
+    function fulfillERC72Balance(address erc721addr, ContractCondition storage tokenReq, address from) public view {
         ERC721 token = ERC721(erc721addr);
 
         require(
@@ -274,7 +274,7 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-    ) private {
+    ) public {
         ERC1155Burnable token = ERC1155Burnable(erc1155addr);
         uint256 value = tokenReq.have.amount;
         if (value != 0) {
@@ -321,7 +321,7 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-    ) private {
+    ) public {
         if (from == address(this)) {
             if (position.ethValues.lock != 0) {
                 payable(lockAddress).transfer(position.ethValues.lock);
@@ -399,7 +399,7 @@ library LibCoinVending {
      * - Transfers the remaining balance of the condition to the `to` address.
      * - Increments the `timesRefunded` counter for the condition.
      */
-    function refund(bytes32 position, address to) internal {
+    function refund(bytes32 position, address to) public {
         Condition storage reqPos = coinVendingPosition(position);
         _refund(reqPos, to);
     }
@@ -416,14 +416,14 @@ library LibCoinVending {
      * - Transfers the remaining balance of the condition to each address in `returnAddresses`.
      * - Increments the `timesRefunded` counter for the condition for each address in `returnAddresses`.
      */
-    function batchRefund(bytes32 position, address[] memory returnAddresses) internal {
+    function batchRefund(bytes32 position, address[] memory returnAddresses) public {
         Condition storage reqPos = coinVendingPosition(position);
         for (uint256 i = 0; i < returnAddresses.length; ++i) {
             _refund(reqPos, returnAddresses[i]);
         }
     }
 
-    function _release(Condition storage reqPos, address payee, address beneficiary, address returnAddress) private {
+    function _release(Condition storage reqPos, address payee, address beneficiary, address returnAddress) public {
         require((reqPos.timesRefunded + reqPos.timesReleased) < reqPos.timesFunded, "Not enough balance to release");
         fulfill(reqPos, address(this), payee, beneficiary, address(0), returnAddress);
         reqPos.timesReleased += 1;
@@ -441,7 +441,7 @@ library LibCoinVending {
      * - Transfers the remaining balance of the condition to the `payee`, `beneficiary`, and `returnAddress`.
      * - Increments the `timesReleased` counter for the condition.
      */
-    function release(bytes32 position, address payee, address beneficiary, address returnAddress) internal {
+    function release(bytes32 position, address payee, address beneficiary, address returnAddress) public {
         Condition storage reqPos = coinVendingPosition(position);
         _release(reqPos, payee, beneficiary, returnAddress);
     }
@@ -463,7 +463,7 @@ library LibCoinVending {
         address payee,
         address beneficiary,
         address[] memory returnAddresses
-    ) internal {
+    ) public {
         Condition storage reqPos = coinVendingPosition(position);
         for (uint256 i = 0; i < returnAddresses.length; ++i) {
             {
@@ -490,7 +490,7 @@ library LibCoinVending {
      * - Transfers the funds from `msg.sender` to this contract.
      * - Increments the `timesFunded` counter for the condition.
      */
-    function fund(bytes32 position) internal {
+    function fund(bytes32 position) public {
         Condition storage reqPos = coinVendingPosition(position);
         _fund(reqPos, msg.sender);
     }
@@ -506,7 +506,7 @@ library LibCoinVending {
      *
      * - Sets the configuration of the condition to `configuration`.
      */
-    function configure(bytes32 position, ConfigPosition memory configuration) internal {
+    function configure(bytes32 position, ConfigPosition memory configuration) public {
         Condition storage mustDo = coinVendingPosition(position);
         require(
             mustDo.timesFunded == 0 || (mustDo.timesFunded == (mustDo.timesRefunded + mustDo.timesReleased)),
@@ -534,7 +534,7 @@ library LibCoinVending {
      *
      * - The condition associated with `position`.
      */
-    function getPosition(bytes32 position) internal view returns (ConditionReturn memory) {
+    function getPosition(bytes32 position) public view returns (ConditionReturn memory) {
         Condition storage pos = coinVendingPosition(position);
         ConditionReturn memory ret;
         ret.ethValues = pos.ethValues;
@@ -560,7 +560,7 @@ library LibCoinVending {
         address contractAddress,
         uint256 contractId,
         ContractTypes contractType
-    ) internal view returns (ContractCondition memory) {
+    ) public view returns (ContractCondition memory) {
         Condition storage pos = coinVendingPosition(position);
         return pos.contracts[contractType][contractAddress][contractId];
     }

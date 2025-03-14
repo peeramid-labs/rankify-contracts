@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibQuadraticVoting} from "../libraries/LibQuadraticVoting.sol";
-import {IInstaller} from "@peeramid-labs/eds/interfaces/IInstaller.sol";
+import {IInstaller} from "@peeramid-labs/eds/src/interfaces/IInstaller.sol";
 
 interface IRankifyInstance is IInstaller {
     error NoDivisionReminderAllowed(uint256 a, uint256 b);
