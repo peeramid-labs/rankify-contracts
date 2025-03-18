@@ -92,6 +92,21 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     skipIfAlreadyDeployed: true,
   });
 
+  console.log('Deploying LibCVPP...');
+  const LibCVPPDeployment = await deploy('LibCVPP', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+  });
+
+  console.log('Deploying Thread...');
+  const ThreadDeployment = await deploy('Thread', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    libraries: {
+      LibCVPP: LibCVPPDeployment.address,
+    },
+  });
+
   const RankifyMainFacetDeployment = await deploy('RankifyInstanceMainFacet', {
     from: deployer,
     skipIfAlreadyDeployed: true,
