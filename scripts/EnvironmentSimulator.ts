@@ -1060,32 +1060,28 @@ class EnvironmentSimulator {
       idlers,
       proposalSubmissionData: proposals,
     });
-    log(ethers.BigNumber.from('0x3026fe3b72cce5261a75c839d5f360bae3902cb4232c3e14fa7dbfadcf69a6b0').toString());
-    log(BigInt('0x3026fe3b72cce5261a75c839d5f360bae3902cb4232c3e14fa7dbfadcf69a6b0').toString());
-    log(JSON.stringify(newProposals, null, 2), 2);
-
-    // const tx = await this.rankifyInstance
-    //   .connect(this.adr.gameMaster1)
-    //   .endTurn(
-    //     gameId,
-    //     (
-    //       votes ??
-    //       (await this.mockValidVotes(
-    //         this.getPlayers(this.adr, players.length),
-    //         gameId,
-    //         this.adr.gameMaster1,
-    //         turn.eq(1) ? false : true,
-    //         'ftw',
-    //       ))
-    //     ).map(vote => {
-    //       return vote.vote;
-    //     }),
-    //     newProposals,
-    //     permutation,
-    //     nullifier,
-    //   )
-    //   .then(r => r.wait(1));
-    // log(tx, 2);
+    const tx = await this.rankifyInstance
+      .connect(this.adr.gameMaster1)
+      .endTurn(
+        gameId,
+        (
+          votes ??
+          (await this.mockValidVotes(
+            this.getPlayers(this.adr, players.length),
+            gameId,
+            this.adr.gameMaster1,
+            turn.eq(1) ? false : true,
+            'ftw',
+          ))
+        ).map(vote => {
+          return vote.vote;
+        }),
+        newProposals,
+        permutation,
+        nullifier,
+      )
+      .then(r => r.wait(1));
+    log(tx, 2);
   }
 
   public async runToTheEnd(gameId: BigNumberish, distribution: 'ftw' | 'semiUniform' | 'equal' = 'ftw') {
