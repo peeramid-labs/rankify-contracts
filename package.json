@@ -14,7 +14,7 @@
   "description": "Contracts for rankify.it",
   "scripts": {
     "lint:fix": "eslint ./ --fix && pnpm run lint:sol:fix",
-    "clean": "npx hardhat zkit clean && rm -rf ./.zkproofs-cache && pnpm hardhat clean",
+    "clean": "rm -rf ./.zkproofs-cache && pnpm hardhat clean",
     "lint": "eslint ./ && pnpm run lint:sol",
     "test": "export NODE_ENV=TEST && pnpm build && pnpm hardhat test",
     "test:parallel": "export NODE_ENV=TEST && pnpm build && pnpm hardhat test --parallel",
