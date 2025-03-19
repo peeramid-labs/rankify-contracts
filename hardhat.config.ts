@@ -42,6 +42,8 @@ subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) 
 
 task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').setAction(async (_, hre) => {
   try {
+    const originalConsoleLog = console.log;
+    console.log = () => {};
     const diamondDirpath = join('./abi/hardhat-diamond-abi/HardhatDiamondABI.sol');
     await mkdir(diamondDirpath, { recursive: true });
     const diamondAbiPath = join(diamondDirpath, 'RankifyDiamondInstance.json');
@@ -51,6 +53,7 @@ task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').s
       const data = `export const abi = ${inspect(abi, false, null)} as const; export default abi;`;
       await writeFile(join(diamondDirpath, 'RankifyDiamondInstance.ts'), data);
     }
+    console.log = originalConsoleLog;
   } catch (error) {
     console.warn('Failed to generate diamond ABI:', error);
   }
@@ -72,10 +75,10 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 
 task('getSuperInterface', 'Prints the super interface of a contract')
   .setAction(async (taskArgs: { outputPath: string }, hre) => {
+    const originalConsoleLog = console.log;
     console.log = () => {};
     const su = getSuperInterface(taskArgs.outputPath + '/super-interface.json');
     let return_value: Record<string, string> = {};
-    const originalConsoleLog = console.log;
     Object.values(su.functions).forEach(x => {
       return_value[su.getSighash(x.format())] = x.format(FormatTypes.full);
     });
