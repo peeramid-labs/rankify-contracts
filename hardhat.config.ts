@@ -201,6 +201,12 @@ export default {
         mnemonic: process.env.ARB_SEPOLIA_MNEMONIC ?? 'x',
       },
       tags: ['ERC7744'],
+      verify: {
+        etherscan: {
+          apiKey: process.env.ARB_SEPOLIA_ETHERSCAN_API_KEY ?? '',
+          apiUrl: 'https://api-sepolia.arbiscan.io/',
+        },
+      },
     },
   },
   paths: {
