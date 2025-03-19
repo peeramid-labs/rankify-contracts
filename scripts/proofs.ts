@@ -188,7 +188,7 @@ export const generateEndTurnIntegrity = async ({
   if (!proof) {
     throw new Error('Proof not found');
   }
-  log('proof blyad:', 3);
+  log('proof:', 3);
   log(JSON.stringify(proof, null, 2), 3);
   const callData = await circuit.generateCalldata(proof);
 
