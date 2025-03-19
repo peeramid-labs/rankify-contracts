@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.20;
+pragma solidity =0.8.28;
 
 import "@peeramid-labs/eds/src/abstracts/TokenizedDistributor.sol";
 import "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
