@@ -14,14 +14,14 @@
   "description": "Contracts for rankify.it",
   "scripts": {
     "lint:fix": "eslint ./ --fix && pnpm run lint:sol:fix",
-    "clean": "npx hardhat zkit clean && rm -rf ./.zkproofs-cache && pnpm hardhat clean",
+    "clean": "rm -rf ./.zkproofs-cache && pnpm hardhat clean",
     "lint": "eslint ./ && pnpm run lint:sol",
     "test": "export NODE_ENV=TEST && pnpm build && pnpm hardhat test",
     "test:parallel": "export NODE_ENV=TEST && pnpm build && pnpm hardhat test --parallel",
     "build": "npx hardhat zkit compile && npx hardhat zkit verifiers && pnpm hardhat compile && pnpm hardhat diamond-abi-viem-export",
     "postbuild": "npx hardhat getSuperInterface --output-path . && mv super-interface.json abi/super-interface.json",
-    "lint:sol": "prettier --log-level warn --ignore-path .gitignore '{src,test}/**/*.sol' --check && solhint '{contracts,test}/**/*.sol'",
-    "lint:sol:fix": "prettier --log-level warn --ignore-path .gitignore '{src,test}/**/*.sol' --write",
+    "lint:sol": "prettier --log-level warn --ignore-path .prettierignore '{src,test}/**/*.sol' --check && solhint '{contracts,test}/**/*.sol'",
+    "lint:sol:fix": "prettier --log-level warn --ignore-path .prettierignore '{src,test}/**/*.sol' --write",
     "version": "pnpm build && changeset version",
     "release": "pnpm hardhat clean && rm -rf ./abi && pnpm build && changeset publish",
     "anvil:deploy": "./playbook/utils/deploy-to-local-anvil.sh"

@@ -7,6 +7,18 @@ package.json
 img
 .env
 .secrets
-README.md
 coverage.json
 deployments
+src/verifiers
+build/
+types
+bin/
+
+abi/
+docs/contracts/
+docs/selectors.md
+
+# circom
+.zkproofs-cache/
+
+signatures.json

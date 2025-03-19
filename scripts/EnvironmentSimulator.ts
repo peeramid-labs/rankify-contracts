@@ -1060,8 +1060,7 @@ class EnvironmentSimulator {
       idlers,
       proposalSubmissionData: proposals,
     });
-
-    await this.rankifyInstance
+    const tx = await this.rankifyInstance
       .connect(this.adr.gameMaster1)
       .endTurn(
         gameId,
@@ -1082,6 +1081,7 @@ class EnvironmentSimulator {
         nullifier,
       )
       .then(r => r.wait(1));
+    log(tx, 2);
   }
 
   public async runToTheEnd(gameId: BigNumberish, distribution: 'ftw' | 'semiUniform' | 'equal' = 'ftw') {
@@ -1331,6 +1331,17 @@ class EnvironmentSimulator {
           await time.increase(timeToEnd.toNumber() + 1);
         }
       }
+      log(
+        {
+          gameId,
+          idlers: [],
+          players,
+          proposals: lastProposals,
+          votes: lastVotes.map(vote => vote.vote),
+          gm: this.adr.gameMaster1,
+        },
+        3,
+      );
       await this.endTurn({ gameId, votes: lastVotes, proposals: lastProposals });
     }
     return { lastVotes, lastProposals };

@@ -1,0 +1,84 @@
+{
+  "_format": "hh-zkit-artifacts-1",
+  "circuitTemplateName": "ProposalsIntegrity15",
+  "circuitFileName": "proposals_integrity_15",
+  "circuitSourceName": "circuits/proposals_integrity_15.circom",
+  "baseCircuitInfo": {
+    "constraintsNumber": 12605,
+    "signals": [
+      {
+        "name": "commitments",
+        "dimension": [
+          15
+        ],
+        "type": "Input",
+        "visibility": "Public"
+      },
+      {
+        "name": "permutedProposals",
+        "dimension": [
+          15
+        ],
+        "type": "Input",
+        "visibility": "Public"
+      },
+      {
+        "name": "permutationCommitment",
+        "dimension": [],
+        "type": "Input",
+        "visibility": "Public"
+      },
+      {
+        "name": "numActive",
+        "dimension": [],
+        "type": "Input",
+        "visibility": "Public"
+      },
+      {
+        "name": "permutation",
+        "dimension": [
+          15
+        ],
+        "type": "Input",
+        "visibility": "Private"
+      },
+      {
+        "name": "randomnesses",
+        "dimension": [
+          15
+        ],
+        "type": "Input",
+        "visibility": "Private"
+      },
+      {
+        "name": "permutationRandomness",
+        "dimension": [],
+        "type": "Input",
+        "visibility": "Private"
+      }
+    ],
+    "parameters": {}
+  },
+  "compilerOutputFiles": {
+    "r1cs": {
+      "fileSourcePath": "/Users/t/GitHub/peeramid/contracts/zk_artifacts/circuits/proposals_integrity_15.circom/ProposalsIntegrity15.r1cs",
+      "fileHash": "f54b5736695b4d389900c180b0dfa1b092d2ad92"
+    },
+    "wasm": {
+      "fileSourcePath": "/Users/t/GitHub/peeramid/contracts/zk_artifacts/circuits/proposals_integrity_15.circom/ProposalsIntegrity15_js/ProposalsIntegrity15.wasm",
+      "fileHash": "668aecd270f295133e97fa9038d8904e9b162468"
+    },
+    "sym": {
+      "fileSourcePath": "/Users/t/GitHub/peeramid/contracts/zk_artifacts/circuits/proposals_integrity_15.circom/ProposalsIntegrity15.sym",
+      "fileHash": "68fbc3dce139fdc8bf364367ec4c401a179b636a"
+    },
+    "groth16.zkey": {
+      "fileSourcePath": "/Users/t/GitHub/peeramid/contracts/zk_artifacts/circuits/proposals_integrity_15.circom/ProposalsIntegrity15.groth16.zkey",
+      "fileHash": "19bf11eec4bf6e83589576f9585da4db6e4c37af"
+    },
+    "groth16.vkey": {
+      "fileSourcePath": "/Users/t/GitHub/peeramid/contracts/zk_artifacts/circuits/proposals_integrity_15.circom/ProposalsIntegrity15.groth16.vkey.json",
+      "fileHash": "cf0ca014500478e1e6c42091d84a36b2bb32a340"
+    }
+  }
+}
