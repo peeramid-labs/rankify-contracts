@@ -98,7 +98,7 @@ export default {
     compilerVersion: '2.2.0',
     circuitsDir: 'circuits',
     compilationSettings: {
-      artifactsDir: 'zk_artifacts',
+      artifactsDir: 'zk_compile',
       onlyFiles: [],
       skipFiles: [],
       c: false,
@@ -115,7 +115,7 @@ export default {
       ptauDownload: true,
     },
     verifiersSettings: {
-      verifiersDir: 'src/verifiers',
+      verifiersDir: 'zk_compile/verifiers',
       verifiersType: 'sol', // or "vy"
     },
     typesDir: 'types/zk',

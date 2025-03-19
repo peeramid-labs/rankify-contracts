@@ -283,3 +283,6 @@ docs/selectors.md
 .zkproofs-cache/
 
 signatures.json
+
+
+zk_compile
