@@ -1,5 +1,11 @@
 # rankify-contracts
 
+## 0.12.4
+
+### Patch Changes
+
+- [`2a873995acf78c913e1260a0e0f079658c6101ab`](https://github.com/peeramid-labs/rankify-contracts/commit/2a873995acf78c913e1260a0e0f079658c6101ab) Thanks [@peersky](https://github.com/peersky)! - fixed zk_artifacts compilation logic
+
 ## 0.12.3
 
 ### Patch Changes
