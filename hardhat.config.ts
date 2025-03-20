@@ -118,7 +118,7 @@ export default {
       verifiersDir: 'zk_compile/verifiers',
       verifiersType: 'sol', // or "vy"
     },
-    typesDir: 'types/zk',
+    typesDir: 'zk_compile/types',
     quiet: false,
   },
   docgen: {

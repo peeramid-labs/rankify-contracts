@@ -270,7 +270,7 @@ package-lock.json
 
 artifacts/
 build/
-types
+/types
 bin/
 /deployments/localhost/
 /deployments/hardhat/
