@@ -270,7 +270,7 @@ package-lock.json
 
 artifacts/
 build/
-types
+/types
 bin/
 /deployments/localhost/
 /deployments/hardhat/
@@ -283,3 +283,6 @@ docs/selectors.md
 .zkproofs-cache/
 
 signatures.json
+
+
+zk_compile
