@@ -1,4 +1,4 @@
-import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
+import FellowshipManager, { MockVote, ProposalSubmission } from '../scripts/FellowshipManager';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { DistributableGovernanceERC20, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
@@ -21,7 +21,7 @@ import { HardhatEthersHelpers } from 'hardhat/types';
 import { EnvSetupResult } from '../scripts/setupMockEnvironment';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
-import { constantParams } from '../scripts/EnvironmentSimulator';
+import { constantParams } from '../scripts/FellowshipManager';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
@@ -153,11 +153,11 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
       have: { amount: '1', data: '0x' },
     },
   });
-  const simulator = new EnvironmentSimulator(hre, env, adr, rankifyInstance, rankToken);
+  const simulator = new FellowshipManager(hre, env, adr, rankifyInstance, rankToken);
 
   return { requirement, ethers, getNamedAccounts, adr, env, simulator, rankifyInstance, govtToken, rankToken };
 });
-const setupFirstRankTest = (simulator: EnvironmentSimulator) =>
+const setupFirstRankTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     let initialCreatorBalance: BigNumber;
     let initialBeneficiaryBalance: BigNumber;
@@ -187,12 +187,12 @@ const setupFirstRankTest = (simulator: EnvironmentSimulator) =>
     return { initialCreatorBalance, initialBeneficiaryBalance, initialTotalSupply, gamePrice };
   });
 
-const setupOpenRegistrationTest = (simulator: EnvironmentSimulator) =>
+const setupOpenRegistrationTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.rankifyInstance.connect(simulator.adr.gameCreator1.wallet).openRegistration(1);
   });
 
-const filledPartyTest = (simulator: EnvironmentSimulator) =>
+const filledPartyTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.fillParty({
       players: simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS),
@@ -202,12 +202,12 @@ const filledPartyTest = (simulator: EnvironmentSimulator) =>
     });
   });
 
-const startedGameTest = (simulator: EnvironmentSimulator) =>
+const startedGameTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.startGame(1);
   });
 
-const proposalsReceivedTest = (simulator: EnvironmentSimulator) =>
+const proposalsReceivedTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     const playersCnt = await simulator.rankifyInstance.getPlayers(1).then(players => players.length);
     const proposals = await simulator.mockProposals({
@@ -219,12 +219,12 @@ const proposalsReceivedTest = (simulator: EnvironmentSimulator) =>
     return { proposals };
   });
 
-const gameOverTest = (simulator: EnvironmentSimulator) =>
+const gameOverTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.runToTheEnd(1);
   });
 
-const proposalsMissingTest = (simulator: EnvironmentSimulator) =>
+const proposalsMissingTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.endTurn({ gameId: 1 });
 
@@ -234,7 +234,7 @@ const proposalsMissingTest = (simulator: EnvironmentSimulator) =>
     return { votes };
   });
 
-const firstTurnMadeTest = (simulator: EnvironmentSimulator) =>
+const firstTurnMadeTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     const playersCnt = await simulator.rankifyInstance.getPlayers(1).then(players => players.length);
     const players = simulator.getPlayers(simulator.adr, playersCnt);
@@ -254,14 +254,14 @@ const firstTurnMadeTest = (simulator: EnvironmentSimulator) =>
     });
   });
 
-const allPlayersVotedTest = (simulator: EnvironmentSimulator) =>
+const allPlayersVotedTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     const playersCnt = await simulator.rankifyInstance.getPlayers(1).then(players => players.length);
     const players = simulator.getPlayers(simulator.adr, playersCnt);
     const votes = await simulator.mockValidVotes(players, 1, simulator.adr.gameMaster1, true);
     return { votes };
   });
-const notEnoughPlayersTest = (simulator: EnvironmentSimulator) =>
+const notEnoughPlayersTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.fillParty({
       players: simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS - 1),
@@ -271,7 +271,7 @@ const notEnoughPlayersTest = (simulator: EnvironmentSimulator) =>
     });
   });
 
-const lastTurnEqualScoresTest = (simulator: EnvironmentSimulator) =>
+const lastTurnEqualScoresTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.rankifyInstance.connect(simulator.adr.gameCreator1.wallet).openRegistration(1);
     await simulator.fillParty({
@@ -283,7 +283,7 @@ const lastTurnEqualScoresTest = (simulator: EnvironmentSimulator) =>
     });
     await simulator.runToLastTurn(1, simulator.adr.gameMaster1, 'equal');
   });
-const inOvertimeTest = (simulator: EnvironmentSimulator) =>
+const inOvertimeTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     const playerCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
     const votes = await simulator.mockValidVotes(
@@ -310,7 +310,7 @@ const inOvertimeTest = (simulator: EnvironmentSimulator) =>
     return { receipt, votes, proposals };
   });
 
-const multipleFirstRankGamesTest = (simulator: EnvironmentSimulator) =>
+const multipleFirstRankGamesTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async ({ deployments, getNamedAccounts, ethers }, options) => {
     // const promises = [];
     for (let numGames = 0; numGames < RInstance_MIN_PLAYERS; numGames++) {
@@ -331,7 +331,7 @@ const multipleFirstRankGamesTest = (simulator: EnvironmentSimulator) =>
       await simulator.runToTheEnd(gameId, 'ftw');
     }
   });
-const nextRankTest = (simulator: EnvironmentSimulator) =>
+const nextRankTest = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     await simulator.createGame({
       minGameTime: RInstance_MIN_GAME_TIME,
@@ -341,7 +341,7 @@ const nextRankTest = (simulator: EnvironmentSimulator) =>
       openNow: true,
     });
   });
-const nextRankGameOver = (simulator: EnvironmentSimulator) =>
+const nextRankGameOver = (simulator: FellowshipManager) =>
   deployments.createFixture(async () => {
     let balancesBeforeJoined: BigNumber[] = [];
     const players = simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS, 0);
@@ -383,7 +383,7 @@ describe(scriptName, () => {
 
   let adr: AdrSetupResult;
   let env: EnvSetupResult;
-  let simulator: EnvironmentSimulator;
+  let simulator: FellowshipManager;
   let eth: typeof ethersDirect & HardhatEthersHelpers;
   let mockProposals: typeof simulator.mockProposals;
   let getPlayers: typeof simulator.getPlayers;
@@ -1986,7 +1986,7 @@ describe(scriptName, () => {
 describe(scriptName + '::Multiple games were played', () => {
   let adr: AdrSetupResult;
   let env: EnvSetupResult;
-  let simulator: EnvironmentSimulator;
+  let simulator: FellowshipManager;
   let eth: typeof ethersDirect & HardhatEthersHelpers;
   let mockProposals: typeof simulator.mockProposals;
   let getPlayers: typeof simulator.getPlayers;

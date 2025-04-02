@@ -6,7 +6,7 @@ import { ERC7744 } from '@peeramid-labs/eds/types';
 import ERC7744Abi from '@peeramid-labs/eds/abi/src/ERC7744.sol/ERC7744.json';
 import { MintSettingsStruct } from '../types/src/tokens/DistributableGovernanceERC20.sol/DistributableGovernanceERC20';
 import { ArguableVotingTournament } from '../types/src/distributions/ArguableVotingTournament';
-import { constantParams } from '../scripts/EnvironmentSimulator';
+import { constantParams } from '../scripts/FellowshipManager';
 import { poseidonContract } from 'circomlibjs';
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
