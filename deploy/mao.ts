@@ -34,11 +34,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     }
   };
 
-  log('Starting MAO deployment...');
-
   const SACMDeployment = await deployments.get('SimpleAccessManager');
   const accessManagerCode = await hre.ethers.provider.getCode(SACMDeployment.address);
   const accessManagerId = ethers.utils.keccak256(accessManagerCode);
+  log('Starting MAO deployment...');
 
   const rankTokenDeployment = await deployments.deploy('RankToken', {
     from: deployer,
@@ -47,6 +46,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       'https://assets.vote4best.app/rank',
       'https://assets.vote4best.app/musicRankToken.json',
       ethers.constants.AddressZero,
+      deployer,
     ],
   });
 

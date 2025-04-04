@@ -42,6 +42,8 @@ subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) 
 
 task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').setAction(async (_, hre) => {
   try {
+    const originalConsoleLog = console.log;
+    console.log = () => {};
     const diamondDirpath = join('./abi/hardhat-diamond-abi/HardhatDiamondABI.sol');
     await mkdir(diamondDirpath, { recursive: true });
     const diamondAbiPath = join(diamondDirpath, 'RankifyDiamondInstance.json');
@@ -51,6 +53,7 @@ task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').s
       const data = `export const abi = ${inspect(abi, false, null)} as const; export default abi;`;
       await writeFile(join(diamondDirpath, 'RankifyDiamondInstance.ts'), data);
     }
+    console.log = originalConsoleLog;
   } catch (error) {
     console.warn('Failed to generate diamond ABI:', error);
   }
@@ -72,10 +75,10 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 
 task('getSuperInterface', 'Prints the super interface of a contract')
   .setAction(async (taskArgs: { outputPath: string }, hre) => {
-    const su = getSuperInterface(taskArgs.outputPath + '/super-interface.json');
-    let return_value: Record<string, string> = {};
     const originalConsoleLog = console.log;
     console.log = () => {};
+    const su = getSuperInterface(taskArgs.outputPath + '/super-interface.json');
+    let return_value: Record<string, string> = {};
     Object.values(su.functions).forEach(x => {
       return_value[su.getSighash(x.format())] = x.format(FormatTypes.full);
     });
@@ -95,7 +98,7 @@ export default {
     compilerVersion: '2.2.0',
     circuitsDir: 'circuits',
     compilationSettings: {
-      artifactsDir: 'zk_artifacts',
+      artifactsDir: 'zk_compile',
       onlyFiles: [],
       skipFiles: [],
       c: false,
@@ -112,10 +115,10 @@ export default {
       ptauDownload: true,
     },
     verifiersSettings: {
-      verifiersDir: 'src/verifiers',
+      verifiersDir: 'zk_compile/verifiers',
       verifiersType: 'sol', // or "vy"
     },
-    typesDir: 'types/zk',
+    typesDir: 'zk_compile/types',
     quiet: false,
   },
   docgen: {
@@ -201,6 +204,12 @@ export default {
         mnemonic: process.env.ARB_SEPOLIA_MNEMONIC ?? 'x',
       },
       tags: ['ERC7744'],
+      verify: {
+        etherscan: {
+          apiKey: process.env.ARB_SEPOLIA_ETHERSCAN_API_KEY ?? '',
+          apiUrl: 'https://api-sepolia.arbiscan.io/',
+        },
+      },
     },
   },
   paths: {

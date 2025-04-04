@@ -1060,28 +1060,36 @@ class EnvironmentSimulator {
       idlers,
       proposalSubmissionData: proposals,
     });
-
-    await this.rankifyInstance
-      .connect(this.adr.gameMaster1)
-      .endTurn(
+    const v = (
+      votes ??
+      (await this.mockValidVotes(
+        this.getPlayers(this.adr, players.length),
         gameId,
-        (
-          votes ??
-          (await this.mockValidVotes(
-            this.getPlayers(this.adr, players.length),
-            gameId,
-            this.adr.gameMaster1,
-            turn.eq(1) ? false : true,
-            'ftw',
-          ))
-        ).map(vote => {
-          return vote.vote;
-        }),
-        newProposals,
-        permutation,
-        nullifier,
-      )
+        this.adr.gameMaster1,
+        turn.eq(1) ? false : true,
+        'ftw',
+      ))
+    ).map(vote => {
+      return vote.vote;
+    });
+    log(
+      JSON.stringify(
+        {
+          gameId,
+          votes: v,
+          newProposals,
+          permutation,
+          nullifier,
+        },
+        null,
+        2,
+      ),
+    );
+    const tx = await this.rankifyInstance
+      .connect(this.adr.gameMaster1)
+      .endTurn(gameId, v, newProposals, permutation, nullifier)
       .then(r => r.wait(1));
+    log(tx, 3);
   }
 
   public async runToTheEnd(gameId: BigNumberish, distribution: 'ftw' | 'semiUniform' | 'equal' = 'ftw') {
@@ -1331,6 +1339,17 @@ class EnvironmentSimulator {
           await time.increase(timeToEnd.toNumber() + 1);
         }
       }
+      log(
+        {
+          gameId,
+          idlers: [],
+          players,
+          proposals: lastProposals,
+          votes: lastVotes.map(vote => vote.vote),
+          gm: this.adr.gameMaster1,
+        },
+        3,
+      );
       await this.endTurn({ gameId, votes: lastVotes, proposals: lastProposals });
     }
     return { lastVotes, lastProposals };
