@@ -1948,7 +1948,171 @@ describe(scriptName, () => {
     });
   });
 
-  // Add this test to the existing describe block
+  describe('Partial propose and vote test', () => {
+    let adr: AdrSetupResult;
+    let env: EnvSetupResult;
+    let simulator: EnvironmentSimulator;
+    let rankifyInstance: RankifyDiamondInstance;
+    let rankToken: RankToken;
+
+    beforeEach(async () => {
+      const setup = await setupMainTest();
+      adr = setup.adr;
+      env = setup.env;
+      simulator = setup.simulator;
+      rankifyInstance = setup.rankifyInstance;
+      rankToken = setup.rankToken;
+    });
+
+    it('should handle partial propose and vote correctly', async () => {
+      // Create a new game with 5 players, 5 turns, 1 vote credit
+      const gameId = await simulator.createGame({
+        minGameTime: constantParams.RInstance_MIN_GAME_TIME,
+        voteCredits: 1n,
+        signer: adr.gameCreator1.wallet,
+        gameMaster: adr.gameMaster1.address,
+        gameRank: 1,
+        openNow: true,
+      });
+
+      // Get 5 players to join the game
+      const players = adr.players.slice(0, 5);
+      await simulator.fillParty({
+        players,
+        gameId,
+        shiftTime: true,
+        gameMaster: adr.gameMaster1,
+        startGame: true,
+      });
+
+      // Verify the game has started
+      expect(await rankifyInstance.getGameState(gameId).then(state => state.hasStarted)).to.be.true;
+
+      //only players 0, 3 propose
+      const initialProposals = await simulator.mockProposals({
+        players: players,
+        gameMaster: adr.gameMaster1,
+        gameId,
+        submitNow: true,
+        idlers: [1, 2, 4],
+        turn: 1,
+      });
+
+      //First turn integrity check
+      const initialIntegrity = await simulator.getProposalsIntegrity({
+        players,
+        gameId,
+        turn: 1,
+        gm: adr.gameMaster1,
+        proposalSubmissionData: initialProposals,
+      });
+
+      // Create an array of empty votes for the first turn
+      const emptyVotes = Array(players.length).fill([]).map(() => Array(players.length).fill(0));
+
+      // End turn 1 with all proposals but no votes and verify that it's now turn 2
+      await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+      await rankifyInstance
+        .connect(adr.gameMaster1)
+        .endTurn(gameId, emptyVotes, initialIntegrity.newProposals, initialIntegrity.permutation, initialIntegrity.nullifier);
+      expect(await rankifyInstance.getTurn(gameId)).to.equal(2);
+
+      // Check the scores from the TurnEnded event
+      const initialTurnEvents = await rankifyInstance.queryFilter(rankifyInstance.filters.TurnEnded(gameId, 1));
+      console.log("Game state scores after initial turn:", initialTurnEvents[0].args.scores.map(s => s.toString()));
+      expect(initialTurnEvents[0].args.scores).to.deep.equal([3, 0, 0, 4, 0]);
+
+      // Now for turn 2, only players at index 0 and 3 will propose (same as turn 1)
+      const proposingPlayers = [players[0], players[3]];
+      const proposals = await simulator.mockProposals({
+        players: proposingPlayers,
+        gameMaster: adr.gameMaster1,
+        gameId,
+        submitNow: true,
+        idlers: [1, 2, 4], // Players at indices 1, 2, and 4 don't propose
+        turn: 2,
+      });
+
+      // Only player at index 1 will vote, and they vote for player at index 3
+      const votingPlayer = players[1];
+
+      // Create a vote where player 1 votes for player 3
+      const voteWeight: bigint = 1n;
+      const playerVote = Array(players.length).fill(0);
+
+      //Get 1st turn permutation array
+      const { permutation: prevTurnPermutation } = await simulator.getProposalsIntegrity({
+        players,
+        gameId,
+        turn: 0,
+        gm: adr.gameMaster1,
+        proposalSubmissionData: initialProposals,
+      });
+
+      //vote for player 3 according to permutation
+      playerVote[Number(prevTurnPermutation[3])] = voteWeight;
+
+      //attest vote
+      const vote = await simulator.attestVote({
+        voter: votingPlayer,
+        gameId,
+        turn: 2,
+        gm: adr.gameMaster1,
+        verifierAddress: rankifyInstance.address,
+        vote: playerVote,
+        gameSize: players.length,
+        name: constantParams.RANKIFY_INSTANCE_CONTRACT_NAME,
+        version: constantParams.RANKIFY_INSTANCE_CONTRACT_VERSION,
+      });
+
+      // Submit the vote
+      await rankifyInstance
+        .connect(adr.gameMaster1)
+        .submitVote(
+          gameId,
+          vote.ballotId,
+          votingPlayer.wallet.address,
+          vote.gmSignature,
+          vote.voterSignature,
+          vote.ballotHash,
+        );
+
+      //getting 2nd turn integrity
+      const { newProposals, permutation, nullifier } = await simulator.getProposalsIntegrity({
+        players,
+        gameId,
+        turn: 2,
+        gm: adr.gameMaster1,
+        idlers: [1, 2, 4],
+        proposalSubmissionData: proposals,
+      });
+
+      // Create an array of votes where only player 1 has voted
+      const votes = Array(players.length).fill([]).map((_, i) => {
+        if (i === 1) {
+          return vote.vote;
+        } else {
+          return Array(players.length).fill(0);
+        }
+      });
+
+      // End turn 2 and verify that it's now turn 3
+      await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+      await rankifyInstance
+        .connect(adr.gameMaster1)
+        .endTurn(gameId, votes, newProposals, permutation, nullifier);
+      expect(await rankifyInstance.getTurn(gameId)).to.equal(3);
+
+      // Check the scores from the TurnEnded event
+      const turnEndedEvents2 = await rankifyInstance.queryFilter(rankifyInstance.filters.TurnEnded(gameId, 2));
+      console.log("Game state scores after partial propose and vote:", turnEndedEvents2[0].args.scores.map(s => s.toString()));
+
+      //check game state scores
+      const scores = await rankifyInstance.getScores(gameId);
+      expect(scores).to.deep.equal([3, 0, 0, 4, 0]);
+    });
+  });
+
   describe('EIP712 Domain', () => {
     it('should have consistent domain separator parameters', async () => {
       const {
