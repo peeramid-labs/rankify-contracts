@@ -679,9 +679,6 @@ library LibTBG {
         state.madeMove[player] = true;
         state.numPlayersMadeMove += 1;
 
-        // Set player as active when they make a move
-        state.isActive[player] = true;
-        state.numActivePlayers++;
     }
 
     function isPlayerTurnComplete(uint256 gameId, address player) internal view returns (bool) {

@@ -196,6 +196,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         require(!game.playerVoted[voter], "Already voted");
         game.numVotesThisTurn += 1;
         game.playerVoted[voter] = true;
+        LibTBG.State storage turnState = LibTBG._getState(gameId);
+        if (!turnState.isActive[voter]) turnState.numActivePlayers += 1;
+        turnState.isActive[voter] = true;
         gameId.tryPlayerMove(voter);
         emit VoteSubmitted(gameId, gameId.getTurn(), voter, sealedBallotId, gmSignature, voterSignature, ballotHash);
     }
@@ -253,7 +256,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         uint256 turn = params.gameId.getTurn();
         game.proposalCommitment[params.proposer] = params.commitment;
         params.gameId.enforceHasStarted();
-
+        LibTBG.State storage turnState = LibTBG._getState(params.gameId);
+        if (!turnState.isActive[params.proposer]) turnState.numActivePlayers += 1;
+        turnState.isActive[params.proposer] = true;
         params.gameId.tryPlayerMove(params.proposer);
         game.numCommitments += 1;
         emit ProposalSubmitted(
