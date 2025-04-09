@@ -5,7 +5,6 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import "../tokens/Rankify.sol";
 import {LibQuadraticVoting} from "./LibQuadraticVoting.sol";
-import "hardhat/console.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
@@ -544,12 +543,14 @@ library LibRankify {
         address[] memory players = gameId.getPlayers();
         uint256[] memory scores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
+        bool[] memory playerProposed = new bool[](players.length);
         GameState storage game = getGameState(gameId);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
             playerVoted[i] = game.playerVoted[players[i]];
+            playerProposed[i] = game.proposalCommitment[players[i]] != 0;
         }
-        uint256[] memory roundScores = game.voting.tallyVotes(votesRevealed, playerVoted);
+        uint256[] memory roundScores = game.voting.tallyVotes(votesRevealed, playerVoted, playerProposed);
         for (uint256 playerIdx = 0; playerIdx < players.length; playerIdx++) {
             //for each player
             if (game.proposalCommitment[players[playerIdx]] != 0) {

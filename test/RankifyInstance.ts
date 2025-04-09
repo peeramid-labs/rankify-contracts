@@ -1972,6 +1972,7 @@ describe(scriptName, () => {
         gameMaster: adr.gameMaster1.address,
         gameRank: 1,
         openNow: true,
+        voteCredits: 1,
       });
 
       // Get 5 players to join the game
@@ -2138,15 +2139,15 @@ describe(scriptName, () => {
       //check game state scores
       const scores = await rankifyInstance.getScores(gameId);
       // assert only player 3 is now active
-      expect(await rankifyInstance.getGameState(gameId).then(state => state.numActivePlayers.toNumber())).to.equal(2);
+      expect(await rankifyInstance.getGameState(gameId).then(state => state.numActivePlayers.toNumber())).to.equal(3);
       expect(await rankifyInstance.isActive(gameId, players[0].wallet.address)).to.be.true;
-      expect(await rankifyInstance.isActive(gameId, players[1].wallet.address)).to.be.false;
+      expect(await rankifyInstance.isActive(gameId, players[1].wallet.address)).to.be.true;
       expect(await rankifyInstance.isActive(gameId, players[2].wallet.address)).to.be.false;
       expect(await rankifyInstance.isActive(gameId, players[3].wallet.address)).to.be.true;
       expect(await rankifyInstance.isActive(gameId, players[4].wallet.address)).to.be.false;
 
       // Since the other players did nor propose, they cannot receive any points
-      expect(scores[1]).to.deep.equal([0, 0, 0, 1, 0]);
+      expect(scores[1]).to.deep.equal([3, 0, 0, 4, 0]);
     });
   });
 
@@ -2321,3 +2322,4 @@ describe(scriptName + '::Multiple games were played', () => {
     });
   });
 });
+//ToDo: test for player voting for himself

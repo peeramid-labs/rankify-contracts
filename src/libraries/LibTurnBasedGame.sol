@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
 // import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -744,7 +743,6 @@ library LibTBG {
      * - A boolean indicating whether the game is over.
      */
     function nextTurn(uint256 gameId) internal returns (bool, bool, bool) {
-        require(canEndTurnEarly(gameId), "nextTurn->CanEndEarly");
         State storage state = _getState(gameId);
         bool wasLastTurn = isLastTurn(gameId);
         state.currentTurn += 1;
@@ -755,25 +753,7 @@ library LibTBG {
             state.isOvertime = _isTie;
         }
         state.hasEnded = isGameOver(gameId);
-
-        // Update player activity status for next turn
-        uint256 playerCount = state.players.length();
-        state.numActivePlayers = 0;
-
-        for (uint256 i = 0; i < playerCount; i++) {
-            address player = state.players.at(i);
-            // If player didn't make a move this turn, mark them as inactive
-            if (!state.madeMove[player]) {
-                // console.log('LibTBG::nextTurn - ','player inactive!');
-                state.isActive[player] = false;
-            } else {
-                // console.log('LibTBG::nextTurn - ','player active!');
-                state.numActivePlayers++;
-            }
-            state.madeMove[player] = false;
-        }
         state.numPlayersMadeMove = 0;
-
         (state.leaderboard, ) = sortByScore(gameId);
         return (_isLastTurn, state.isOvertime, state.hasEnded);
     }
