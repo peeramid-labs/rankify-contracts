@@ -677,7 +677,6 @@ library LibTBG {
         require(gameId == tbg.playerInGame[player], "is not in the game");
         state.madeMove[player] = true;
         state.numPlayersMadeMove += 1;
-
     }
 
     function isPlayerTurnComplete(uint256 gameId, address player) internal view returns (bool) {

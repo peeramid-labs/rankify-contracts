@@ -272,7 +272,6 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         );
     }
 
-
     /**
      * @dev Hashes the inputs using Poseidon sponge function.
      * @param inputs Array of inputs to hash
@@ -492,16 +491,15 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         (, uint256[] memory scores) = gameId.getScores();
         emit TurnEnded(gameId, gameId.getTurn(), players, scores, newProposals.proposals, permutation, votes);
 
-
         LibTBG.State storage state = LibTBG._getState(gameId);
-         uint256 numActivePlayers = 0;
-         require(gameId.canEndTurnEarly(), "nextTurn->CanEndEarly");
+        uint256 numActivePlayers = 0;
+        require(gameId.canEndTurnEarly(), "nextTurn->CanEndEarly");
         // Clean up for next turn
         for (uint256 i = 0; i < players.length; ++i) {
             address player = players[i];
             bool isActive = game.proposalCommitment[player] != 0 || game.playerVoted[player];
             state.isActive[player] = isActive;
-            if(isActive) numActivePlayers++;
+            if (isActive) numActivePlayers++;
             state.madeMove[player] = false;
             game.ongoingProposals[i] = "";
             game.playerVoted[players[i]] = false;
