@@ -995,6 +995,7 @@ class EnvironmentSimulator {
     gameRank,
     openNow,
     metadata,
+    voteCredits = constantParams.RInstance_VOTE_CREDITS,
   }: {
     minGameTime: BigNumberish;
     signer: Wallet | SignerWithAddress;
@@ -1002,6 +1003,7 @@ class EnvironmentSimulator {
     gameRank: BigNumberish;
     openNow?: boolean;
     metadata?: string;
+    voteCredits?: BigNumberish;
   }) {
     log(`Creating game with rank ${gameRank} and minGameTime ${minGameTime}`, 2);
     await this.env.rankifyToken
@@ -1018,7 +1020,7 @@ class EnvironmentSimulator {
       timePerTurn: constantParams.RInstance_TIME_PER_TURN,
       timeToJoin: constantParams.RInstance_TIME_TO_JOIN,
       nTurns: constantParams.RInstance_MAX_TURNS,
-      voteCredits: constantParams.RInstance_VOTE_CREDITS,
+      voteCredits,
       minGameTime: minGameTime,
     };
     await this.rankifyInstance

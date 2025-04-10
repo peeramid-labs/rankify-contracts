@@ -196,6 +196,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         require(!game.playerVoted[voter], "Already voted");
         game.numVotesThisTurn += 1;
         game.playerVoted[voter] = true;
+        LibTBG.State storage turnState = LibTBG._getState(gameId);
+        if (!turnState.isActive[voter]) turnState.numActivePlayers += 1;
+        turnState.isActive[voter] = true;
         gameId.tryPlayerMove(voter);
         emit VoteSubmitted(gameId, gameId.getTurn(), voter, sealedBallotId, gmSignature, voterSignature, ballotHash);
     }
@@ -253,7 +256,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         uint256 turn = params.gameId.getTurn();
         game.proposalCommitment[params.proposer] = params.commitment;
         params.gameId.enforceHasStarted();
-
+        LibTBG.State storage turnState = LibTBG._getState(params.gameId);
+        if (!turnState.isActive[params.proposer]) turnState.numActivePlayers += 1;
+        turnState.isActive[params.proposer] = true;
         params.gameId.tryPlayerMove(params.proposer);
         game.numCommitments += 1;
         emit ProposalSubmitted(
@@ -265,21 +270,6 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             params.gmSignature,
             params.proposerSignature
         );
-    }
-
-    /**
-     * @dev Handles the actions after the next turn of a game with the provided game ID. `gameId` is the ID of the game. `newProposals` is the array of new proposals.
-     *
-     * Modifies:
-     *
-     * - Sets the ongoing proposals of the game with `gameId` to `newProposals`.
-     * - Increments the number of ongoing proposals of the game with `gameId` by the number of `newProposals`.
-     */
-    function _afterNextTurn(uint256 gameId, string[] memory newProposals) private {
-        LibRankify.GameState storage game = gameId.getGameState();
-        for (uint256 i = 0; i < newProposals.length; ++i) {
-            game.ongoingProposals[i] = newProposals[i];
-        }
     }
 
     /**
@@ -353,7 +343,10 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             (address[] memory players, uint256[] memory finalScores) = gameId.closeGame(onPlayersGameEnd);
             emit GameOver(gameId, players, finalScores);
         }
-        _afterNextTurn(gameId, newProposals);
+        LibRankify.GameState storage game = gameId.getGameState();
+        for (uint256 i = 0; i < newProposals.length; ++i) {
+            game.ongoingProposals[i] = newProposals[i];
+        }
     }
 
     /**
@@ -417,7 +410,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                     for (uint256 candidate = 0; candidate < players.length; candidate++) {
                         votesSorted[proposer][candidate] = votes[proposer][permutation[candidate]];
                     }
-                    assert(votesSorted[proposer][proposer] == 0); // did not vote for himself
+                    require(votesSorted[proposer][proposer] == 0, "voted for himself"); // did not vote for himself
                 }
 
                 // Calculate scores for previous turn's proposals
@@ -498,13 +491,22 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         (, uint256[] memory scores) = gameId.getScores();
         emit TurnEnded(gameId, gameId.getTurn(), players, scores, newProposals.proposals, permutation, votes);
 
+        LibTBG.State storage state = LibTBG._getState(gameId);
+        uint256 numActivePlayers = 0;
+        require(gameId.canEndTurnEarly(), "nextTurn->CanEndEarly");
         // Clean up for next turn
         for (uint256 i = 0; i < players.length; ++i) {
+            address player = players[i];
+            bool isActive = game.proposalCommitment[player] != 0 || game.playerVoted[player];
+            state.isActive[player] = isActive;
+            if (isActive) numActivePlayers++;
+            state.madeMove[player] = false;
             game.ongoingProposals[i] = "";
             game.playerVoted[players[i]] = false;
             game.ballotHashes[players[i]] = bytes32(0);
             game.proposalCommitment[players[i]] = 0;
         }
+        state.numActivePlayers = numActivePlayers;
 
         game.numVotesPrevTurn = game.numVotesThisTurn;
         game.numVotesThisTurn = 0;
