@@ -1386,8 +1386,8 @@ class EnvironmentSimulator {
       });
       if (submitNow) {
         this.votersAddresses = players.map(player => player.wallet.address);
+        const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
         for (let i = 0; i < players.length; i++) {
-          const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
           if (!voted[i]) {
             log(`submitting vote for player ${players[i].wallet.address}`, 2);
             log(votes[i].vote, 2);
