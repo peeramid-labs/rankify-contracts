@@ -1034,7 +1034,12 @@ describe(scriptName, () => {
                 idlers: [0],
               }),
             ).to.emit(rankifyInstance, 'TurnEnded');
-            const newestVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, true);
+            const newestVotes = await simulator.mockValidVotes(
+              [players[0], ...players.slice(2)],
+              1,
+              adr.gameMaster1,
+              true,
+            );
             expect(await rankifyInstance.isActive(1, proposals[0].params.proposer)).to.be.false;
             const newestProposals = await simulator.mockProposals({
               players,
@@ -1100,7 +1105,13 @@ describe(scriptName, () => {
                 idlers: players.map((p, i) => i),
               }),
             ).to.emit(rankifyInstance, 'TurnEnded');
-            const newestVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, true);
+            expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false, false, false]);
+            const newestVotes = await simulator.mockValidVotes(
+              [players[0], ...players.slice(2)],
+              1,
+              adr.gameMaster1,
+              true,
+            );
             expect(await rankifyInstance.isActive(1, proposals[0].params.proposer)).to.be.false;
             const newestProposals = await simulator.mockProposals({
               players,
@@ -1166,7 +1177,7 @@ describe(scriptName, () => {
                 idlers: players.map((p, i) => i).slice(0, playersCnt - 1),
               }),
             ).to.emit(rankifyInstance, 'TurnEnded');
-            const newestVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, true);
+            const newestVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
             expect(await rankifyInstance.isActive(1, proposals[0].params.proposer)).to.be.false;
             const newestProposals = await simulator.mockProposals({
               players,

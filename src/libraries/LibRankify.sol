@@ -517,13 +517,16 @@ library LibRankify {
         uint256 turn = gameId.getTurn();
         GameState storage game = getGameState(gameId);
         bool expectVote = true;
-        bool expectProposal = true;
         if (turn == 1) expectVote = false; // Don't expect votes at first turn
         // else if (gameId.isLastTurn()) expectProposal = false; // For now easiest solution is to keep collecting proposals as that is less complicated boundary case
-        if (game.numPrevProposals < game.voting.minQuadraticPositions) expectVote = false; // If there is not enough proposals then round is skipped votes cannot be filled
+        uint256 numProposals = game.numPrevProposals;
+        uint256 qPos = game.voting.minQuadraticPositions;
+        bool playerVoted = game.playerVoted[player];
+        if (numProposals < qPos) expectVote = false; // If there is not enough proposals then round is skipped votes cannot be filled
+        if (numProposals == qPos && playerVoted) expectVote = false;
         bool madeMove = true;
-        if (expectVote && !game.playerVoted[player]) madeMove = false;
-        if (expectProposal && game.proposalCommitment[player] == 0) madeMove = false;
+        if (expectVote && !playerVoted) madeMove = false;
+        if (game.proposalCommitment[player] == 0) madeMove = false;
         if (madeMove) gameId.playerMove(player);
         return madeMove;
     }
