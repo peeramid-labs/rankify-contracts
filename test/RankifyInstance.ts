@@ -2276,7 +2276,7 @@ describe(scriptName, () => {
 
       //check game state scores
       const scores = await rankifyInstance.getScores(gameId);
-      // assert only player 3 is now active
+
       expect(await rankifyInstance.getGameState(gameId).then(state => state.numActivePlayers.toNumber())).to.equal(3);
       expect(await rankifyInstance.isActive(gameId, players[0].wallet.address)).to.be.true;
       expect(await rankifyInstance.isActive(gameId, players[1].wallet.address)).to.be.true;

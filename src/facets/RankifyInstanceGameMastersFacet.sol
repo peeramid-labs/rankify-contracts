@@ -500,9 +500,6 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             bool isActive = game.proposalCommitment[player] != 0 || game.playerVoted[player];
             state.isActive[player] = isActive;
             if (isActive) numActivePlayers++;
-            if (!state.madeMove[player]) {
-                state.isActive[player] = false;
-            }
             state.madeMove[player] = false;
             game.ongoingProposals[i] = "";
             game.playerVoted[players[i]] = false;
