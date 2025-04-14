@@ -3,9 +3,10 @@ import { BigNumber, BigNumberish, Wallet } from 'ethers';
 
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { AdrSetupResult, SignerIdentity } from '../../scripts/setupMockEnvironment';
-import { MockVote, ProposalsIntegrity, ProposalSubmission } from '../../scripts/EnvironmentSimulator';
-import EnvironmentSimulator from '../../scripts/EnvironmentSimulator';
-import { EnvSetupResult } from '../../scripts/EnvironmentSimulator';
+import { MockVote, ProposalsIntegrity, ProposalSubmission } from '../../scripts/ThreadAgent';
+import 
+import FellowshipManager from '../../scripts/FellowshipManager';
+import { EnvSetupResult } from '../../scripts/FellowshipManager';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 export enum GameState {
@@ -19,7 +20,7 @@ export enum GameState {
   Ended,
 }
 
-export class InstanceBase extends EnvironmentSimulator {
+export class InstanceBase extends FellowshipManager {
   ongoingVotes: MockVote[] = [];
   proposalsData: ProposalsIntegrity = {
     newProposals: {

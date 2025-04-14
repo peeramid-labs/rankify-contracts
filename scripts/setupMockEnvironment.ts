@@ -99,7 +99,7 @@ const setupEnvironment = async (setup: {
  * @param hre - Hardhat Runtime Environment
  * @returns A function that takes named accounts and ethers instance to complete setup
  */
-const setupAddresses = async (hre: HardhatRuntimeEnvironment): Promise<AdrSetupResult> => {
+export const setupAddresses = async (hre: HardhatRuntimeEnvironment): Promise<AdrSetupResult> => {
   const { ethers } = hre;
   const [
     ,
@@ -349,7 +349,6 @@ export const setupMockedEnvironment = async (
     mao: await deployments.get('MAODistribution'),
     RankifyToken: await deployments.get('Rankify'),
     RankTokenBase: await deployments.get('RankToken'),
-    // RankifyInstance: await deployments.get('RankifyInstance'),
     arguableVotingTournamentDistribution: await deployments.get('ArguableVotingTournament'),
     mockERC20: mockERC20,
     mockERC721: mockERC721,

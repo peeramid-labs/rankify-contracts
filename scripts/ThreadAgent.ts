@@ -1,16 +1,8 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import aes from 'crypto-js/aes';
 import {
-  Rankify,
-  MockERC1155,
-  MockERC20,
-  MockERC721,
-  RankToken,
-  MAODistribution,
-  DAODistributor,
-  ArguableVotingTournament,
-  RankifyInstanceGameMastersFacet,
-  RankifyDiamondInstance,
+    RankToken, RankifyInstanceGameMastersFacet,
+    RankifyDiamondInstance
 } from '../types';
 import cryptoJs from 'crypto-js';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
@@ -55,21 +47,6 @@ export interface MockVote {
   ballotId: string;
   gmSignature: string;
   voterSignature: string;
-}
-
-/**
- * Result of setting up the game environment
- * Contains all contract instances needed for the game
- */
-export interface EnvSetupResult {
-  rankifyToken: Rankify;
-  arguableVotingTournamentDistribution: ArguableVotingTournament;
-  rankTokenBase: RankToken;
-  mockERC20: MockERC20;
-  mockERC1155: MockERC1155;
-  mockERC721: MockERC721;
-  maoDistribution: MAODistribution;
-  distributor: DAODistributor;
 }
 
 interface ReferrerMessage {
@@ -195,7 +172,6 @@ export const constantParams = {
 };
 class EnvironmentSimulator {
   hre: HardhatRuntimeEnvironment;
-  env: EnvSetupResult;
   maxSize: number;
   adr: AdrSetupResult;
   votersAddresses: string[] = [];
@@ -204,7 +180,6 @@ class EnvironmentSimulator {
   publicKeys: Record<string, string> = {};
   constructor(
     hre: HardhatRuntimeEnvironment,
-    env: EnvSetupResult,
     adr: AdrSetupResult,
     rankifyInstance: RankifyDiamondInstance,
     rankToken: RankToken,
@@ -212,7 +187,6 @@ class EnvironmentSimulator {
     log('Initializing EnvironmentSimulator');
     this.maxSize = 15;
     this.hre = hre;
-    this.env = env;
     this.adr = adr;
     this.rankifyInstance = rankifyInstance;
     this.rankToken = rankToken;

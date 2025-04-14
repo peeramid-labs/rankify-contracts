@@ -8,7 +8,7 @@ import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import { MAODistribution } from '../types/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult, EnvSetupResult } from '../scripts/setupMockEnvironment';
-import { constantParams } from '../scripts/EnvironmentSimulator';
+import { constantParams } from '../scripts/FellowshipManager';
 let adr: AdrSetupResult;
 let env: EnvSetupResult;
 let rankifyInstance: RankifyDiamondInstance;

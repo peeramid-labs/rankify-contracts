@@ -220,27 +220,11 @@ export default {
       {
         version: '0.8.28',
         settings: {
+          viaIR: true,
+          evmVersion: 'cancun',
           optimizer: {
             enabled: true,
-            runs: 2000,
-          },
-        },
-      },
-      {
-        version: '0.8.20',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 2000,
-          },
-        },
-      },
-      {
-        version: '0.8.17',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 2000,
+            runs: 200,
           },
         },
       },
@@ -285,6 +269,12 @@ export default {
     // only: [":ERC20$"],
     spacing: 2,
     pretty: false,
+  },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
   },
   external: {
     contracts: [

@@ -5,7 +5,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { ProposalSubmission } from './EnvironmentSimulator';
+import { ProposalSubmission } from './FellowshipManager';
 import { log } from './utils';
 import { gameKey, privateKeyDerivationFunction } from './sharedKey';
 
