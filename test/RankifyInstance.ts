@@ -2389,7 +2389,7 @@ describe(scriptName, () => {
        //no one proposes
        const thirdTurnProposals = await simulator.mockProposals({players: players, gameMaster: adr.gameMaster1, 
         gameId, submitNow: true, 
-        idlers: [1, 2, 3, 4, 5], turn: 3
+        idlers: [0, 1, 2, 3, 4], turn: 3
       });
 
        //Third turn integrity check
