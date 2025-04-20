@@ -2287,6 +2287,136 @@ describe(scriptName, () => {
       // Since the other players did nor propose, they cannot receive any points
       expect(scores[1]).to.deep.equal([3, 0, 0, 4, 0]);
     });
+
+    it('should calculate game state score correctly when partial propose and no vote', async () => {
+      // Create a new game with 5 players, 5 turns, 5 vote credits
+      const gameId = await simulator.createGame({
+        minGameTime: constantParams.RInstance_MIN_GAME_TIME,
+        signer: adr.gameCreator1.wallet,
+        gameMaster: adr.gameMaster1.address,
+        gameRank: 1,
+        openNow: true,
+        voteCredits: 5n,
+      });
+
+      // Get 5 players to join the game
+      const players = adr.players.slice(0, 5);
+      await simulator.fillParty({
+        players,
+        gameId,
+        shiftTime: true,
+        gameMaster: adr.gameMaster1,
+        startGame: true,
+      });
+
+      // Verify the game has started
+      expect(await rankifyInstance.getGameState(gameId).then(state => state.hasStarted)).to.be.true;
+
+      //only players 0, 3 propose
+      const initialProposals = await simulator.mockProposals({
+        players: players,
+        gameMaster: adr.gameMaster1,
+        gameId,
+        submitNow: true,
+        idlers: [1, 2, 4],
+        turn: 1,
+      });
+
+      //First turn integrity check
+      const initialIntegrity = await simulator.getProposalsIntegrity({
+        players,
+        gameId,
+        turn: 1,
+        gm: adr.gameMaster1,
+        proposalSubmissionData: initialProposals,
+        idlers: [1, 2, 4],
+      });
+
+      // Create an array of empty votes for the first turn
+      const emptyVotes = Array(players.length)
+        .fill([])
+        .map(() => Array(players.length).fill(0));
+
+      // End turn 1 with all proposals but no votes and verify that it's now turn 2
+      await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+      await rankifyInstance
+        .connect(adr.gameMaster1)
+        .endTurn(
+          gameId,
+          emptyVotes,
+          initialIntegrity.newProposals,
+          initialIntegrity.permutation,
+          initialIntegrity.nullifier,
+        );
+      expect(await rankifyInstance.getTurn(gameId)).to.equal(2);
+
+       //no one proposes
+       const secondTurnProposals = await simulator.mockProposals({
+        players: players,
+        gameMaster: adr.gameMaster1,
+        gameId,
+        submitNow: true,
+        idlers: [1, 2, 3, 4, 5],
+        turn: 2,
+      });
+
+       //Second turn integrity check
+       const secondIntegrity = await simulator.getProposalsIntegrity({
+        players,
+        gameId,
+        turn: 2,
+        gm: adr.gameMaster1,
+        proposalSubmissionData: secondTurnProposals,
+        idlers: [1, 2, 3, 4, 5],
+      });
+
+      // End turn 2 with no proposals and no votes and verify that it's now turn 3
+      await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+      await rankifyInstance
+        .connect(adr.gameMaster1)
+        .endTurn(
+          gameId,
+          emptyVotes,
+          secondIntegrity.newProposals,
+          secondIntegrity.permutation,
+          secondIntegrity.nullifier,
+        );
+
+      expect(await rankifyInstance.getTurn(gameId)).to.equal(3);
+      expect((await rankifyInstance.getScores(gameId))[1]).to.deep.equal([8,0,0,8,0]);
+
+
+       //no one proposes
+       const thirdTurnProposals = await simulator.mockProposals({players: players, gameMaster: adr.gameMaster1, 
+        gameId, submitNow: true, 
+        idlers: [1, 2, 3, 4, 5], turn: 3
+      });
+
+       //Third turn integrity check
+       const thirdIntegrity = await simulator.getProposalsIntegrity({
+        players,
+        gameId,
+        turn: 3,
+        gm: adr.gameMaster1,
+        proposalSubmissionData: thirdTurnProposals,
+        idlers: [1, 2, 3, 4, 5],
+      });
+
+      // End turn 3 with no proposals and no votes and verify that it's now turn 4
+      await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+      await rankifyInstance
+        .connect(adr.gameMaster1)
+        .endTurn(
+          gameId,
+          emptyVotes,
+          thirdIntegrity.newProposals,
+          thirdIntegrity.permutation,
+          thirdIntegrity.nullifier,
+        );
+
+      expect((await rankifyInstance.getScores(gameId))[1]).to.deep.equal([8,0,0,8,0]);
+      expect(await rankifyInstance.getTurn(gameId)).to.equal(4);
+    });
   });
 
   describe('EIP712 Domain', () => {
