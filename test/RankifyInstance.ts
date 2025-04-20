@@ -2356,7 +2356,7 @@ describe(scriptName, () => {
         gameMaster: adr.gameMaster1,
         gameId,
         submitNow: true,
-        idlers: [1, 2, 3, 4, 5],
+        idlers: [0,1, 2, 3, 4],
         turn: 2,
       });
 
