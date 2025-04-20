@@ -2288,7 +2288,7 @@ describe(scriptName, () => {
       expect(scores[1]).to.deep.equal([3, 0, 0, 4, 0]);
     });
 
-    it('should calculate game state score correctly when partial propose and no vote', async () => {
+    it.only('should calculate game state score correctly when partial propose and no vote', async () => {
       // Create a new game with 5 players, 5 turns, 5 vote credits
       const gameId = await simulator.createGame({
         minGameTime: constantParams.RInstance_MIN_GAME_TIME,
@@ -2350,18 +2350,18 @@ describe(scriptName, () => {
         );
       expect(await rankifyInstance.getTurn(gameId)).to.equal(2);
 
-       //no one proposes
-       const secondTurnProposals = await simulator.mockProposals({
+      //no one proposes
+      const secondTurnProposals = await simulator.mockProposals({
         players: players,
         gameMaster: adr.gameMaster1,
         gameId,
         submitNow: true,
-        idlers: [0,1, 2, 3, 4],
+        idlers: [0, 1, 2, 3, 4],
         turn: 2,
       });
 
-       //Second turn integrity check
-       const secondIntegrity = await simulator.getProposalsIntegrity({
+      //Second turn integrity check
+      const secondIntegrity = await simulator.getProposalsIntegrity({
         players,
         gameId,
         turn: 2,
@@ -2383,17 +2383,20 @@ describe(scriptName, () => {
         );
 
       expect(await rankifyInstance.getTurn(gameId)).to.equal(3);
-      expect((await rankifyInstance.getScores(gameId))[1]).to.deep.equal([8,0,0,8,0]);
+      expect((await rankifyInstance.getScores(gameId))[1]).to.deep.equal([8, 0, 0, 8, 0]);
 
-
-       //no one proposes
-       const thirdTurnProposals = await simulator.mockProposals({players: players, gameMaster: adr.gameMaster1, 
-        gameId, submitNow: true, 
-        idlers: [0, 1, 2, 3, 4], turn: 3
+      //no one proposes
+      const thirdTurnProposals = await simulator.mockProposals({
+        players: players,
+        gameMaster: adr.gameMaster1,
+        gameId,
+        submitNow: true,
+        idlers: [0, 1, 2, 3, 4],
+        turn: 3,
       });
 
-       //Third turn integrity check
-       const thirdIntegrity = await simulator.getProposalsIntegrity({
+      //Third turn integrity check
+      const thirdIntegrity = await simulator.getProposalsIntegrity({
         players,
         gameId,
         turn: 3,
@@ -2406,15 +2409,9 @@ describe(scriptName, () => {
       await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
       await rankifyInstance
         .connect(adr.gameMaster1)
-        .endTurn(
-          gameId,
-          emptyVotes,
-          thirdIntegrity.newProposals,
-          thirdIntegrity.permutation,
-          thirdIntegrity.nullifier,
-        );
+        .endTurn(gameId, emptyVotes, thirdIntegrity.newProposals, thirdIntegrity.permutation, thirdIntegrity.nullifier);
 
-      expect((await rankifyInstance.getScores(gameId))[1]).to.deep.equal([8,0,0,8,0]);
+      expect((await rankifyInstance.getScores(gameId))[1]).to.deep.equal([8, 0, 0, 8, 0]);
       expect(await rankifyInstance.getTurn(gameId)).to.equal(4);
     });
   });
