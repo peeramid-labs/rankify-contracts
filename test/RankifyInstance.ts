@@ -2367,7 +2367,7 @@ describe(scriptName, () => {
         turn: 2,
         gm: adr.gameMaster1,
         proposalSubmissionData: secondTurnProposals,
-        idlers: [1, 2, 3, 4, 5],
+        idlers: [0, 1, 2, 3, 4],
       });
 
       // End turn 2 with no proposals and no votes and verify that it's now turn 3
