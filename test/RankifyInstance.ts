@@ -2300,7 +2300,7 @@ describe(scriptName, () => {
       });
 
       // Get 5 players to join the game
-      const players = adr.players.slice(0, 5);
+      const players = getPlayers(adr, RInstance_MIN_PLAYERS, 0);
       await simulator.fillParty({
         players,
         gameId,
