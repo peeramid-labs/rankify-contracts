@@ -10,7 +10,7 @@ import {LibArray} from "../libraries/LibArray.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {LibQuadraticVoting} from "./LibQuadraticVoting.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
-import {Fellowship} from "../Fellowship.sol";
+import {IFellowship} from "../interfaces/IFellowship.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 /**
  * @title LibCVPP
