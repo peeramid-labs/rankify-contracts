@@ -6,7 +6,7 @@ import { ERC7744 } from '@peeramid-labs/eds/types';
 import ERC7744Abi from '@peeramid-labs/eds/abi/src/ERC7744.sol/ERC7744.json';
 import { MintSettingsStruct } from '../types/src/tokens/DistributableGovernanceERC20.sol/DistributableGovernanceERC20';
 import { ArguableVotingTournament } from '../types/src/distributions/ArguableVotingTournament';
-import { constantParams } from '../scripts/EnvironmentSimulator';
+import { constantParams } from '../scripts/FellowshipManager';
 import { poseidonContract } from 'circomlibjs';
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
@@ -90,6 +90,27 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const inspectorFacetDeployment = await deploy('EIP712InspectorFacet', {
     from: deployer,
     skipIfAlreadyDeployed: true,
+  });
+
+  const EIP712UpgradeableDeployment = await deploy('EIP712Upgradeable', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+  });
+
+  console.log('Deploying LibCVPP...');
+  const LibCVPPDeployment = await deploy('LibCVPP', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+  });
+
+  console.log('Deploying Thread...');
+  const ThreadDeployment = await deploy('Thread', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    libraries: {
+      LibCVPP: LibCVPPDeployment.address,
+      EIP712Upgradeable: EIP712UpgradeableDeployment.address,
+    },
   });
 
   const RankifyMainFacetDeployment = await deploy('RankifyInstanceMainFacet', {
