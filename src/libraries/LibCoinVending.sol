@@ -160,7 +160,7 @@ library LibCoinVending {
      *
      * - The token balances of the `from` and `to` addresses, or the total supply of tokens if `to` is the zero address.
      */
-    function transferFromAny(address erc20Addr, address from, address to, uint256 value) private {
+    function transferFromAny(address erc20Addr, address from, address to, uint256 value) internal {
         MockERC20 token = MockERC20(erc20Addr);
         if (value != 0) {
             if (from == address(this)) {
@@ -200,7 +200,7 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-    ) private {
+    ) internal {
         transferFromAny(erc20Addr, from, lockAddress, tokenReq.lock.amount);
         transferFromAny(erc20Addr, from, burnAddress, tokenReq.burn.amount);
         transferFromAny(erc20Addr, from, payee, tokenReq.pay.amount);
@@ -237,7 +237,7 @@ library LibCoinVending {
      *  2: implement onERC721Received such that there is NFT vault in the contract, later fill funding position from that vault. That way applicant could pre-send NFT's to the contract and calling fund later would pull those out from the vault.
 
      */
-    function fulfillERC72Balance(address erc721addr, ContractCondition storage tokenReq, address from) private view {
+    function fulfillERC72Balance(address erc721addr, ContractCondition storage tokenReq, address from) internal view {
         ERC721 token = ERC721(erc721addr);
 
         require(
@@ -274,7 +274,7 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-    ) private {
+    ) internal {
         ERC1155Burnable token = ERC1155Burnable(erc1155addr);
         uint256 value = tokenReq.have.amount;
         if (value != 0) {
@@ -321,7 +321,7 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-    ) private {
+    ) internal {
         if (from == address(this)) {
             if (position.ethValues.lock != 0) {
                 payable(lockAddress).transfer(position.ethValues.lock);
@@ -423,7 +423,7 @@ library LibCoinVending {
         }
     }
 
-    function _release(Condition storage reqPos, address payee, address beneficiary, address returnAddress) private {
+    function _release(Condition storage reqPos, address payee, address beneficiary, address returnAddress) internal {
         require((reqPos.timesRefunded + reqPos.timesReleased) < reqPos.timesFunded, "Not enough balance to release");
         fulfill(reqPos, address(this), payee, beneficiary, address(0), returnAddress);
         reqPos.timesReleased += 1;
@@ -521,8 +521,8 @@ library LibCoinVending {
             mustDo.contractIds.push(configuration.contracts[i].contractId);
             mustDo.contractTypes.push(configuration.contracts[i].contractType);
             mustDo.contracts[configuration.contracts[i].contractType][configuration.contracts[i].contractAddress][
-                configuration.contracts[i].contractId
-            ] = configuration.contracts[i].contractRequirement;
+                    configuration.contracts[i].contractId
+                ] = configuration.contracts[i].contractRequirement;
         }
         mustDo._isConfigured = true;
     }
