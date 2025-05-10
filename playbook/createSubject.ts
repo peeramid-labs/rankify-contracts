@@ -23,6 +23,7 @@ task('createSubject', 'Creates a new subject with MAO distribution')
     'distributorsId',
     'Distributors ID to create game from, defaults to hardhat task defaultDistributionId',
   )
+  .addOptionalParam('owner', 'Owner of the distributor', '0x520E00225C4a43B6c55474Db44a4a44199b4c3eE')
   .addFlag('useFixture', 'Use fixture hardhat-deploy to speedup tests')
   .setAction(async (taskArgs, hre) => {
     const { getNamedAccounts } = hre;
@@ -38,6 +39,7 @@ task('createSubject', 'Creates a new subject with MAO distribution')
         rankTokenURI: taskArgs.rankTokenUri,
         principalCost: ethers.utils.parseUnits(taskArgs.principalCost, 9),
         principalTimeConstant: taskArgs.principalTimeConstant,
+        owner: taskArgs.owner,
       },
     };
 

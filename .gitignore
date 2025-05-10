@@ -270,7 +270,7 @@ package-lock.json
 
 artifacts/
 build/
-types
+/types
 bin/
 /deployments/localhost/
 /deployments/hardhat/
@@ -280,8 +280,9 @@ docs/contracts/
 docs/selectors.md
 
 # circom
-zk_artifacts/
-src/verifiers/
 .zkproofs-cache/
 
 signatures.json
+
+
+zk_compile

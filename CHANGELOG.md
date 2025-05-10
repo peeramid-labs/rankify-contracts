@@ -1,5 +1,39 @@
 # rankify-contracts
 
+## 0.12.4
+
+### Patch Changes
+
+- [`2a873995acf78c913e1260a0e0f079658c6101ab`](https://github.com/peeramid-labs/rankify-contracts/commit/2a873995acf78c913e1260a0e0f079658c6101ab) Thanks [@peersky](https://github.com/peersky)! - fixed zk_artifacts compilation logic
+
+## 0.12.3
+
+### Patch Changes
+
+- [#159](https://github.com/peeramid-labs/rankify-contracts/pull/159) [`7c3b2144071e21f11cce3c9e66982fb4123b8976`](https://github.com/peeramid-labs/rankify-contracts/commit/7c3b2144071e21f11cce3c9e66982fb4123b8976) Thanks [@peersky](https://github.com/peersky)! - Added owner argument to creat subject cli call
+
+- [#159](https://github.com/peeramid-labs/rankify-contracts/pull/159) [`7c3b2144071e21f11cce3c9e66982fb4123b8976`](https://github.com/peeramid-labs/rankify-contracts/commit/7c3b2144071e21f11cce3c9e66982fb4123b8976) Thanks [@peersky](https://github.com/peersky)! - made game canceled state more explicit
+
+- [#159](https://github.com/peeramid-labs/rankify-contracts/pull/159) [`7c3b2144071e21f11cce3c9e66982fb4123b8976`](https://github.com/peeramid-labs/rankify-contracts/commit/7c3b2144071e21f11cce3c9e66982fb4123b8976) Thanks [@peersky](https://github.com/peersky)! - allow updating game medatata with (add owner to metadata URIs)
+
+  ## Breaking change
+
+  - `MAODistribution` now requires an `owner` parameter in the `rankifySettings` struct. This is used to set the owner of the rank token.
+
+- [#159](https://github.com/peeramid-labs/rankify-contracts/pull/159) [`7c3b2144071e21f11cce3c9e66982fb4123b8976`](https://github.com/peeramid-labs/rankify-contracts/commit/7c3b2144071e21f11cce3c9e66982fb4123b8976) Thanks [@peersky](https://github.com/peersky)! - Added ZK artifacts to source control, that way we ensure consistent zkey and verififer contract
+
+## 0.12.2
+
+### Patch Changes
+
+- [#152](https://github.com/peeramid-labs/rankify-contracts/pull/152) [`459f582e93cb52ca4de6a02d9c7f35c3f238f35a`](https://github.com/peeramid-labs/rankify-contracts/commit/459f582e93cb52ca4de6a02d9c7f35c3f238f35a) Thanks [@peersky](https://github.com/peersky)! - made game canceled state more explicit
+
+- [#150](https://github.com/peeramid-labs/rankify-contracts/pull/150) [`2c59281fdeb2c14180aff428d751a1ae0156ff6b`](https://github.com/peeramid-labs/rankify-contracts/commit/2c59281fdeb2c14180aff428d751a1ae0156ff6b) Thanks [@peersky](https://github.com/peersky)! - allow updating game medatata with (add owner to metadata URIs)
+
+  ## Breaking change
+
+  - `MAODistribution` now requires an `owner` parameter in the `rankifySettings` struct. This is used to set the owner of the rank token.
+
 ## 0.12.1
 
 ### Patch Changes

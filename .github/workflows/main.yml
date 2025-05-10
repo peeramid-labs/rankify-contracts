@@ -1,7 +1,7 @@
 name: CI
 on:
   pull_request:
-    branches: [main,staging]
+    branches: [main,dev]
     types: [opened, reopened, labeled, synchronize]
 env:
     NODE_ENV: 'TEST'
