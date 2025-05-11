@@ -2,19 +2,15 @@ import { ethers, getNamedAccounts, network } from 'hardhat';
 import { expect } from 'chai';
 import hre, { deployments } from 'hardhat';
 import { setupTest } from './utils';
-import { RankifyDiamondInstance, RankToken, Rankify } from '../types';
+import { Fellowship, Fellowship__factory, Rankify } from '../types';
 import addDistribution from '../scripts/addDistribution';
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
-import { MAODistribution } from '../types/src/distributions/MAODistribution';
-import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult, EnvSetupResult } from '../scripts/setupMockEnvironment';
-import { constantParams } from '../scripts/EnvironmentSimulator';
 let adr: AdrSetupResult;
 let env: EnvSetupResult;
-let rankifyInstance: RankifyDiamondInstance;
-let rankToken: RankToken;
+let fellowship: Fellowship;
 
-describe('Rank Token Test', async function () {
+describe('Fellowship Test', async function () {
   beforeEach(async function () {
     const setup = await setupTest();
     adr = setup.adr;
@@ -26,24 +22,24 @@ describe('Rank Token Test', async function () {
     });
     const { owner } = await getNamedAccounts();
     const oSigner = await ethers.getSigner(owner);
-    const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-      tokenSettings: {
-        tokenName: 'tokenName',
-        tokenSymbol: 'tokenSymbol',
-      },
-      rankifySettings: {
-        rankTokenContractURI: 'https://example.com/rank',
-        principalCost: constantParams.PRINCIPAL_COST,
-        principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
-        rankTokenURI: 'https://example.com/rank',
-        owner,
-      },
-    };
-    // Use generateDistributorData to encode the arguments
-    const data = generateDistributorData(distributorArguments);
+
     const maoCode = await hre.ethers.provider.getCode(env.maoDistribution.address);
     const maoId = ethers.utils.keccak256(maoCode);
     const token = await deployments.get('Rankify');
+
+    const Fellowship = (await ethers.getContractFactory('Fellowship')) as Fellowship__factory;
+    fellowship = await Fellowship.deploy(
+      'https://example.com/fellowship',
+      'https://example.com/fellowship',
+      ethers.constants.AddressZero,
+      adr.gameOwner.wallet.address,
+      token.address,
+      [adr.gameCreator1.wallet.address, adr.gameCreator2.wallet.address, adr.gameCreator3.wallet.address],
+      [100, 100, 100],
+      100,
+      100,
+      100,
+    );
 
     const tokenContract = new ethers.Contract(token.address, token.abi, oSigner) as Rankify;
     await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
@@ -51,35 +47,6 @@ describe('Rank Token Test', async function () {
     const distributorsDistId = await hre.run('defaultDistributionId');
     if (!distributorsDistId) throw new Error('Distribution name not found');
     if (typeof distributorsDistId !== 'string') throw new Error('Distribution name must be a string');
-    await env.distributor.connect(oSigner).instantiate(distributorsDistId, data);
-    const filter = env.distributor.filters.Instantiated();
-    const evts = await env.distributor.queryFilter(filter);
-    rankifyInstance = (await ethers.getContractAt(
-      'RankifyDiamondInstance',
-      evts[0].args.instances[3],
-    )) as RankifyDiamondInstance;
-    await network.provider.send('hardhat_setBalance', [rankifyInstance.address, '0x9000000000000000000']);
-    await env.rankifyToken
-      .connect(adr.gameCreator1.wallet)
-      .approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken
-      .connect(adr.gameCreator2.wallet)
-      .approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken
-      .connect(adr.gameCreator3.wallet)
-      .approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[0].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[1].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[2].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[3].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[4].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[5].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[6].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[7].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[8].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-    await env.rankifyToken.connect(adr.players[9].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
-
-    rankToken = (await ethers.getContractAt('RankToken', evts[0].args.instances[11])) as RankToken;
   });
   //   it('Allows only owner to set rankingInstance', async () => {
   //     await expect(rankToken.connect(deployer).updateRankingInstance(adr.gameCreator1.wallet.address))
