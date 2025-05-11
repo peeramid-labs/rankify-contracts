@@ -75,14 +75,14 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
 
   //   const filter = env.distributor.filters.Instantiated();
   //   const evts = await env.distributor.queryFilter(filter);
-  this.thread = (await ethers.getContractAt('Thread', ThreadDeployment.address)) as Thread;
-  this.fellowship = (await ethers.getContractAt('Fellowship', FellowshipDeployment.address)) as Fellowship;
+  thread = (await ethers.getContractAt('Thread', ThreadDeployment.address)) as Thread;
+  fellowship = (await ethers.getContractAt('Fellowship', FellowshipDeployment.address)) as Fellowship;
   //   govtToken = (await ethers.getContractAt(
   //     'BranchToken',
   //     evts[0].args.instances[0],
   //   )) as BranchToken;
 
-  const simulator = new ThreatAgent(hre, env, adr, thread, Fellowship);
+  const simulator = new ThreatAgent(hre, adr.gameMaster1, adr, fellowship);
 
   return { ethers, getNamedAccounts, adr, env, simulator, thread, govtToken, Fellowship };
 });
