@@ -9,7 +9,6 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {LibArray} from "../libraries/LibArray.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {LibQuadraticVoting} from "./LibQuadraticVoting.sol";
-import {IRankToken} from "../interfaces/IRankToken.sol";
 import {IFellowship} from "../interfaces/IFellowship.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 /**
@@ -32,13 +31,12 @@ library LibCVPP {
         uint256 maxTurns;
         uint256 voteCredits;
         address gameMaster;
-        IRankToken rankToken;
         address proposalIntegrityVerifier;
         address poseidon5;
         address poseidon6;
         address poseidon2;
         LibCoinVending.ConfigPosition stakes;
-        Fellowship fellowship;
+        IFellowship fellowship;
     }
 
     struct ThreadStateReturn {
@@ -61,7 +59,7 @@ library LibCVPP {
         bool hasEnded;
         bool isOvertime;
         string metadata;
-        Fellowship fellowship;
+        IFellowship fellowship;
         Settings settings;
     }
 
