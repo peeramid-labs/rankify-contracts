@@ -1,7 +1,7 @@
 import FellowshipManager, { MockVote, ProposalSubmission } from '../scripts/ThreadAgent';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { BranchToken, Rankify, Fellowship, Thread } from '../types/';
+import { BranchToken, Rankify, Fellowship, Thread } from '../types';
 
 import { deployments, ethers as ethersDirect } from 'hardhat';
 import { BigNumber, BigNumberish } from 'ethers';
