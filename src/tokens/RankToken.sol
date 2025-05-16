@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "../abstracts/LockableERC1155.sol";
 import {IERC1155} from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
@@ -18,7 +17,7 @@ interface IERC20Mintable {
  * @author Peersky
  * @notice RankToken is a composite ERC1155 token that is used to track user ranks
  */
-contract RankToken is LockableERC1155, OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC7572 {
+contract RankToken is LockableERC1155, ReentrancyGuardUpgradeable, ERC7572 {
     constructor(string memory uri_, string memory cURI) {
         initialize(uri_, cURI);
     }

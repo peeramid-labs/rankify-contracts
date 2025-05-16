@@ -1,19 +1,10 @@
-import {
-  Rankify,
-  MockERC1155,
-  MockERC20,
-  MockERC721,
-  MAODistribution,
-  DAODistributor,
-  Fellowship,
-  Thread,
-} from '../types';
+import { Fellowship } from '../types';
 import { BigNumberish, utils, Wallet } from 'ethers';
 // @ts-ignore
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { AdrSetupResult } from './setupMockEnvironment';
-import { IRankifyInstance } from '../types/src/facets/RankifyInstanceMainFacet';
 import { log } from './utils';
+import BaseEnvironmentSimulator from './BaseEnvironmentSimulator';
 declare global {
   interface BigInt {
     toJSON(): string;
@@ -45,46 +36,20 @@ export interface MockVote {
   voterSignature: string;
 }
 
-/**
- * Result of setting up the game environment
- * Contains all contract instances needed for the game
- */
-export interface EnvSetupResult {
-  rankifyToken: Rankify;
-  mockERC20: MockERC20;
-  mockERC1155: MockERC1155;
-  mockERC721: MockERC721;
-  maoDistribution: MAODistribution;
-  distributor: DAODistributor;
-}
-
 export const constantParams = {
   RANKIFY_INSTANCE_CONTRACT_NAME: 'RANKIFY_INSTANCE_NAME',
   RANKIFY_INSTANCE_CONTRACT_VERSION: '0.0.1',
-  RInstance_TIME_PER_TURN: 2500,
-  RInstance_MAX_PLAYERS: 6,
   RInstance_MIN_PLAYERS: 5,
-  RInstance_MAX_TURNS: 3,
-  RInstance_TIME_TO_JOIN: '200',
-  RInstance_GAME_PRICE: utils.parseUnits('0.001', 9),
-  RInstance_JOIN_GAME_PRICE: utils.parseUnits('0.001', 9),
-  RInstance_NUM_WINNERS: 3,
-  RInstance_VOTE_CREDITS: 14,
-  RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
-  RInstance_MIN_GAME_TIME: 360,
   PRINCIPAL_COST: utils.parseUnits('1', 9),
 };
-class FellowshipAgent {
-  hre: HardhatRuntimeEnvironment;
-  adr: AdrSetupResult;
+class FellowshipAgent extends BaseEnvironmentSimulator {
   fellowship: Fellowship;
   owner: Wallet;
-//   threads: Thread[];
+  //   threads: Thread[];
   constructor(hre: HardhatRuntimeEnvironment, adr: AdrSetupResult, fellowship: Fellowship, owner: Wallet) {
+    super(hre, adr);
     log('Initializing FellowshipAgent');
-    this.hre = hre;
-    this.adr = adr;
     this.fellowship = fellowship;
     this.owner = owner;
     // this.threads = [];
@@ -92,54 +57,6 @@ class FellowshipAgent {
   }
 
   baseFee = 1 * 10 ** 18;
-
-  /**
-   * Game settings and configuration values
-   */
-  RInstanceSettings = () => ({
-    RInstance_TIME_PER_TURN: constantParams.RInstance_TIME_PER_TURN,
-    RInstance_MAX_PLAYERS: constantParams.RInstance_MAX_PLAYERS,
-    RInstance_MIN_PLAYERS: constantParams.RInstance_MIN_PLAYERS,
-    RInstance_MAX_TURNS: constantParams.RInstance_MAX_TURNS,
-    RInstance_TIME_TO_JOIN: constantParams.RInstance_TIME_TO_JOIN,
-    RInstance_GAME_PRICE: constantParams.RInstance_GAME_PRICE,
-    RInstance_JOIN_GAME_PRICE: constantParams.RInstance_JOIN_GAME_PRICE,
-    RInstance_NUM_WINNERS: constantParams.RInstance_NUM_WINNERS,
-    RInstance_VOTE_CREDITS: constantParams.RInstance_VOTE_CREDITS,
-    RInstance_SUBJECT: constantParams.RInstance_SUBJECT,
-    PRINCIPAL_TIME_CONSTANT: constantParams.PRINCIPAL_TIME_CONSTANT,
-    RInstance_MIN_GAME_TIME: constantParams.RInstance_MIN_GAME_TIME,
-    PRINCIPAL_COST: constantParams.PRINCIPAL_COST,
-  });
-
-  getCreateGameParams = (gameId: BigNumberish, gameMaster?: Wallet): IRankifyInstance.NewGameParamsInputStruct => ({
-    metadata: 'default metadata',
-    gameMaster: gameMaster?.address ?? this.adr.gameMaster1.address,
-    gameRank: gameId,
-    maxPlayerCnt: constantParams.RInstance_MAX_PLAYERS,
-    minPlayerCnt: constantParams.RInstance_MIN_PLAYERS,
-    timePerTurn: constantParams.RInstance_TIME_PER_TURN,
-    timeToJoin: constantParams.RInstance_TIME_TO_JOIN,
-    nTurns: constantParams.RInstance_MAX_TURNS,
-    voteCredits: constantParams.RInstance_VOTE_CREDITS,
-    minGameTime: constantParams.RInstance_MIN_GAME_TIME,
-  });
-
-  /**
-   * Mines a specified number of blocks for testing purposes
-  /**
-   * Mines a specified number of blocks for testing purposes
-   * @param count - Number of blocks to mine
-   * @param hre - Hardhat Runtime Environment
-   */
-  mineBlocks = async (count: any) => {
-    log(`Mining ${count} blocks`, 2);
-    const { ethers } = this.hre;
-    for (let i = 0; i < count; i += 1) {
-      await ethers.provider.send('evm_mine', []);
-    }
-    log(`Finished mining ${count} blocks`, 2);
-  };
 
   getThreads = async () => {
     const { ethers } = this.hre;

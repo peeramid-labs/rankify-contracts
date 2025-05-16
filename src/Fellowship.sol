@@ -53,7 +53,8 @@ contract Fellowship is InstallerClonable, IFellowship, OwnableUpgradeable, Reent
         uint32 minTournamentSize,
         uint64 exitRate,
         address[] memory receivers,
-        uint256[] memory receiverShares
+        uint256[] memory receiverShares,
+        address owner
     ) {
         initialize(
             principalCost,
@@ -64,7 +65,8 @@ contract Fellowship is InstallerClonable, IFellowship, OwnableUpgradeable, Reent
             minTournamentSize,
             exitRate,
             receivers,
-            receiverShares
+            receiverShares,
+            owner
         );
     }
 
@@ -77,8 +79,10 @@ contract Fellowship is InstallerClonable, IFellowship, OwnableUpgradeable, Reent
         uint32 minTournamentSize,
         uint64 exitRate,
         address[] memory receivers,
-        uint256[] memory receiverShares
+        uint256[] memory receiverShares,
+        address owner
     ) public initializer {
+        __Ownable_init(owner);
         getFellowshipStorage().acid.initialize(
             principalCost,
             principalTime,
