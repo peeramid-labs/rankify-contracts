@@ -4,15 +4,15 @@ import "../abstracts/LockableERC1155.sol";
 interface IFellowship {
     event RankTokenExited(address indexed rankReceiver, uint256 rankId, uint256 amount, uint256 mintedTokens);
     struct State {
-        uint256 principalCost;
+        uint128 principalCost;
         uint256 principalTime;
-        LockableERC1155 competenceAsset;
+        address competenceAsset;
         address rootAsset;
+        address derivedAsset;
+        uint32 minTournamentSize;
+        uint64 exitRate;
         address[] receivers;
         uint256[] receiverShares;
-        uint256 humanFactor;
-        string _contractURI;
-        address _branchToken;
     }
     function getContractState() external view returns (State memory);
     function claim(address winner) external;
