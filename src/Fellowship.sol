@@ -13,6 +13,8 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import {LibACID} from "./libraries/LibACID.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {LibMiddleware} from "@peeramid-labs/eds/src/middleware/LibMiddleware.sol";
+import {AuthorizationMiddleware} from "@peeramid-labs/eds/src/middleware/AuthorizationMiddleware.sol";
 //ToDo: it was planned to make it track for highest token users hold (their rank), right now it's not implemented. Yet.
 
 /**
@@ -23,6 +25,8 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 contract Fellowship is InstallerClonable, IFellowship, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using LibACID for LibACID.ACID;
+
+    /// @custom:storage-location erc7201:fellowship.storage.position
     struct FellowshipStorage {
         LibACID.ACID acid;
         string _contractURI;
@@ -30,7 +34,8 @@ contract Fellowship is InstallerClonable, IFellowship, OwnableUpgradeable, Reent
         RankToken rankToken;
     }
 
-    bytes32 constant FELLOWSHIP_STORAGE_POSITION = keccak256("fellowship.storage.position");
+    bytes32 constant FELLOWSHIP_STORAGE_POSITION =
+        keccak256(abi.encode(uint256(keccak256("fellowship.storage.position")) - 1)) & ~bytes32(uint256(0xff));
 
     function getFellowshipStorage() private pure returns (FellowshipStorage storage s) {
         bytes32 position = FELLOWSHIP_STORAGE_POSITION;
