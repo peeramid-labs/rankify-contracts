@@ -99,7 +99,7 @@ const setupEnvironment = async (setup: {
  * @param hre - Hardhat Runtime Environment
  * @returns A function that takes named accounts and ethers instance to complete setup
  */
-const setupAddresses = async (hre: HardhatRuntimeEnvironment): Promise<AdrSetupResult> => {
+export const setupAddresses = async (hre: HardhatRuntimeEnvironment): Promise<AdrSetupResult> => {
   const { ethers } = hre;
   const [
     ,
