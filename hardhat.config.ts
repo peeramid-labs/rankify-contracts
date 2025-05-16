@@ -274,7 +274,7 @@ export default {
   contractSizer: {
     alphaSort: true,
     disambiguatePaths: false,
-    runOnCompile: true,
+    runOnCompile: process.env.HH_CONTRACT_SIZER ? true : false,
     strict: true,
   },
   external: {
