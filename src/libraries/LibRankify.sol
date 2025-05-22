@@ -213,20 +213,8 @@ library LibRankify {
         enforceIsInitialized();
         CommonParams storage commonParams = instanceState().commonParams;
 
-        require(
-            commonParams.principalTimeConstant % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(commonParams.principalTimeConstant, params.nTurns)
-        );
-        require(
-            commonParams.principalTimeConstant % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(commonParams.principalTimeConstant, params.minGameTime)
-        );
-        require(
-            params.minGameTime % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(params.nTurns, params.minGameTime)
-        );
         require(params.minGameTime > 0, "LibRankify::newGame->Min game time zero");
-        require(params.nTurns > 2, IRankifyInstance.invalidTurnCount(params.nTurns));
+        require(params.nTurns > 1, IRankifyInstance.invalidTurnCount(params.nTurns));
 
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
@@ -247,7 +235,7 @@ library LibRankify {
         game.metadata = params.metadata;
         require(
             SignedMath.abs(int256(uint256(params.minGameTime)) - int256(uint256(commonParams.principalTimeConstant))) <
-                uint256(commonParams.principalTimeConstant) * 16,
+                uint256(commonParams.principalTimeConstant) * 2 ** 16,
             "Min game time out of bounds"
         );
         require(commonParams.minimumParticipantsInCircle <= params.minPlayerCnt, "Min player count too low");
