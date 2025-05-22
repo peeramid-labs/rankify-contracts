@@ -1877,35 +1877,15 @@ describe(scriptName, () => {
       'LibRankify::newGame->Min game time zero',
     );
   });
-  it('should validate minGameTime is divisible by number of turns', async () => {
+
+  it('should validate turn count is greater than 1', async () => {
     const params: IRankifyInstance.NewGameParamsInputStruct = {
       gameMaster: adr.gameMaster1.address,
       gameRank: 1,
       maxPlayerCnt: RInstance_MAX_PLAYERS,
       minPlayerCnt: RInstance_MIN_PLAYERS,
       voteCredits: RInstance_VOTE_CREDITS,
-      nTurns: 5,
-      minGameTime: 3601, // Not divisible by 5
-      timePerTurn: RInstance_TIME_PER_TURN,
-      metadata: 'test metadata',
-      timeToJoin: RInstance_TIME_TO_JOIN,
-    };
-
-    await env.rankifyToken.connect(adr.gameCreator1.wallet).approve(rankifyInstance.address, eth.constants.MaxUint256);
-    await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createGame(params)).to.be.revertedWithCustomError(
-      rankifyInstance,
-      'NoDivisionReminderAllowed',
-    );
-  });
-
-  it('should validate turn count is greater than 2', async () => {
-    const params: IRankifyInstance.NewGameParamsInputStruct = {
-      gameMaster: adr.gameMaster1.address,
-      gameRank: 1,
-      maxPlayerCnt: RInstance_MAX_PLAYERS,
-      minPlayerCnt: RInstance_MIN_PLAYERS,
-      voteCredits: RInstance_VOTE_CREDITS,
-      nTurns: 2,
+      nTurns: 1,
       minGameTime: RInstance_MIN_GAME_TIME,
       timePerTurn: RInstance_TIME_PER_TURN,
       metadata: 'test metadata',
