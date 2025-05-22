@@ -1481,9 +1481,11 @@ class EnvironmentSimulator {
     const promises = [];
 
     for (let i = 0; i < players.length; i++) {
-      const playerInGame = await this.rankifyInstance.getPlayersGame(players[i].wallet.address);
-      if (playerInGame.toNumber() !== 0) {
-        if (playerInGame.toNumber() !== Number(gameId)) {
+      const playerInGames = await this.rankifyInstance
+        .getPlayersGames(players[i].wallet.address)
+        .then(games => games.map(game => game.toNumber()));
+      if (playerInGames.length > 0) {
+        if (playerInGames.includes(Number(gameId))) {
           console.error('Player already in another game');
           throw new Error('Player already in another game');
         }

@@ -1477,7 +1477,7 @@ describe(scriptName, () => {
               metadata: 'test metadata',
             });
           });
-          it('Reverts if players from another game tries to join', async () => {
+          it('Does not reverts if players from another game tries to join', async () => {
             const s1 = await simulator.signJoiningGame({
               gameId: 2,
               participant: adr.players[0].wallet,
@@ -1487,7 +1487,7 @@ describe(scriptName, () => {
               rankifyInstance
                 .connect(adr.players[0].wallet)
                 .joinGame(2, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey),
-            ).to.be.revertedWith('addPlayer->Player in game');
+            ).to.not.be.reverted;
           });
         });
       });
