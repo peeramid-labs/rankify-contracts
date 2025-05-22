@@ -181,7 +181,7 @@ export const constantParams = {
   RANKIFY_INSTANCE_CONTRACT_VERSION: '0.0.1',
   RInstance_TIME_PER_TURN: 2500,
   RInstance_MAX_PLAYERS: 6,
-  RInstance_MIN_PLAYERS: 5,
+  RInstance_MIN_PLAYERS: 3,
   RInstance_MAX_TURNS: 3,
   RInstance_TIME_TO_JOIN: '200',
   RInstance_GAME_PRICE: utils.parseUnits('0.001', 9),

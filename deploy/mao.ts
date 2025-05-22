@@ -206,8 +206,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     skipIfAlreadyDeployed: true,
     args: [
       _trustedForwarder,
-      rankifyToken.address,
-      DAO,
       [proposalIntegrity18Groth16VerifierDeployment.address, ph5.address, ph6.address, ph2.address],
       rankTokenCodeId,
       arguableVotingTournamentCodeId,
