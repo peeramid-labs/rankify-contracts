@@ -307,8 +307,18 @@ contract RankifyInstanceMainFacet is
      * @param player The address of the player
      * @return uint256 The ID of the game
      */
-    function getPlayersGame(address player) public view returns (uint256) {
-        return LibTBG.getPlayersGame(player);
+    function getPlayersGames(address player) public view returns (uint256[] memory) {
+        return LibTBG.getPlayersGames(player);
+    }
+
+    /**
+     * @dev Returns whether the specified player is in the specified game
+     * @param gameId The ID of the game
+     * @param player The address of the player
+     * @return bool Whether the player is in the game
+     */
+    function isPlayerInGame(uint256 gameId, address player) public view returns (bool) {
+        return gameId.isPlayerInGame(player);
     }
 
     /**

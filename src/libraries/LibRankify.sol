@@ -95,7 +95,7 @@ library LibRankify {
      *
      * - `true` if the strings are equal, `false` otherwise.
      */
-    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
+    function compareStrings(string memory a, string memory b) public pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
 
@@ -106,7 +106,7 @@ library LibRankify {
      *
      * - The game storage for `gameId`.
      */
-    function getGameState(uint256 gameId) internal view returns (GameState storage game) {
+    function getGameState(uint256 gameId) public view returns (GameState storage game) {
         bytes32 position = LibTBG.getGameDataStorage(gameId);
         assembly {
             game.slot := position
@@ -127,11 +127,11 @@ library LibRankify {
         }
     }
 
-    bytes32 internal constant _PROPOSAL_PROOF_TYPEHASH =
+    bytes32 public constant _PROPOSAL_PROOF_TYPEHASH =
         keccak256("signProposalByGM(uint256 gameId,uint256 turn,bytes32 proposalNHash,string encryptedProposal)");
-    bytes32 internal constant _VOTE_PROOF_TYPEHASH =
+    bytes32 public constant _VOTE_PROOF_TYPEHASH =
         keccak256("signVote(uint256 vote1,uint256 vote2,uint256 vote3,uint256 gameId,uint256 turn,bytes32 salt)");
-    bytes32 internal constant _VOTE_SUBMIT_PROOF_TYPEHASH =
+    bytes32 public constant _VOTE_SUBMIT_PROOF_TYPEHASH =
         keccak256("publicSignVote(uint256 gameId,uint256 turn,bytes32 vote1,bytes32 vote2,bytes32 vote3)");
 
     /**
@@ -141,7 +141,7 @@ library LibRankify {
      *
      * - The contract must be initialized.
      */
-    function enforceIsInitialized() internal view {
+    function enforceIsInitialized() public view {
         InstanceState storage settings = instanceState();
         require(settings.contractInitialized, "onlyInitialized");
     }
@@ -153,7 +153,7 @@ library LibRankify {
      *
      * - The game with `gameId` must exist.
      */
-    function enforceGameExists(uint256 gameId) internal view {
+    function enforceGameExists(uint256 gameId) public view {
         enforceIsInitialized();
         require(gameId.gameExists(), "game not found");
     }
@@ -174,7 +174,7 @@ library LibRankify {
         // ToDo: It must list gameKey for Game master and game master signature, committing to serve the game
     }
 
-    function getGamePrice(uint128 minGameTime, CommonParams memory commonParams) internal pure returns (uint256) {
+    function getGamePrice(uint128 minGameTime, CommonParams memory commonParams) public pure returns (uint256) {
         return
             Math.mulDiv(
                 uint256(commonParams.principalCost),
@@ -202,7 +202,7 @@ library LibRankify {
      * - Sets the rank of the game to `gameRank`.
      * - Mints new rank tokens.
      */
-    function newGame(NewGameParams memory params) internal {
+    function newGame(NewGameParams memory params) public {
         // address signer = ECDSA.recover(digest, gameMasterSignature);
         //TODO: add this back in start game to verify commitment from game master
         // require(
@@ -278,7 +278,7 @@ library LibRankify {
      * - The game with `gameId` must exist.
      * - `candidate` must be the creator of the game.
      */
-    function enforceIsGameCreator(uint256 gameId, address candidate) internal view {
+    function enforceIsGameCreator(uint256 gameId, address candidate) public view {
         enforceGameExists(gameId);
         GameState storage game = getGameState(gameId);
         require(game.createdBy == candidate, "Only game creator");
@@ -292,7 +292,7 @@ library LibRankify {
      * - The game with `gameId` must exist.
      * - `candidate` must be the game master of the game.
      */
-    function enforceIsGM(uint256 gameId, address candidate) internal view {
+    function enforceIsGM(uint256 gameId, address candidate) public view {
         enforceGameExists(gameId);
         require(gameId.getGM() == candidate, "Only game master");
     }
@@ -327,7 +327,7 @@ library LibRankify {
      * - Increases the payments balance of the game by the join game price.
      * - Adds `player` to the game.
      */
-    function joinGame(uint256 gameId, address player, bytes memory gameMasterSignature, bytes32 digest) internal {
+    function joinGame(uint256 gameId, address player, bytes memory gameMasterSignature, bytes32 digest) public {
         enforceGameExists(gameId);
         fulfillRankRq(gameId, player);
         gameId.addPlayer(player);
@@ -430,7 +430,7 @@ library LibRankify {
      *
      * - Locks the rank token(s) of `player` in the rank token contract.
      */
-    function fulfillRankRq(uint256 gameId, address player) internal {
+    function fulfillRankRq(uint256 gameId, address player) public {
         InstanceState storage instance = instanceState();
         GameState storage game = getGameState(gameId);
         if (game.rank > 1) {
@@ -462,7 +462,7 @@ library LibRankify {
      *
      * - Calls `emitRankReward` for the main rank and each additional rank in the game.
      */
-    function emitRankRewards(uint256 gameId, address[] memory leaderboard) internal {
+    function emitRankRewards(uint256 gameId, address[] memory leaderboard) public {
         InstanceState storage instance = LibRankify.instanceState();
         emitRankReward(gameId, leaderboard, instance.commonParams.rankTokenAddress);
     }
@@ -491,7 +491,7 @@ library LibRankify {
      * - Removes `player` from the game.
      * - If the game rank is greater than 1, unlocks the game rank token for `player` in the rank token contract.
      */
-    function removeAndUnlockPlayer(uint256 gameId, address player) internal {
+    function removeAndUnlockPlayer(uint256 gameId, address player) public {
         enforceGameExists(gameId);
         gameId.removePlayer(player); //This will throw if game is in the process
         InstanceState storage instance = instanceState();
@@ -514,7 +514,7 @@ library LibRankify {
      * - If the player has not voted and a vote is expected, or if the player has not made a proposal and a proposal is expected, does not make a move and returns `false`.
      * - Otherwise, makes a move for `player` and returns `true`.
      */
-    function tryPlayerMove(uint256 gameId, address player) internal returns (bool) {
+    function tryPlayerMove(uint256 gameId, address player) public returns (bool) {
         uint256 turn = gameId.getTurn();
         GameState storage game = getGameState(gameId);
         bool expectVote = true;
@@ -540,7 +540,7 @@ library LibRankify {
     function calculateScores(
         uint256 gameId,
         uint256[][] memory votesRevealed
-    ) internal returns (uint256[] memory, uint256[] memory) {
+    ) public returns (uint256[] memory, uint256[] memory) {
         address[] memory players = gameId.getPlayers();
         uint256[] memory scores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
