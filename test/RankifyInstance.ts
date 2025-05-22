@@ -1481,7 +1481,7 @@ describe(scriptName, () => {
             const s1 = await simulator.signJoiningGame({
               gameId: 2,
               participant: adr.players[0].wallet,
-              signer: adr.gameMaster1,
+              signer: adr.gameMaster2,
             });
             await expect(
               rankifyInstance
