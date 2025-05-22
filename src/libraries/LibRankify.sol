@@ -5,6 +5,7 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import "../tokens/Rankify.sol";
 import {LibQuadraticVoting} from "./LibQuadraticVoting.sol";
+import {LibRankifyTurnManager} from "./LibRankifyTurnManager.sol";
 import "hardhat/console.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
@@ -218,22 +219,18 @@ library LibRankify {
             IRankifyInstance.NoDivisionReminderAllowed(commonParams.principalTimeConstant, params.nTurns)
         );
         require(
-            commonParams.principalTimeConstant % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(commonParams.principalTimeConstant, params.minGameTime)
-        );
-        require(
             params.minGameTime % params.nTurns == 0,
             IRankifyInstance.NoDivisionReminderAllowed(params.nTurns, params.minGameTime)
         );
         require(params.minGameTime > 0, "LibRankify::newGame->Min game time zero");
-        require(params.nTurns > 2, IRankifyInstance.invalidTurnCount(params.nTurns));
+        require(params.nTurns > 1, IRankifyInstance.invalidTurnCount(params.nTurns));
 
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
             maxPlayerCnt: params.maxPlayerCnt,
             minPlayerCnt: params.minPlayerCnt,
             timeToJoin: params.timeToJoin,
-            maxTurns: params.nTurns,
+            maxTurns: params.nTurns * 2,
             voteCredits: params.voteCredits,
             gameMaster: params.gameMaster,
             implementationStoragePointer: bytes32(0)
@@ -503,7 +500,7 @@ library LibRankify {
 
     /**
      * @dev Tries to make a move for a player in a game. `gameId` is the ID of the game. `player` is the address of the player.
-     * The "move" is considered to be a state when player has made all actions he could in the given turn.
+     * The "move" is considered to be a state when player has made all actions he could in the given STAGE (proposing or voting).
      *
      * Requirements:
      *
@@ -511,22 +508,46 @@ library LibRankify {
      *
      * Modifies:
      *
-     * - If the player has not voted and a vote is expected, or if the player has not made a proposal and a proposal is expected, does not make a move and returns `false`.
-     * - Otherwise, makes a move for `player` and returns `true`.
+     * - If the player has not completed their action for the current stage (proposal or vote), does not make a move and returns `false`.
+     * - Otherwise, makes a move for `player` in LibTBG and returns `true`.
      */
     function tryPlayerMove(uint256 gameId, address player) internal returns (bool) {
-        uint256 turn = gameId.getTurn();
+        enforceGameExists(gameId);
         GameState storage game = getGameState(gameId);
-        bool expectVote = true;
-        bool expectProposal = true;
-        if (turn == 1) expectVote = false; // Don't expect votes at first turn
-        // else if (gameId.isLastTurn()) expectProposal = false; // For now easiest solution is to keep collecting proposals as that is less complicated boundary case
-        if (game.numPrevProposals < game.voting.minQuadraticPositions) expectVote = false; // If there is not enough proposals then round is skipped votes cannot be filled
-        bool madeMove = true;
-        if (expectVote && !game.playerVoted[player]) madeMove = false;
-        if (expectProposal && game.proposalCommitment[player] == 0) madeMove = false;
-        if (madeMove) gameId.playerMove(player);
-        return madeMove;
+        bool actionCompleted = false;
+
+        if (LibRankifyTurnManager.isProposingStage(gameId)) {
+            // In proposing stage, action is complete if a proposal commitment exists.
+            if (game.proposalCommitment[player] != 0) {
+                actionCompleted = true;
+            }
+        } else if (LibRankifyTurnManager.isVotingStage(gameId)) {
+            // In voting stage, action is complete if player has voted.
+            // Also ensure there are enough proposals from the current round to vote on.
+            // Note: game.numOngoingProposals should be updated by the end of the proposing stage.
+            if (game.numOngoingProposals >= game.voting.minQuadraticPositions && game.playerVoted[player]) {
+                actionCompleted = true;
+            }
+            // If not enough proposals, players can't vote, effectively their "move" for voting stage is vacuously true if they already proposed.
+            // However, the game should ideally not advance to a voting stage if there are no proposals.
+            // This scenario (not enough proposals for voting stage) should be handled by canEndProposingStage logic.
+            else if (game.numOngoingProposals < game.voting.minQuadraticPositions) {
+                // If not enough proposals, no one can vote. Consider action complete if they proposed in the prior stage.
+                // This assumes that canEndProposingStage allowed advancement.
+                // This might be too complex here. Let's simplify: if it's voting, you must vote if possible.
+                // The game advancement logic should handle cases of insufficient proposals.
+                // So, if it's a voting stage and not enough proposals, no one *can* vote. They haven't made a "voting move".
+                // But canEndVotingStage should reflect this.
+                // For now, let's stick to: if it's voting stage, playerVoted is the criteria.
+                // The check game.numOngoingProposals >= game.voting.minQuadraticPositions is critical for playerVoted to be meaningful.
+            }
+        }
+
+        if (actionCompleted) {
+            gameId.playerMove(player); // Call LibTBG.playerMove
+            return true;
+        }
+        return false;
     }
 
     /**
