@@ -187,7 +187,7 @@ export const constantParams = {
   RInstance_GAME_PRICE: utils.parseUnits('0.001', 9),
   RInstance_JOIN_GAME_PRICE: utils.parseUnits('0.001', 9),
   RInstance_NUM_WINNERS: 3,
-  RInstance_VOTE_CREDITS: 14,
+  RInstance_VOTE_CREDITS: 5,
   RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
   RInstance_MIN_GAME_TIME: 360,

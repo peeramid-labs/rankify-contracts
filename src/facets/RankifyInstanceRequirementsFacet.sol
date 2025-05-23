@@ -5,7 +5,6 @@ import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
-import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 /**
  * @title RankifyInstanceRequirementsFacet
  * @notice Facet handling game requirements and conditions for Rankify instances
@@ -17,21 +16,6 @@ contract RankifyInstanceRequirementsFacet {
     using LibTBG for uint256;
     using LibRankify for uint256;
     using LibTBG for LibTBG.State;
-
-    /**
-     * @dev Sets the join requirements for a specific game.
-     * Only the game creator can call this function.
-     * The game must be in the pre-registration stage.
-     *
-     * @param gameId The ID of the game.
-     * @param config The configuration position for the join requirements.
-     */
-    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
-        gameId.enforceIsGameCreator(msg.sender);
-        gameId.enforceIsPreRegistrationStage();
-        LibCoinVending.configure(bytes32(gameId), config);
-        emit IRankifyInstance.RequirementsConfigured(gameId, config);
-    }
 
     /**
      * @dev Retrieves the join requirements for a specific game.

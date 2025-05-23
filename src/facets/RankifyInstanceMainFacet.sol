@@ -124,12 +124,20 @@ contract RankifyInstanceMainFacet is
         emit RequirementsConfigured(gameId, requirements);
     }
 
-    function getJoinRequirementsByToken(
-        uint256 gameId,
-        address contractAddress,
-        uint256 contractId,
-        LibCoinVending.ContractTypes contractType
-    ) public view returns (LibCoinVending.ContractCondition memory) {}
+    /**
+     * @dev Sets the join requirements for a specific game.
+     * Only the game creator can call this function.
+     * The game must be in the pre-registration stage.
+     *
+     * @param gameId The ID of the game.
+     * @param config The configuration position for the join requirements.
+     */
+    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
+        gameId.enforceIsGameCreator(msg.sender);
+        gameId.enforceIsPreRegistrationStage();
+        LibCoinVending.configure(bytes32(gameId), config);
+        emit IRankifyInstance.RequirementsConfigured(gameId, config);
+    }
 
     /**
      * @dev Handles a player quitting a game with the provided game ID. `gameId` is the ID of the game. `player` is the address of the player.
@@ -496,4 +504,6 @@ contract RankifyInstanceMainFacet is
     function gameWinner(uint256 gameId) public view returns (address) {
         return gameId.getGameState().winner;
     }
+
+
 }
