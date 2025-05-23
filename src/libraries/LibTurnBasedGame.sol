@@ -17,7 +17,6 @@ import {IErrors} from "../interfaces/IErrors.sol";
  * - setting game settings such as time per turn, max players, min players, etc as well as perform score and leaderboard tracking
  *
  * Limitations:
- * - It is assumed there is only one game per player
  * - It is assumed there is only on game master per game
  *
  * ***WARNING*** Some limitations:
