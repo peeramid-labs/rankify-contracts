@@ -69,7 +69,7 @@ describe('MAODistribution', async function () {
           principalCost: 1,
           principalTimeConstant: 1,
           owner: oSigner.address,
-          paymentToken: ethers.constants.AddressZero,
+          paymentToken: rankify.address,
         },
       };
       // Encode the arguments using generateDistributorData
@@ -109,7 +109,7 @@ describe('MAODistribution', async function () {
           principalCost: 1,
           principalTimeConstant: 1,
           owner,
-          paymentToken: ethers.constants.AddressZero,
+          paymentToken: rankify.address,
         },
       };
       // Encode the arguments using generateDistributorData

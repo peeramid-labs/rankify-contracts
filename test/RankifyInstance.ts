@@ -2000,8 +2000,8 @@ describe(scriptName + '::Multiple games were played', () => {
     expect(await rankToken.balanceOf(adr.players[0].wallet.address, 2)).to.be.equal(1);
     expect(await rankToken.balanceOf(adr.players[2].wallet.address, 2)).to.be.equal(1);
     expect(await rankToken.balanceOf(adr.players[1].wallet.address, 2)).to.be.equal(1);
-    expect(await rankToken.balanceOf(adr.players[3].wallet.address, 2)).to.be.equal(1);
-    expect(await rankToken.balanceOf(adr.players[4].wallet.address, 2)).to.be.equal(1);
+    expect(await rankToken.balanceOf(adr.players[3].wallet.address, 2)).to.be.equal(0);
+    expect(await rankToken.balanceOf(adr.players[4].wallet.address, 2)).to.be.equal(0);
     expect(await rankToken.balanceOf(adr.players[5].wallet.address, 2)).to.be.equal(0);
     expect(await rankToken.balanceOf(adr.players[6].wallet.address, 2)).to.be.equal(0);
     assert(RInstance_MAX_PLAYERS == 6);

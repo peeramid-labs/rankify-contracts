@@ -19,21 +19,6 @@ contract RankifyInstanceRequirementsFacet {
     using LibTBG for LibTBG.State;
 
     /**
-     * @dev Sets the join requirements for a specific game.
-     * Only the game creator can call this function.
-     * The game must be in the pre-registration stage.
-     *
-     * @param gameId The ID of the game.
-     * @param config The configuration position for the join requirements.
-     */
-    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
-        gameId.enforceIsGameCreator(msg.sender);
-        gameId.enforceIsPreRegistrationStage();
-        LibCoinVending.configure(bytes32(gameId), config);
-        emit IRankifyInstance.RequirementsConfigured(gameId, config);
-    }
-
-    /**
      * @dev Retrieves the join requirements for a specific game.
      * @param gameId The ID of the game.
      * @return The join requirements as a `LibCoinVending.ConditionReturn` struct.

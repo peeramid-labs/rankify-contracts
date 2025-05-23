@@ -1,6 +1,6 @@
 {
   "name": "rankify-contracts",
-  "version": "0.12.4",
+  "version": "0.13.0",
   "files": [
     "abi",
     "deployments",
@@ -19,7 +19,7 @@
     "test": "export NODE_ENV=TEST && pnpm build && pnpm hardhat test",
     "test:parallel": "export NODE_ENV=TEST && pnpm build && pnpm hardhat test --parallel",
     "zk:compile": "npx hardhat zkit compile && npx hardhat zkit verifiers",
-    "build": "cp -r zk_artifacts zk_compile && pnpm hardhat compile && pnpm hardhat diamond-abi-viem-export",
+    "build": "rm -rf zk_compile && cp -r zk_artifacts zk_compile && pnpm hardhat compile && pnpm hardhat diamond-abi-viem-export",
     "postbuild": "npx hardhat getSuperInterface --output-path . && mv super-interface.json abi/super-interface.json",
     "lint:sol": "prettier --log-level warn --ignore-path .prettierignore '{src,test}/**/*.sol' --check && solhint '{contracts,test}/**/*.sol'",
     "lint:sol:fix": "prettier --log-level warn --ignore-path .prettierignore '{src,test}/**/*.sol' --write",

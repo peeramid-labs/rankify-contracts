@@ -124,6 +124,47 @@ contract RankifyInstanceMainFacet is
         emit RequirementsConfigured(gameId, requirements);
     }
 
+    /**
+     * @dev Sets the join requirements for a specific game.
+     * Only the game creator can call this function.
+     * The game must be in the pre-registration stage.
+     *
+     * @param gameId The ID of the game.
+     * @param config The configuration position for the join requirements.
+     */
+    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
+        gameId.enforceIsGameCreator(msg.sender);
+        gameId.enforceIsPreRegistrationStage();
+        LibCoinVending.configure(bytes32(gameId), config);
+        emit IRankifyInstance.RequirementsConfigured(gameId, config);
+    }
+
+    function createAndOpenGame(
+        IRankifyInstance.NewGameParamsInput memory params,
+        LibCoinVending.ConfigPosition memory requirements
+    ) public {
+        LibRankify.enforceIsInitialized();
+        LibRankify.InstanceState storage settings = LibRankify.instanceState();
+        LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
+            gameId: settings.numGames + 1,
+            gameRank: params.gameRank,
+            creator: msg.sender,
+            minPlayerCnt: params.minPlayerCnt,
+            maxPlayerCnt: params.maxPlayerCnt,
+            gameMaster: params.gameMaster,
+            nTurns: params.nTurns,
+            voteCredits: params.voteCredits,
+            minGameTime: params.minGameTime,
+            timePerTurn: params.timePerTurn,
+            timeToJoin: params.timeToJoin,
+            metadata: params.metadata
+        });
+
+        uint256 gameId = createGame(newGameParams, requirements);
+        gameId.openRegistration();
+        emit RequirementsConfigured(gameId, requirements);
+    }
+
     function getJoinRequirementsByToken(
         uint256 gameId,
         address contractAddress,
