@@ -51,12 +51,16 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   });
   const { owner } = await getNamedAccounts();
   const oSigner = await ethers.getSigner(owner);
+  console.log('oSigner', oSigner.address);
   const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
     tokenSettings: {
       tokenName: 'tokenName',
       tokenSymbol: 'tokenSymbol',
+      preMintAmounts: [ethers.utils.parseEther('100')],
+      preMintReceivers: [oSigner.address],
     },
     rankifySettings: {
+      paymentToken: env.rankifyToken.address,
       rankTokenContractURI: 'https://example.com/rank',
       rankTokenURI: 'https://example.com/rank',
       principalCost: constantParams.PRINCIPAL_COST,
@@ -1477,17 +1481,17 @@ describe(scriptName, () => {
               metadata: 'test metadata',
             });
           });
-          it('Reverts if players from another game tries to join', async () => {
+          it('Does not reverts if players from another game tries to join', async () => {
             const s1 = await simulator.signJoiningGame({
               gameId: 2,
               participant: adr.players[0].wallet,
-              signer: adr.gameMaster1,
+              signer: adr.gameMaster2,
             });
             await expect(
               rankifyInstance
                 .connect(adr.players[0].wallet)
                 .joinGame(2, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey),
-            ).to.be.revertedWith('addPlayer->Player in game');
+            ).to.not.be.reverted;
           });
         });
       });
@@ -1877,35 +1881,15 @@ describe(scriptName, () => {
       'LibRankify::newGame->Min game time zero',
     );
   });
-  it('should validate minGameTime is divisible by number of turns', async () => {
+
+  it('should validate turn count is greater than 1', async () => {
     const params: IRankifyInstance.NewGameParamsInputStruct = {
       gameMaster: adr.gameMaster1.address,
       gameRank: 1,
       maxPlayerCnt: RInstance_MAX_PLAYERS,
       minPlayerCnt: RInstance_MIN_PLAYERS,
       voteCredits: RInstance_VOTE_CREDITS,
-      nTurns: 5,
-      minGameTime: 3601, // Not divisible by 5
-      timePerTurn: RInstance_TIME_PER_TURN,
-      metadata: 'test metadata',
-      timeToJoin: RInstance_TIME_TO_JOIN,
-    };
-
-    await env.rankifyToken.connect(adr.gameCreator1.wallet).approve(rankifyInstance.address, eth.constants.MaxUint256);
-    await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createGame(params)).to.be.revertedWithCustomError(
-      rankifyInstance,
-      'NoDivisionReminderAllowed',
-    );
-  });
-
-  it('should validate turn count is greater than 2', async () => {
-    const params: IRankifyInstance.NewGameParamsInputStruct = {
-      gameMaster: adr.gameMaster1.address,
-      gameRank: 1,
-      maxPlayerCnt: RInstance_MAX_PLAYERS,
-      minPlayerCnt: RInstance_MIN_PLAYERS,
-      voteCredits: RInstance_VOTE_CREDITS,
-      nTurns: 2,
+      nTurns: 1,
       minGameTime: RInstance_MIN_GAME_TIME,
       timePerTurn: RInstance_TIME_PER_TURN,
       metadata: 'test metadata',

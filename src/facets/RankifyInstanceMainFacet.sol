@@ -44,7 +44,10 @@ contract RankifyInstanceMainFacet is
      *         - Configuring the coin vending system
      *         - Emitting the game creation event
      */
-    function createGame(LibRankify.NewGameParams memory params) private nonReentrant {
+    function createGame(
+        LibRankify.NewGameParams memory params,
+        LibCoinVending.ConfigPosition memory requirements
+    ) private nonReentrant returns (uint256) {
         //TODO: add this back in start  game to verify commitment from game master
         //  bytes32 digest = _hashTypedDataV4(
         //     keccak256(
@@ -59,9 +62,9 @@ contract RankifyInstanceMainFacet is
         // );
 
         LibRankify.newGame(params);
-        LibCoinVending.ConfigPosition memory emptyConfig;
-        LibCoinVending.configure(bytes32(params.gameId), emptyConfig);
+        LibCoinVending.configure(bytes32(params.gameId), requirements);
         emit gameCreated(params.gameId, params.gameMaster, msg.sender, params.gameRank);
+        return params.gameId;
     }
 
     /**
@@ -73,7 +76,7 @@ contract RankifyInstanceMainFacet is
      *         - Creates a new game with specified settings
      * @custom:security nonReentrant
      */
-    function createGame(IRankifyInstance.NewGameParamsInput memory params) public {
+    function createGame(IRankifyInstance.NewGameParamsInput memory params) public returns (uint256) {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
@@ -91,8 +94,42 @@ contract RankifyInstanceMainFacet is
             metadata: params.metadata
         });
 
-        createGame(newGameParams);
+        LibCoinVending.ConfigPosition memory emptyConfig;
+        return createGame(newGameParams, emptyConfig);
     }
+
+    function createAndOpenGame(
+        IRankifyInstance.NewGameParamsInput memory params,
+        LibCoinVending.ConfigPosition memory requirements
+    ) public {
+        LibRankify.enforceIsInitialized();
+        LibRankify.InstanceState storage settings = LibRankify.instanceState();
+        LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
+            gameId: settings.numGames + 1,
+            gameRank: params.gameRank,
+            creator: msg.sender,
+            minPlayerCnt: params.minPlayerCnt,
+            maxPlayerCnt: params.maxPlayerCnt,
+            gameMaster: params.gameMaster,
+            nTurns: params.nTurns,
+            voteCredits: params.voteCredits,
+            minGameTime: params.minGameTime,
+            timePerTurn: params.timePerTurn,
+            timeToJoin: params.timeToJoin,
+            metadata: params.metadata
+        });
+
+        uint256 gameId = createGame(newGameParams, requirements);
+        gameId.openRegistration();
+        emit RequirementsConfigured(gameId, requirements);
+    }
+
+    function getJoinRequirementsByToken(
+        uint256 gameId,
+        address contractAddress,
+        uint256 contractId,
+        LibCoinVending.ContractTypes contractType
+    ) public view returns (LibCoinVending.ContractCondition memory) {}
 
     /**
      * @dev Handles a player quitting a game with the provided game ID. `gameId` is the ID of the game. `player` is the address of the player.
@@ -307,8 +344,18 @@ contract RankifyInstanceMainFacet is
      * @param player The address of the player
      * @return uint256 The ID of the game
      */
-    function getPlayersGame(address player) public view returns (uint256) {
-        return LibTBG.getPlayersGame(player);
+    function getPlayersGames(address player) public view returns (uint256[] memory) {
+        return LibTBG.getPlayersGames(player);
+    }
+
+    /**
+     * @dev Returns whether the specified player is in the specified game
+     * @param gameId The ID of the game
+     * @param player The address of the player
+     * @return bool Whether the player is in the game
+     */
+    function isPlayerInGame(uint256 gameId, address player) public view returns (bool) {
+        return gameId.isPlayerInGame(player);
     }
 
     /**

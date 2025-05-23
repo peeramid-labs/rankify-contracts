@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibQuadraticVoting} from "../libraries/LibQuadraticVoting.sol";
+import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 
 interface IRankifyInstance {
     error NoDivisionReminderAllowed(uint256 a, uint256 b);
@@ -16,7 +17,7 @@ interface IRankifyInstance {
     event GameClosed(uint256 indexed gameId);
     event PlayerLeft(uint256 indexed gameId, address indexed player);
     event RankTokenExited(address indexed player, uint256 rankId, uint256 amount, uint256 _toMint);
-
+    event RequirementsConfigured(uint256 indexed gameId, LibCoinVending.ConfigPosition config);
     struct NewGameParamsInput {
         uint256 gameRank;
         uint256 minPlayerCnt;

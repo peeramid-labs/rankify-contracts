@@ -166,6 +166,12 @@ export default {
   mocha: {
     timeout: 400000,
   },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
+  },
   defaultNetwork: 'hardhat',
   networks: {
     buildbear: {

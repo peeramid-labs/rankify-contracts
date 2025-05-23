@@ -247,7 +247,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             );
         }
         LibRankify.GameState storage game = params.gameId.getGameState();
-        require(LibTBG.getPlayersGame(params.proposer) == params.gameId, "not a player");
+        require(params.gameId.isPlayerInGame(params.proposer), "not a player");
         require(bytes(params.encryptedProposal).length != 0, "Cannot propose empty");
         require(game.proposalCommitment[params.proposer] == 0, "Already proposed!");
         uint256 turn = params.gameId.getTurn();
