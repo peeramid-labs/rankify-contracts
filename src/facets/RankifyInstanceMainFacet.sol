@@ -504,6 +504,4 @@ contract RankifyInstanceMainFacet is
     function gameWinner(uint256 gameId) public view returns (address) {
         return gameId.getGameState().winner;
     }
-
-
 }
