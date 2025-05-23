@@ -17,7 +17,6 @@ import {IErrors} from "../interfaces/IErrors.sol";
  * - setting game settings such as time per turn, max players, min players, etc as well as perform score and leaderboard tracking
  *
  * Limitations:
- * - It is assumed there is only one game per player
  * - It is assumed there is only on game master per game
  *
  * ***WARNING*** Some limitations:
@@ -27,6 +26,7 @@ import {IErrors} from "../interfaces/IErrors.sol";
  */
 library LibTBG {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.UintSet;
 
     struct Settings {
         uint256 timePerTurn;
@@ -63,7 +63,7 @@ library LibTBG {
 
     struct TBGStorageStruct {
         mapping(uint256 => Instance) instances;
-        mapping(address => uint256) playerInGame;
+        mapping(address => EnumerableSet.UintSet) playerInGames;
         uint256 totalGamesCreated;
     }
 
@@ -227,14 +227,14 @@ library LibTBG {
         Settings storage settings = tbg.instances[gameId].settings;
         require(gameExists(gameId), "addPlayer->invalid game");
 
-        require(tbg.playerInGame[participant] == 0, "addPlayer->Player in game");
+        require(!tbg.playerInGames[participant].contains(gameId), "addPlayer->Player in game");
         require(state.players.length() < settings.maxPlayerCnt, "addPlayer->party full");
 
         require(canBeJoined(gameId), "addPlayer->cant join now");
         state.players.add(participant);
         state.madeMove[participant] = false;
         state.isActive[participant] = false;
-        tbg.playerInGame[participant] = gameId;
+        tbg.playerInGames[participant].add(gameId);
     }
 
     /**
@@ -246,7 +246,7 @@ library LibTBG {
      */
     function isPlayerInGame(uint256 gameId, address player) internal view returns (bool) {
         TBGStorageStruct storage tbg = TBGStorage();
-        return tbg.playerInGame[player] == gameId ? true : false;
+        return tbg.playerInGames[player].contains(gameId);
     }
 
     /**
@@ -267,9 +267,9 @@ library LibTBG {
         TBGStorageStruct storage tbg = TBGStorage();
         State storage state = tbg.instances[gameId].state;
         require(gameExists(gameId), "game does not exist");
-        require(tbg.playerInGame[participant] == gameId, "Not in the game");
+        require(tbg.playerInGames[participant].contains(gameId), "Not in the game");
         require(state.hasStarted == false || state.hasEnded == true, "Cannot leave once started");
-        tbg.playerInGame[participant] = 0;
+        tbg.playerInGames[participant].remove(gameId);
         state.players.remove(participant);
     }
 
@@ -675,7 +675,7 @@ library LibTBG {
         enforceIsNotOver(gameId);
         require(state.madeMove[player] == false, "already made a move");
         TBGStorageStruct storage tbg = TBGStorage();
-        require(gameId == tbg.playerInGame[player], "is not in the game");
+        require(tbg.playerInGames[player].contains(gameId), "is not in the game");
         state.madeMove[player] = true;
         state.numPlayersMadeMove += 1;
 
@@ -698,7 +698,7 @@ library LibTBG {
      */
     function enforceIsPlayingGame(uint256 gameId, address player) internal view {
         TBGStorageStruct storage tbg = TBGStorage();
-        require(gameId == tbg.playerInGame[player], "is not in the game");
+        require(tbg.playerInGames[player].contains(gameId), "is not in the game");
     }
 
     /**
@@ -916,10 +916,10 @@ library LibTBG {
      *
      * - The game ID of the game `player` is in.
      */
-    function getPlayersGame(address player) internal view returns (uint256) {
+    function getPlayersGames(address player) internal view returns (uint256[] memory) {
         TBGStorageStruct storage tbg = TBGStorage();
 
-        return tbg.playerInGame[player];
+        return tbg.playerInGames[player].values();
     }
 
     /**

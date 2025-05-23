@@ -181,13 +181,13 @@ export const constantParams = {
   RANKIFY_INSTANCE_CONTRACT_VERSION: '0.0.1',
   RInstance_TIME_PER_TURN: 2500,
   RInstance_MAX_PLAYERS: 6,
-  RInstance_MIN_PLAYERS: 5,
+  RInstance_MIN_PLAYERS: 3,
   RInstance_MAX_TURNS: 3,
   RInstance_TIME_TO_JOIN: '200',
   RInstance_GAME_PRICE: utils.parseUnits('0.001', 9),
   RInstance_JOIN_GAME_PRICE: utils.parseUnits('0.001', 9),
   RInstance_NUM_WINNERS: 3,
-  RInstance_VOTE_CREDITS: 14,
+  RInstance_VOTE_CREDITS: 5,
   RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
   RInstance_MIN_GAME_TIME: 360,
@@ -1481,9 +1481,11 @@ class EnvironmentSimulator {
     const promises = [];
 
     for (let i = 0; i < players.length; i++) {
-      const playerInGame = await this.rankifyInstance.getPlayersGame(players[i].wallet.address);
-      if (playerInGame.toNumber() !== 0) {
-        if (playerInGame.toNumber() !== Number(gameId)) {
+      const playerInGames = await this.rankifyInstance
+        .getPlayersGames(players[i].wallet.address)
+        .then(games => games.map(game => game.toNumber()));
+      if (playerInGames.length > 0) {
+        if (playerInGames.includes(Number(gameId))) {
           console.error('Player already in another game');
           throw new Error('Player already in another game');
         }

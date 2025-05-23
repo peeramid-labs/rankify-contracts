@@ -92,19 +92,33 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     skipIfAlreadyDeployed: true,
   });
 
-  const RankifyMainFacetDeployment = await deploy('RankifyInstanceMainFacet', {
+  const libRankifyDeployment = await deploy('LibRankify', {
     from: deployer,
     skipIfAlreadyDeployed: true,
+  });
+
+  const RankifyMainFacetDeployment = await deploy('RankifyInstanceMainFacet', {
+    from: deployer,
+    skipIfAlreadyDeployed: false,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
   });
 
   const RankifyReqsFacetDeployment = await deploy('RankifyInstanceRequirementsFacet', {
     from: deployer,
     skipIfAlreadyDeployed: true,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
   });
 
   const RankifyGMFacetDeployment = await deploy('RankifyInstanceGameMastersFacet', {
     from: deployer,
     skipIfAlreadyDeployed: true,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
   });
 
   const OwnershipFacetDeployment = await deploy('OwnershipFacet', {
@@ -192,8 +206,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     skipIfAlreadyDeployed: true,
     args: [
       _trustedForwarder,
-      rankifyToken.address,
-      DAO,
       [proposalIntegrity18Groth16VerifierDeployment.address, ph5.address, ph6.address, ph2.address],
       rankTokenCodeId,
       arguableVotingTournamentCodeId,

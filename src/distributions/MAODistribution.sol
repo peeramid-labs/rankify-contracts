@@ -30,11 +30,14 @@ contract MAODistribution is IDistribution, CodeIndexer {
         string rankTokenURI;
         string rankTokenContractURI;
         address owner;
+        address paymentToken;
     }
 
     struct TokenArguments {
         string tokenName;
         string tokenSymbol;
+        uint256[] preMintAmounts;
+        address[] preMintReceivers;
     }
 
     struct DistributorArguments {
@@ -50,21 +53,18 @@ contract MAODistribution is IDistribution, CodeIndexer {
     IDistribution private immutable _RankifyDistributionBase;
     address private immutable _governanceERC20Base;
     address private immutable _accessManagerBase;
-    address private immutable _paymentToken;
-    address private immutable _beneficiary;
     uint256 private immutable _minParticipantsInCircle;
     address private immutable _proposalIntegrityVerifier;
     address private immutable _poseidon5;
     address private immutable _poseidon6;
     address private immutable _poseidon2;
+
     /**
      * @notice Initializes the contract with the provided parameters and performs necessary checks.
      * @dev Retrieves contract addresses from a contract index using the provided identifiers
      *      and initializes the distribution system.
      * @dev WARNING: distributionName must be less then 31 bytes long to comply with ShortStrings immutable format
      * @param trustedForwarder Address of the trusted forwarder for meta-transactions (WARNING: Not yet reviewed)
-     * @param paymentToken Address of the token used for payments in the system
-     * @param beneficiary Address that receives payments and fees
      * @param rankTokenCodeId Identifier for the rank token implementation in CodeIndex
      * @param RankifyDIistributionId Identifier for the Rankify distribution implementation
      * @param accessManagerId Identifier for the access manager implementation
@@ -75,8 +75,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
      */
     constructor(
         address trustedForwarder,
-        address paymentToken,
-        address beneficiary,
         address[] memory zkpVerifier,
         bytes32 rankTokenCodeId,
         bytes32 RankifyDIistributionId,
@@ -114,17 +112,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
             revert("Governance ERC20 base not found");
         }
 
-        if (beneficiary == address(0)) {
-            revert("Beneficiary not found");
-        }
-        _beneficiary = beneficiary;
-        if (paymentToken == address(0)) {
-            revert("Payment token not found");
-        }
-        _paymentToken = paymentToken;
-        if (_rankTokenBase == address(0)) {
-            revert("Rank token base not found");
-        }
         _RankifyDistributionBase = IDistribution(getContractsIndex().get(RankifyDIistributionId));
         if (address(_RankifyDistributionBase) == address(0)) {
             revert("Rankify distribution base not found");
@@ -141,9 +128,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
     }
 
     function createToken(TokenArguments memory args) internal returns (address[] memory instances, bytes32, uint256) {
-        MintSettings memory mintSettings = MintSettings(new address[](1), new uint256[](1));
-        mintSettings.receivers[0] = address(this);
-        mintSettings.amounts[0] = 0;
+        MintSettings memory mintSettings = MintSettings(args.preMintReceivers, args.preMintAmounts);
         address token = _governanceERC20Base.clone();
         TokenSettings memory tokenSettings = TokenSettings(token, args.tokenName, args.tokenSymbol);
 
@@ -229,8 +214,8 @@ contract MAODistribution is IDistribution, CodeIndexer {
             principalCost: args.principalCost,
             principalTimeConstant: args.principalTimeConstant,
             minimumParticipantsInCircle: _minParticipantsInCircle,
-            paymentToken: _paymentToken,
-            beneficiary: _beneficiary,
+            paymentToken: args.paymentToken,
+            beneficiary: args.owner,
             derivedToken: derivedToken,
             proposalIntegrityVerifier: _proposalIntegrityVerifier,
             poseidon5: _poseidon5,
@@ -262,7 +247,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
      * @dev `instances` array contents: GovernanceToken, Gov Token AccessManager, Rankify Diamond, 8x Rankify Diamond facets, RankTokenAccessManager, RankToken
      */
     function instantiate(
-        bytes memory data
+        bytes calldata data
     ) public override returns (address[] memory instances, bytes32 distributionName, uint256 distributionVersion) {
         DistributorArguments memory args = abi.decode(data, (DistributorArguments));
 

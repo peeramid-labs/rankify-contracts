@@ -30,8 +30,12 @@ describe('Rank Token Test', async function () {
       tokenSettings: {
         tokenName: 'tokenName',
         tokenSymbol: 'tokenSymbol',
+        preMintAmounts: [ethers.utils.parseEther('100')],
+        preMintReceivers: [oSigner.address],
       },
       rankifySettings: {
+        // beneficiary: oSigner.address,
+        paymentToken: env.rankifyToken.address,
         rankTokenContractURI: 'https://example.com/rank',
         principalCost: constantParams.PRINCIPAL_COST,
         principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
