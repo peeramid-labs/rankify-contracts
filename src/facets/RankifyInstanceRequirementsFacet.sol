@@ -5,6 +5,7 @@ import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
+import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 /**
  * @title RankifyInstanceRequirementsFacet
  * @notice Facet handling game requirements and conditions for Rankify instances

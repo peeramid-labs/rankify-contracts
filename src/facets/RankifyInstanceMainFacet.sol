@@ -139,6 +139,39 @@ contract RankifyInstanceMainFacet is
         emit IRankifyInstance.RequirementsConfigured(gameId, config);
     }
 
+    function createAndOpenGame(
+        IRankifyInstance.NewGameParamsInput memory params,
+        LibCoinVending.ConfigPosition memory requirements
+    ) public {
+        LibRankify.enforceIsInitialized();
+        LibRankify.InstanceState storage settings = LibRankify.instanceState();
+        LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
+            gameId: settings.numGames + 1,
+            gameRank: params.gameRank,
+            creator: msg.sender,
+            minPlayerCnt: params.minPlayerCnt,
+            maxPlayerCnt: params.maxPlayerCnt,
+            gameMaster: params.gameMaster,
+            nTurns: params.nTurns,
+            voteCredits: params.voteCredits,
+            minGameTime: params.minGameTime,
+            timePerTurn: params.timePerTurn,
+            timeToJoin: params.timeToJoin,
+            metadata: params.metadata
+        });
+
+        uint256 gameId = createGame(newGameParams, requirements);
+        gameId.openRegistration();
+        emit RequirementsConfigured(gameId, requirements);
+    }
+
+    function getJoinRequirementsByToken(
+        uint256 gameId,
+        address contractAddress,
+        uint256 contractId,
+        LibCoinVending.ContractTypes contractType
+    ) public view returns (LibCoinVending.ContractCondition memory) {}
+
     /**
      * @dev Handles a player quitting a game with the provided game ID. `gameId` is the ID of the game. `player` is the address of the player.
      * @param gameId The ID of the game.
