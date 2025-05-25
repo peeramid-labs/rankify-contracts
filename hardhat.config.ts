@@ -182,6 +182,7 @@ export default {
       url: process.env.BUILDBEAR_RPC_URL ?? '',
     },
     hardhat: {
+    //   allowUnlimitedContractSize: true,
       name: 'hardhat',
       accounts: {
         mnemonic: 'casual vacant letter raw trend tool vacant opera buzz jaguar bridge myself',
