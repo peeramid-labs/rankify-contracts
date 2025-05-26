@@ -5,7 +5,6 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import "../tokens/Rankify.sol";
 import {LibQuadraticVoting} from "./LibQuadraticVoting.sol";
-import {LibRankifyTurnManager} from "./LibRankifyTurnManager.sol";
 import "hardhat/console.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
@@ -17,11 +16,13 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * @author Peeramid Labs, 2024
  */
 library LibRankify {
+
     using LibTBG for LibTBG.Instance;
     using LibTBG for uint256;
     using LibTBG for LibTBG.Settings;
     using LibTBG for LibTBG.State;
     using LibQuadraticVoting for LibQuadraticVoting.qVotingStruct;
+
 
     /**
      * @dev Main state structure for a Rankify instance
@@ -63,29 +64,28 @@ library LibRankify {
      * @param rank Required rank level for participation
      * @param minGameTime Minimum duration the game must run
      * @param createdBy Address of the game creator
-     * @param numOngoingProposals Number of active proposals
-     * @param numPrevProposals Number of completed proposals
-     * @param numCommitments Number of vote commitments received
-     * @param numVotesThisTurn Vote count in current turn
-     * @param numVotesPrevTurn Vote count from previous turn
+     * @param numProposals Number of proposals submitted in the current round's proposing stage
+     * @param numCommitments Number of players who have committed a proposal in the current proposing stage
+     * @param numVotes Number of votes cast in the current voting stage
+     * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
      * @param voting Quadratic voting state for this game
      */
     struct GameState {
         uint256 rank;
+        uint256 timePerTurnVoting;
+        uint256 timePerTurnProposing;
         string metadata;
         uint256 minGameTime;
         address createdBy;
-        uint256 numOngoingProposals;
-        uint256 numPrevProposals;
-        uint256 numCommitments;
-        uint256 numVotesThisTurn;
-        uint256 numVotesPrevTurn;
-        uint256 permutationCommitment;
+        uint256 numProposals; // Number of proposals submitted in the current round's proposing stage
+        uint256 numCommitments; // Number of players who have committed a proposal in the current proposing stage
+        uint256 numVotes; // Number of votes cast in the current voting stage
+        uint256 permutationCommitment; // Commitment related to the permutation of ongoingProposals, set at end of proposing stage
         LibQuadraticVoting.qVotingStruct voting;
-        mapping(uint256 => string) ongoingProposals; //Previous Turn Proposals (These are being voted on)
-        mapping(address => uint256) proposalCommitment;
-        mapping(address => bytes32) ballotHashes;
-        mapping(address => bool) playerVoted;
+        mapping(uint256 => string) ongoingProposals; // Proposals for the current round (submitted in proposing stage, voted on in voting stage)
+        mapping(address => uint256) proposalCommitment; // Player's commitment to their proposal
+        mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
+        mapping(address => bool) playerVoted; // Has player voted in the current voting stage
         address winner;
     }
 
@@ -113,7 +113,6 @@ library LibRankify {
             game.slot := position
         }
     }
-
     /**
      * @dev Returns the Rankify InstanceSettings storage.
      *
@@ -171,6 +170,8 @@ library LibRankify {
         uint128 minGameTime;
         uint128 timePerTurn;
         uint128 timeToJoin;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
         string metadata;
         // ToDo: It must list gameKey for Game master and game master signature, committing to serve the game
     }
@@ -216,16 +217,25 @@ library LibRankify {
 
         require(params.minGameTime > 0, "LibRankify::newGame->Min game time zero");
         require(params.nTurns > 1, IRankifyInstance.invalidTurnCount(params.nTurns));
-
+        require(params.votePhaseDuration > 0, "LibRankify::newGame->Time per turn voting zero");
+        require(params.proposingPhaseDuration > 0, "LibRankify::newGame->Time per turn proposing zero");
+        require(
+            params.votePhaseDuration + params.proposingPhaseDuration == params.timePerTurn,
+            "LibRankify::newGame->Time per turn voting and proposing must sum to time per turn"
+        );
+        uint256[] memory phases = new uint256[](2);
+        phases[0] = params.votePhaseDuration;
+        phases[1] = params.proposingPhaseDuration;
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
             maxPlayerCnt: params.maxPlayerCnt,
             minPlayerCnt: params.minPlayerCnt,
             timeToJoin: params.timeToJoin,
-            maxTurns: params.nTurns * 2,
+            maxTurns: params.nTurns,
             voteCredits: params.voteCredits,
             gameMaster: params.gameMaster,
-            implementationStoragePointer: bytes32(0)
+            implementationStoragePointer: bytes32(0),
+            turnPhaseDurations: phases
         });
 
         InstanceState storage state = instanceState();
@@ -234,6 +244,8 @@ library LibRankify {
         GameState storage game = getGameState(params.gameId);
         game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.maxPlayerCnt);
         game.metadata = params.metadata;
+        game.timePerTurnVoting = params.votePhaseDuration;
+        game.timePerTurnProposing = params.proposingPhaseDuration;
         require(
             SignedMath.abs(int256(uint256(params.minGameTime)) - int256(uint256(commonParams.principalTimeConstant))) <
                 uint256(commonParams.principalTimeConstant) * 2 ** 16,
@@ -504,34 +516,18 @@ library LibRankify {
      * - Otherwise, makes a move for `player` in LibTBG and returns `true`.
      */
     function tryPlayerMove(uint256 gameId, address player) public returns (bool) {
-        uint256 turn = gameId.getTurn();
         GameState storage game = getGameState(gameId);
         bool actionCompleted = false;
 
-        if (LibRankifyTurnManager.isProposingStage(gameId)) {
+        if (isProposingStage(gameId)) {
             // In proposing stage, action is complete if a proposal commitment exists.
             if (game.proposalCommitment[player] != 0) {
                 actionCompleted = true;
             }
-        } else if (LibRankifyTurnManager.isVotingStage(gameId)) {
-            // In voting stage, action is complete if player has voted.
-            // Also ensure there are enough proposals from the current round to vote on.
-            // Note: game.numOngoingProposals should be updated by the end of the proposing stage.
-            if (game.numOngoingProposals >= game.voting.minQuadraticPositions && game.playerVoted[player]) {
+        } else if (isVotingStage(gameId)) {
+            // In voting stage, action is complete if player has voted, AND there are enough proposals.
+            if (game.numProposals < game.voting.minQuadraticPositions || game.playerVoted[player]) {
                 actionCompleted = true;
-            }
-            // If not enough proposals, players can't vote, effectively their "move" for voting stage is vacuously true if they already proposed.
-            // However, the game should ideally not advance to a voting stage if there are no proposals.
-            // This scenario (not enough proposals for voting stage) should be handled by canEndProposingStage logic.
-            else if (game.numOngoingProposals < game.voting.minQuadraticPositions) {
-                // If not enough proposals, no one can vote. Consider action complete if they proposed in the prior stage.
-                // This assumes that canEndProposingStage allowed advancement.
-                // This might be too complex here. Let's simplify: if it's voting, you must vote if possible.
-                // The game advancement logic should handle cases of insufficient proposals.
-                // So, if it's a voting stage and not enough proposals, no one *can* vote. They haven't made a "voting move".
-                // But canEndVotingStage should reflect this.
-                // For now, let's stick to: if it's voting stage, playerVoted is the criteria.
-                // The check game.numOngoingProposals >= game.voting.minQuadraticPositions is critical for playerVoted to be meaningful.
             }
         }
 
@@ -540,6 +536,27 @@ library LibRankify {
             return true;
         }
         return false;
+    }
+
+    /**
+     * @dev Checks if the current proposing stage can end.
+     * A proposing stage can end if it's a proposing stage and all players have made their move (committed proposals)
+     * or the time for the stage has run out.
+     */
+    function canEndProposing(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        return isProposingStage(gameId) && gameId.canTransitionPhaseEarly();
+    }
+
+    /**
+     * @dev Checks if the current voting stage can end.
+     * A voting stage can end if it's a voting stage and all players have made their move (voted)
+     * or the time for the stage has run out.
+     * If there are not enough proposals to vote on, this stage effectively ends when LibTBG.canEndTurnEarly() becomes true (likely due to timeout).
+     */
+    function canEndVoting(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        return isVotingStage(gameId) && gameId.canTransitionPhaseEarly();
     }
 
     /**
@@ -577,4 +594,16 @@ library LibRankify {
         }
         return (scores, roundScores);
     }
+
+
+
+    function isVotingStage(uint256 gameId) internal view returns (bool) {
+        return LibTBG.getPhase(gameId) == 0;
+    }
+
+    function isProposingStage(uint256 gameId) internal view returns (bool) {
+        return LibTBG.getPhase(gameId) == 1;
+    }
+
+
 }

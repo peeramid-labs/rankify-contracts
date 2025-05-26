@@ -55,16 +55,13 @@ contract RankifyInstanceRequirementsFacet {
             rank: gameState.rank,
             minGameTime: gameState.minGameTime,
             createdBy: gameState.createdBy,
-            numOngoingProposals: gameState.numOngoingProposals,
-            numPrevProposals: gameState.numPrevProposals,
+            numProposals: gameState.numProposals,
             numCommitments: gameState.numCommitments,
-            numVotesThisTurn: gameState.numVotesThisTurn,
-            numVotesPrevTurn: gameState.numVotesPrevTurn,
+            numVotes: gameState.numVotes,
             voting: gameState.voting,
             currentTurn: tbgInstanceState.state.currentTurn,
-            turnStartedAt: tbgInstanceState.state.turnStartedAt,
+            turnStartedAt: tbgInstanceState.state.startedAt,
             registrationOpenAt: tbgInstanceState.state.registrationOpenAt,
-            startedAt: tbgInstanceState.state.startedAt,
             hasStarted: tbgInstanceState.state.hasStarted,
             hasEnded: tbgInstanceState.state.hasEnded,
             numPlayersMadeMove: tbgInstanceState.state.numPlayersMadeMove,
@@ -77,7 +74,11 @@ contract RankifyInstanceRequirementsFacet {
             maxTurns: tbgInstanceState.settings.maxTurns,
             voteCredits: tbgInstanceState.settings.voteCredits,
             gameMaster: tbgInstanceState.settings.gameMaster,
-            metadata: gameState.metadata
+            metadata: gameState.metadata,
+            phase: tbgInstanceState.state.phase,
+            proposingPhaseDuration: tbgInstanceState.settings.turnPhaseDurations[0],
+            votePhaseDuration: tbgInstanceState.settings.turnPhaseDurations[1],
+            phaseStartedAt: tbgInstanceState.state.phaseStartedAt
         });
     }
 }
