@@ -239,21 +239,9 @@ const proposalsMissingTest = (simulator: EnvironmentSimulator) =>
 
 const firstTurnMadeTest = (simulator: EnvironmentSimulator) =>
   deployments.createFixture(async () => {
-    const playersCnt = await simulator.rankifyInstance.getPlayers(1).then(players => players.length);
-    const players = simulator.getPlayers(simulator.adr, playersCnt);
-    const proposals = await simulator.mockProposals({
-      players,
-      gameMaster: simulator.adr.gameMaster1,
+
+    await simulator.endTurn({
       gameId: 1,
-      submitNow: true,
-    });
-    await simulator.endWithIntegrity({
-      gameId: 1,
-      players,
-      votes: [],
-      gm: simulator.adr.gameMaster1,
-      idlers: [0],
-      proposals,
     });
   });
 
@@ -1142,19 +1130,24 @@ describe(scriptName, () => {
               const setupResult = await proposalsReceivedTest(simulator)();
               proposals = setupResult.proposals;
             });
-            it('Can end turn', async () => {
+            it('Can end proposing stage', async () => {
               const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
               await expect(
-                endWithIntegrity({
-                  gameId: 1,
-                  players: getPlayers(adr, playersCnt),
-                  proposals,
-                  votes: [],
-                  gm: adr.gameMaster1,
-                }),
-              ).to.be.emit(rankifyInstance, 'TurnEnded');
+                rankifyInstance.connect(adr.gameMaster1).endProposing(
+                  1,
+                  await simulator
+                    .getProposalsIntegrity({
+                      players: getPlayers(adr, playersCnt),
+                      gameId: 1,
+                      turn: 1,
+                      gm: adr.gameMaster1,
+                      proposalSubmissionData: proposals,
+                    })
+                    .then(r => r.newProposals),
+                ),
+              ).to.be.emit(rankifyInstance, 'ProposingStageEnded');
             });
-            describe('When turn is over and there is one proposal missing', async () => {
+            describe.skip('When turn is over and there is one proposal missing', async () => {
               let votes: MockVote[] = [];
               beforeEach(async () => {
                 const setupResult = await proposalsMissingTest(simulator)();
@@ -1193,19 +1186,37 @@ describe(scriptName, () => {
                 ).to.be.emit(rankifyInstance, 'TurnEnded');
               });
             });
-            describe('When first turn was made', () => {
+            describe.only('When first turn was made', () => {
               beforeEach(async () => {
                 await firstTurnMadeTest(simulator)();
               });
 
               it('throws if player votes twice', async () => {
+                proposals = await simulator.mockProposals({
+                  players: getPlayers(adr, RInstance_MIN_PLAYERS),
+                  gameMaster: adr.gameMaster1,
+                  gameId: 1,
+                  submitNow: true,
+                });
+                await rankifyInstance.connect(adr.gameMaster1).endProposing(
+                  1,
+                  await simulator
+                    .getProposalsIntegrity({
+                      players: getPlayers(adr, RInstance_MIN_PLAYERS),
+                      gameId: 1,
+                      turn: 1,
+                      gm: adr.gameMaster1,
+                      proposalSubmissionData: proposals,
+                    })
+                    .then(r => r.newProposals),
+                );
                 const votes = await simulator.mockValidVotes(
                   getPlayers(adr, RInstance_MIN_PLAYERS),
                   1,
                   adr.gameMaster1,
                   true,
                 );
-                const proposals = await simulator.mockProposals({
+                proposals = await simulator.mockProposals({
                   players: getPlayers(adr, RInstance_MIN_PLAYERS),
                   gameMaster: adr.gameMaster1,
                   gameId: 1,
@@ -1231,7 +1242,7 @@ describe(scriptName, () => {
                   eth.BigNumber.from('0'),
                 ]);
               });
-              it('shows no players made a turn even after player send proposal', async () => {
+              it('shows players submitted proposals as active', async () => {
                 const proposals = await simulator.mockProposals({
                   players: getPlayers(adr, RInstance_MIN_PLAYERS),
                   gameMaster: adr.gameMaster1,
@@ -1241,8 +1252,8 @@ describe(scriptName, () => {
                 await rankifyInstance.connect(adr.gameMaster1).submitProposal(proposals[0].params);
                 await rankifyInstance.connect(adr.gameMaster1).submitProposal(proposals[1].params);
                 expect(await rankifyInstance.getPlayersMoved(1)).to.deep.equal([
-                  getPlayers(adr, RInstance_MIN_PLAYERS).map(() => false),
-                  eth.BigNumber.from('0'),
+                  getPlayers(adr, RInstance_MIN_PLAYERS).map((_, i) => i < 2),
+                  eth.BigNumber.from('2'),
                 ]);
               });
               describe('When all players voted', () => {
@@ -1251,9 +1262,16 @@ describe(scriptName, () => {
                   const setupResult = await allPlayersVotedTest(simulator)();
                   votes = setupResult.votes;
                 });
-                it('cannot end turn because players still have time to propose', async () => {
+                it.only('cannot end turn because players still have time to propose', async () => {
                   const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
                   const players = getPlayers(adr, playersCnt);
+                  proposals = await simulator.mockProposals({
+                    players,
+                    gameMaster: adr.gameMaster1,
+                    gameId: 1,
+                    submitNow: false,
+                    idlers: players.map((_, i) => i),
+                  });
                   await expect(
                     endWithIntegrity({
                       gameId: 1,

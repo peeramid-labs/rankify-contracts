@@ -149,13 +149,6 @@ contract RankifyInstanceMainFacet is
         emit IRankifyInstance.RequirementsConfigured(gameId, config);
     }
 
-    function getJoinRequirementsByToken(
-        uint256 gameId,
-        address contractAddress,
-        uint256 contractId,
-        LibCoinVending.ContractTypes contractType
-    ) public view returns (LibCoinVending.ContractCondition memory) {}
-
     /**
      * @dev Handles a player quitting a game with the provided game ID. `gameId` is the ID of the game. `player` is the address of the player.
      * @param gameId The ID of the game.
