@@ -698,7 +698,6 @@ library LibTBG {
 
         // Set player as active when they make a move
         state.isActive[player] = true;
-        state.numActivePlayers++;
     }
 
     function isPlayerTurnComplete(uint256 gameId, address player) internal view returns (bool) {
@@ -771,6 +770,24 @@ library LibTBG {
         state.phaseStartedAt = block.timestamp;
         state.phase += 1;
         bool _isLastTurn = false;
+
+        // Update player activity status for next stage
+        uint256 playerCount = state.players.length();
+        state.numActivePlayers = 0;
+
+        for (uint256 i = 0; i < playerCount; i++) {
+            address player = state.players.at(i);
+            // If player didn't make a move this turn, mark them as inactive
+            if (!state.madeMove[player]) {
+                // console.log('LibTBG::nextTurn - ','player inactive!');
+                state.isActive[player] = false;
+            } else {
+                // console.log('LibTBG::nextTurn - ','player active!');
+                state.numActivePlayers++;
+            }
+            state.madeMove[player] = false;
+        }
+        state.numPlayersMadeMove = 0;
         if (state.phase == instance.settings.turnPhaseDurations.length) {
             state.phase = 0;
             state.currentTurn += 1;
@@ -780,23 +797,6 @@ library LibTBG {
                 state.isOvertime = _isTie;
             }
             state.hasEnded = isGameOver(gameId);
-            // Update player activity status for next turn
-            uint256 playerCount = state.players.length();
-            state.numActivePlayers = 0;
-
-            for (uint256 i = 0; i < playerCount; i++) {
-                address player = state.players.at(i);
-                // If player didn't make a move this turn, mark them as inactive
-                if (!state.madeMove[player]) {
-                    // console.log('LibTBG::nextTurn - ','player inactive!');
-                    state.isActive[player] = false;
-                } else {
-                    // console.log('LibTBG::nextTurn - ','player active!');
-                    state.numActivePlayers++;
-                }
-                state.madeMove[player] = false;
-            }
-            state.numPlayersMadeMove = 0;
 
             (state.leaderboard, ) = sortByScore(gameId);
         }

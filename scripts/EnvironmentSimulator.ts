@@ -258,8 +258,8 @@ class EnvironmentSimulator {
     nTurns: constantParams.RInstance_MAX_TURNS,
     voteCredits: constantParams.RInstance_VOTE_CREDITS,
     minGameTime: constantParams.RInstance_MIN_GAME_TIME,
-    proposingPhaseDuration: constantParams.RInstance_MIN_GAME_TIME / 2,
-    votePhaseDuration: constantParams.RInstance_MIN_GAME_TIME - constantParams.RInstance_MIN_GAME_TIME / 2,
+    proposingPhaseDuration: constantParams.RInstance_TIME_PER_TURN / 2,
+    votePhaseDuration: constantParams.RInstance_TIME_PER_TURN - constantParams.RInstance_TIME_PER_TURN / 2,
   });
 
   /**
@@ -379,7 +379,7 @@ class EnvironmentSimulator {
     log(`Generating vote salt for player ${player} in game ${gameId}, turn ${turn}`, 3);
     const result = await generateDeterministicPermutation({
       gameId,
-      turn: Number(turn) - 1,
+      turn: Number(turn),
       verifierAddress,
       chainId,
       gm,
@@ -595,7 +595,7 @@ class EnvironmentSimulator {
     const eip712 = await verifier.inspectEIP712Hashes();
     const { permutation } = await generateDeterministicPermutation({
       gameId,
-      turn: Number(turn) - 1,
+      turn: Number(turn),
       verifierAddress: verifier.address,
       chainId,
       gm,
@@ -1022,8 +1022,8 @@ class EnvironmentSimulator {
       nTurns: constantParams.RInstance_MAX_TURNS,
       voteCredits: constantParams.RInstance_VOTE_CREDITS,
       minGameTime: minGameTime,
-      proposingPhaseDuration: constantParams.RInstance_MIN_GAME_TIME / 2,
-      votePhaseDuration: constantParams.RInstance_MIN_GAME_TIME - constantParams.RInstance_MIN_GAME_TIME / 2,
+      proposingPhaseDuration: constantParams.RInstance_TIME_PER_TURN / 2,
+      votePhaseDuration: constantParams.RInstance_TIME_PER_TURN - constantParams.RInstance_TIME_PER_TURN / 2,
     };
     await this.rankifyInstance
       .connect(signer)
@@ -1076,11 +1076,14 @@ class EnvironmentSimulator {
         2,
       ),
     );
-    const tx = await this.rankifyInstance
-      .connect(this.adr.gameMaster1)
-      .endProposing(gameId, newProposals)
-      .then(r => r.wait(1));
-    log(tx, 3);
+    const isProposingStage = await this.rankifyInstance.isProposingStage(gameId);
+    if (isProposingStage) {
+      const tx = await this.rankifyInstance
+        .connect(this.adr.gameMaster1)
+        .endProposing(gameId, newProposals)
+        .then(r => r.wait(1));
+      log(tx, 3);
+    }
     const v = (
       votes ??
       (await this.mockValidVotes(this.getPlayers(this.adr, players.length), gameId, this.adr.gameMaster1, true, 'ftw'))
@@ -1147,7 +1150,14 @@ class EnvironmentSimulator {
       proposalSubmissionData: proposals,
       idlers,
     });
-    return this.rankifyInstance.connect(gm).endTurn(gameId, votes, newProposals, permutation, nullifier);
+    const tx1 = this.rankifyInstance
+      .connect(gm)
+      .endProposing(gameId, newProposals)
+      .then(async r => {
+        const tx2 = this.rankifyInstance.connect(gm).endVoting(gameId, votes, permutation, nullifier);
+        return Promise.all([r, tx2]);
+      });
+    return tx1;
   };
 
   async mockProposals({
@@ -1313,11 +1323,6 @@ class EnvironmentSimulator {
         gamePlayerAddresses.includes(player.wallet.address),
       );
       // Submit votes if not first turn
-      if (turn.toNumber() !== 1) {
-        log(`Submitting votes for turn: ${turn}`, 2);
-        lastVotes = await this.mockValidVotes(players, gameId, this.adr.gameMaster1, true, distribution);
-        log(`Votes submitted: ${lastVotes.length}`, 2);
-      }
 
       // Submit proposals
       log('Submitting proposals...', 2);
@@ -1327,6 +1332,20 @@ class EnvironmentSimulator {
         gameId,
         submitNow: true,
       });
+
+      const proposalsIntegrity = await this.getProposalsIntegrity({
+        players,
+        gameId,
+        turn,
+        gm: this.adr.gameMaster1,
+        idlers: [],
+      });
+      await this.rankifyInstance.connect(this.adr.gameMaster1).endProposing(gameId, proposalsIntegrity.newProposals);
+
+      log(`Submitting votes for turn: ${turn}`, 2);
+      lastVotes = await this.mockValidVotes(players, gameId, this.adr.gameMaster1, true, distribution);
+      log(`Votes submitted: ${lastVotes.length}`, 2);
+
       log(`Proposals submitted: ${lastProposals.length}`, 2);
       if (distribution == 'equal' && players.length % 2 !== 0) {
         log('Increasing time for equal distribution and odd number of players', 2);
@@ -1376,68 +1395,64 @@ class EnvironmentSimulator {
       2,
     );
     log(`node env: ${process.env.NODE_ENV}`, 2);
-    if (!turn.eq(1)) {
-      votes = await this.mockVotes({
-        gameId: gameId,
-        turn: turn,
-        verifier: this.rankifyInstance,
-        players: players,
-        gm: gm,
-        distribution: distribution ?? 'semiUniform',
-      });
-      if (submitNow) {
-        this.votersAddresses = players.map(player => player.wallet.address);
-        for (let i = 0; i < players.length; i++) {
-          const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
-          if (!voted[i]) {
-            log(`submitting vote for player ${players[i].wallet.address}`, 2);
-            log(votes[i].vote, 2);
-            if (votes[i].vote.some(v => v != 0)) {
-              await this.rankifyInstance
-                .connect(gm)
-                .submitVote(
-                  gameId,
-                  votes[i].ballotId,
-                  players[i].wallet.address,
-                  votes[i].gmSignature,
-                  votes[i].voterSignature,
-                  votes[i].ballotHash,
-                );
-            } else {
-              log(`zero vote for player ${players[i].wallet.address}`, 1);
-            }
-          } else {
-            log(`player ${players[i].wallet.address} already voted! Substituting mock with real one`, 2);
-            const playerVotedEvents = await this.rankifyInstance.queryFilter(
-              this.rankifyInstance.filters.VoteSubmitted(gameId, turn, players[i].wallet.address),
-            );
-            assert(playerVotedEvents.length > 0, 'Player should have voted');
-            votes[i].ballotHash = playerVotedEvents[0].args.ballotHash;
-            votes[i].gmSignature = playerVotedEvents[0].args.gmSignature;
-            votes[i].voterSignature = playerVotedEvents[0].args.voterSignature;
-            votes[i].ballotId = playerVotedEvents[0].args.sealedBallotId;
-            try {
-              votes[i].vote = await this.decryptVote({
-                vote: playerVotedEvents[0].args.sealedBallotId,
-                playerPubKey: await this.getCachedPubKey(players[i].wallet.address),
+    votes = await this.mockVotes({
+      gameId: gameId,
+      turn: turn,
+      verifier: this.rankifyInstance,
+      players: players,
+      gm: gm,
+      distribution: distribution ?? 'semiUniform',
+    });
+    if (submitNow) {
+      this.votersAddresses = players.map(player => player.wallet.address);
+      for (let i = 0; i < players.length; i++) {
+        const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
+        if (!voted[i]) {
+          log(`submitting vote for player ${players[i].wallet.address}`, 2);
+          log(votes[i].vote, 2);
+          if (votes[i].vote.some(v => v != 0)) {
+            await this.rankifyInstance
+              .connect(gm)
+              .submitVote(
                 gameId,
-                instanceAddress: this.rankifyInstance.address,
-                signer: gm,
-                turn,
-              });
-              log(`Decrypted vote:`, 3);
-              log(votes[i].vote, 3);
-            } catch (e) {
-              console.error('Failed to decrypt vote');
-            }
+                votes[i].ballotId,
+                players[i].wallet.address,
+                votes[i].gmSignature,
+                votes[i].voterSignature,
+                votes[i].ballotHash,
+              );
+          } else {
+            log(`zero vote for player ${players[i].wallet.address}`, 1);
+          }
+        } else {
+          log(`player ${players[i].wallet.address} already voted! Substituting mock with real one`, 2);
+          const playerVotedEvents = await this.rankifyInstance.queryFilter(
+            this.rankifyInstance.filters.VoteSubmitted(gameId, turn, players[i].wallet.address),
+          );
+          assert(playerVotedEvents.length > 0, 'Player should have voted');
+          votes[i].ballotHash = playerVotedEvents[0].args.ballotHash;
+          votes[i].gmSignature = playerVotedEvents[0].args.gmSignature;
+          votes[i].voterSignature = playerVotedEvents[0].args.voterSignature;
+          votes[i].ballotId = playerVotedEvents[0].args.sealedBallotId;
+          try {
+            votes[i].vote = await this.decryptVote({
+              vote: playerVotedEvents[0].args.sealedBallotId,
+              playerPubKey: await this.getCachedPubKey(players[i].wallet.address),
+              gameId,
+              instanceAddress: this.rankifyInstance.address,
+              signer: gm,
+              turn,
+            });
+            log(`Decrypted vote:`, 3);
+            log(votes[i].vote, 3);
+          } catch (e) {
+            console.error('Failed to decrypt vote');
           }
         }
       }
-      log(`Mocked ${votes.length} votes`, 2);
-      return votes;
-    } else {
-      return [];
     }
+    log(`Mocked ${votes.length} votes`, 2);
+    return votes;
   }
 
   async startGame(gameId: BigNumberish) {
@@ -1448,20 +1463,7 @@ class EnvironmentSimulator {
     if (isRegistrationOpen && !state.hasStarted) {
       await time.setNextBlockTimestamp(currentT + Number(constantParams.RInstance_TIME_TO_JOIN) + 1);
       await this.mineBlocks(constantParams.RInstance_TIME_TO_JOIN + 1);
-      await this.rankifyInstance
-        .connect(this.adr.gameMaster1)
-        .startGame(
-          gameId,
-          await generateDeterministicPermutation({
-            gameId: gameId,
-            turn: 0,
-            verifierAddress: this.rankifyInstance.address,
-            chainId: await this.hre.getChainId(),
-            gm: this.adr.gameMaster1,
-            size: await this.rankifyInstance.getPlayers(gameId).then(players => players.length),
-          }).then(perm => perm.commitment),
-        )
-        .then(tx => tx.wait(1));
+      await this.rankifyInstance.connect(this.adr.gameMaster1).startGame(gameId);
     } else {
       log('Game already started, skipping start game');
     }
@@ -1523,17 +1525,7 @@ class EnvironmentSimulator {
       log('Starting game after filling party');
       await this.rankifyInstance
         .connect(gameMaster)
-        .startGame(
-          gameId,
-          await generateDeterministicPermutation({
-            gameId: gameId,
-            turn: 0,
-            verifierAddress: this.rankifyInstance.address,
-            chainId: await this.hre.getChainId(),
-            gm: gameMaster,
-            size: await this.rankifyInstance.getPlayers(gameId).then(players => players.length),
-          }).then(perm => perm.commitment),
-        )
+        .startGame(gameId)
         .then(tx => tx.wait(1));
     }
     return Promise.all(promises.map(p => p.wait(1)));

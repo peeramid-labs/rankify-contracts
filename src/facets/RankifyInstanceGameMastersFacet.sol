@@ -82,9 +82,10 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
     event VotingStageResults(
         uint256 indexed gameId,
         uint256 indexed roundNumber,
+        address indexed winner,
         address[] players,
         uint256[] scores,
-        uint256[][] votes
+        uint256[][] votesSorted
     );
 
     /**
@@ -161,7 +162,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         gameId.enforceHasStarted();
         require(!gameId.isGameOver(), "Game over");
         gameId.enforceIsPlayingGame(voter);
-        require(gameId.getTurn() > 1, "No proposals exist at turn 1: cannot vote");
+        require(gameId.isVotingStage(), "Not in voting stage");
         address gm = gameId.getGM();
         if (msg.sender != gm) {
             // Verify GM signature for sealed ballot
@@ -359,6 +360,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         uint256 shuffleSalt
     ) public nonReentrant {
         {
+            gameId.enforceGameExists();
             gameId.enforceIsGM(msg.sender);
             gameId.enforceHasStarted();
             gameId.enforceIsNotOver();
@@ -409,7 +411,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             }
 
             // Calculate scores for previous turn's proposals
-            (, uint256[] memory roundScores) = gameId.calculateScores(votesSorted);
+            (, uint256[] memory roundScores, address roundWinner) = gameId.calculateScores(votesSorted);
 
             string[] memory proposals = new string[](players.length);
             for (uint256 i = 0; i < players.length; ++i) {
@@ -422,6 +424,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                 uint256 turn = gameId.getTurn();
                 emit ProposalScore(gameId, turn, proposal, proposal, roundScores[i]);
             }
+            emit VotingStageResults(gameId, gameId.getTurn(), roundWinner, players, roundScores, votesSorted);
         }
         {
             LibRankify.InstanceState storage instanceState = LibRankify.instanceState();
@@ -461,10 +464,12 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
      * @param newProposals The new proposals for the current turn, see BatchProposalReveal
      */
     function endProposing(uint256 gameId, BatchProposalReveal memory newProposals) public nonReentrant {
+        gameId.enforceGameExists();
         gameId.enforceIsGM(msg.sender);
         gameId.enforceHasStarted();
         gameId.enforceIsNotOver();
-        require(gameId.canEndProposing(), "Not in proposing stage");
+        require(gameId.isProposingStage(), "Not in proposing stage");
+        require(gameId.canEndProposing(), "Cannot end proposing stage");
         LibRankify.GameState storage game = gameId.getGameState();
         address[] memory players = gameId.getPlayers();
 

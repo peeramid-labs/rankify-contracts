@@ -254,17 +254,14 @@ contract RankifyInstanceMainFacet is
     /**
      * @dev Starts a game with the provided game ID early. `gameId` is the ID of the game.
      * @param gameId The ID of the game.
-     * @param permutationCommitment The commitment to the permutation issued by the game master.
      * @notice This function:
      *         - Calls the `enforceGameExists` function.
      *         - Calls the `startGameEarly` function.
      *         - Emits a _GameStarted_ event.
      */
-    function startGame(uint256 gameId, uint256 permutationCommitment) public {
+    function startGame(uint256 gameId) public {
         gameId.enforceGameExists();
         gameId.startGameEarly();
-        LibRankify.GameState storage game = gameId.getGameState();
-        game.permutationCommitment = permutationCommitment;
         emit GameStarted(gameId);
     }
 

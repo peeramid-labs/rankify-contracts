@@ -568,10 +568,12 @@ library LibRankify {
     function calculateScores(
         uint256 gameId,
         uint256[][] memory votesRevealed
-    ) public returns (uint256[] memory, uint256[] memory) {
+    ) public returns (uint256[] memory, uint256[] memory, address) {
         address[] memory players = gameId.getPlayers();
         uint256[] memory scores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
+        address winner = address(0);
+        uint256 maxScore = 0;
         GameState storage game = getGameState(gameId);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
@@ -584,13 +586,17 @@ library LibRankify {
                 //if player proposal exists
                 scores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
                 gameId.setScore(players[playerIdx], scores[playerIdx]);
+                if (scores[playerIdx] > maxScore) {
+                    maxScore = scores[playerIdx];
+                    winner = players[playerIdx];
+                }
             } else {
                 //Player did not propose
                 // TODO: implement tests for this
                 // require(roundScores[playerIdx] == 0, "LibRankify->calculateScores: player got votes without proposing");
             }
         }
-        return (scores, roundScores);
+        return (scores, roundScores, winner);
     }
 
 
