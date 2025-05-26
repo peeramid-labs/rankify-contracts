@@ -64,7 +64,6 @@ library LibRankify {
      * @param rank Required rank level for participation
      * @param minGameTime Minimum duration the game must run
      * @param createdBy Address of the game creator
-     * @param numProposals Number of proposals submitted in the current round's proposing stage
      * @param numCommitments Number of players who have committed a proposal in the current proposing stage
      * @param numVotes Number of votes cast in the current voting stage
      * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
@@ -77,7 +76,6 @@ library LibRankify {
         string metadata;
         uint256 minGameTime;
         address createdBy;
-        uint256 numProposals; // Number of proposals submitted in the current round's proposing stage
         uint256 numCommitments; // Number of players who have committed a proposal in the current proposing stage
         uint256 numVotes; // Number of votes cast in the current voting stage
         uint256 permutationCommitment; // Commitment related to the permutation of ongoingProposals, set at end of proposing stage
@@ -526,7 +524,7 @@ library LibRankify {
             }
         } else if (isVotingStage(gameId)) {
             // In voting stage, action is complete if player has voted, AND there are enough proposals.
-            if (game.numProposals < game.voting.minQuadraticPositions || game.playerVoted[player]) {
+            if (game.numCommitments < game.voting.minQuadraticPositions || game.playerVoted[player]) {
                 actionCompleted = true;
             }
         }
@@ -598,11 +596,11 @@ library LibRankify {
 
 
     function isVotingStage(uint256 gameId) internal view returns (bool) {
-        return LibTBG.getPhase(gameId) == 0;
+        return LibTBG.getPhase(gameId) == 1;
     }
 
     function isProposingStage(uint256 gameId) internal view returns (bool) {
-        return LibTBG.getPhase(gameId) == 1;
+        return LibTBG.getPhase(gameId) == 0;
     }
 
 

@@ -258,6 +258,8 @@ class EnvironmentSimulator {
     nTurns: constantParams.RInstance_MAX_TURNS,
     voteCredits: constantParams.RInstance_VOTE_CREDITS,
     minGameTime: constantParams.RInstance_MIN_GAME_TIME,
+    proposingPhaseDuration: constantParams.RInstance_MIN_GAME_TIME / 2,
+    votePhaseDuration: constantParams.RInstance_MIN_GAME_TIME - constantParams.RInstance_MIN_GAME_TIME / 2,
   });
 
   /**
@@ -1020,6 +1022,8 @@ class EnvironmentSimulator {
       nTurns: constantParams.RInstance_MAX_TURNS,
       voteCredits: constantParams.RInstance_VOTE_CREDITS,
       minGameTime: minGameTime,
+      proposingPhaseDuration: constantParams.RInstance_MIN_GAME_TIME / 2,
+      votePhaseDuration: constantParams.RInstance_MIN_GAME_TIME - constantParams.RInstance_MIN_GAME_TIME / 2,
     };
     await this.rankifyInstance
       .connect(signer)
@@ -1060,23 +1064,10 @@ class EnvironmentSimulator {
       idlers,
       proposalSubmissionData: proposals,
     });
-    const v = (
-      votes ??
-      (await this.mockValidVotes(
-        this.getPlayers(this.adr, players.length),
-        gameId,
-        this.adr.gameMaster1,
-        turn.eq(1) ? false : true,
-        'ftw',
-      ))
-    ).map(vote => {
-      return vote.vote;
-    });
     log(
       JSON.stringify(
         {
           gameId,
-          votes: v,
           newProposals,
           permutation,
           nullifier,
@@ -1087,9 +1078,21 @@ class EnvironmentSimulator {
     );
     const tx = await this.rankifyInstance
       .connect(this.adr.gameMaster1)
-      .endTurn(gameId, v, newProposals, permutation, nullifier)
+      .endProposing(gameId, newProposals)
       .then(r => r.wait(1));
     log(tx, 3);
+    const v = (
+      votes ??
+      (await this.mockValidVotes(this.getPlayers(this.adr, players.length), gameId, this.adr.gameMaster1, true, 'ftw'))
+    ).map(vote => {
+      return vote.vote;
+    });
+    log(JSON.stringify({ gameId, v, permutation, nullifier }, null, 2), 3);
+    const tx2 = await this.rankifyInstance
+      .connect(this.adr.gameMaster1)
+      .endVoting(gameId, v, permutation, nullifier)
+      .then(r => r.wait(1));
+    log(tx2, 3);
   }
 
   public async runToTheEnd(gameId: BigNumberish, distribution: 'ftw' | 'semiUniform' | 'equal' = 'ftw') {

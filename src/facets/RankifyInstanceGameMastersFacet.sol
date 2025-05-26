@@ -449,9 +449,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             game.proposalCommitment[players[i]] = 0;
         }
 
-        game.numVotes = game.numVotes;
         game.numVotes = 0;
-        game.numProposals = game.numCommitments;
         game.numCommitments = 0;
         _nextTurn(gameId);
     }
@@ -466,7 +464,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         gameId.enforceIsGM(msg.sender);
         gameId.enforceHasStarted();
         gameId.enforceIsNotOver();
-        require(gameId.isProposingStage(), "Not in proposing stage");
+        require(gameId.canEndProposing(), "Not in proposing stage");
         LibRankify.GameState storage game = gameId.getGameState();
         address[] memory players = gameId.getPlayers();
 
@@ -516,6 +514,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         for (uint256 i = 0; i < newProposals.proposals.length; ++i) {
             game.ongoingProposals[i] = newProposals.proposals[i];
         }
-        emit ProposingStageEnded(gameId, gameId.getTurn(), game.numProposals);
+        emit ProposingStageEnded(gameId, gameId.getTurn(), game.numCommitments);
+        gameId.next();
     }
 }

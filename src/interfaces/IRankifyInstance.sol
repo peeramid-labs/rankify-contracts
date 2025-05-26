@@ -37,7 +37,6 @@ interface IRankifyInstance {
         uint256 rank;
         uint256 minGameTime;
         address createdBy;
-        uint256 numProposals;
         uint256 numCommitments;
         uint256 numVotes;
         LibQuadraticVoting.qVotingStruct voting;
