@@ -1,5 +1,11 @@
 # rankify-contracts
 
+## 0.13.1
+
+### Patch Changes
+
+- [`4fb1d387d1d2d283a30d6d17f467d69d32ac82b1`](https://github.com/peeramid-labs/rankify-contracts/commit/4fb1d387d1d2d283a30d6d17f467d69d32ac82b1) Thanks [@peersky](https://github.com/peersky)! - arbsepolia deployment arfifacts
+
 ## 0.13.0
 
 ### Minor Changes
