@@ -99,7 +99,6 @@ contract RankifyInstanceMainFacet is
             metadata: params.metadata,
             votePhaseDuration: params.votePhaseDuration,
             proposingPhaseDuration: params.proposingPhaseDuration
-
         });
 
         LibCoinVending.ConfigPosition memory emptyConfig;

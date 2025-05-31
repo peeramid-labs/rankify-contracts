@@ -16,13 +16,11 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * @author Peeramid Labs, 2024
  */
 library LibRankify {
-
     using LibTBG for LibTBG.Instance;
     using LibTBG for uint256;
     using LibTBG for LibTBG.Settings;
     using LibTBG for LibTBG.State;
     using LibQuadraticVoting for LibQuadraticVoting.qVotingStruct;
-
 
     /**
      * @dev Main state structure for a Rankify instance
@@ -599,8 +597,6 @@ library LibRankify {
         return (scores, roundScores, winner);
     }
 
-
-
     function isVotingStage(uint256 gameId) internal view returns (bool) {
         return LibTBG.getPhase(gameId) == 1;
     }
@@ -608,6 +604,4 @@ library LibRankify {
     function isProposingStage(uint256 gameId) internal view returns (bool) {
         return LibTBG.getPhase(gameId) == 0;
     }
-
-
 }
