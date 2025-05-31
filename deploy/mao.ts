@@ -33,7 +33,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       console.log(`[MAO Deploy] ${message}`);
     }
   };
-  const skipDistributionIfAlreadyDeployed = !!process.env.FORCE_REDEPLOY;
+  const skipDistributionIfAlreadyDeployed = !process.env.FORCE_REDEPLOY;
 
   const SACMDeployment = await deployments.get('SimpleAccessManager');
   const accessManagerCode = await hre.ethers.provider.getCode(SACMDeployment.address);
