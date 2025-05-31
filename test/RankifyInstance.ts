@@ -1894,7 +1894,7 @@ describe(scriptName, () => {
     });
   });
 });
-describe.only(scriptName + '::Multiple games were played', () => {
+describe(scriptName + '::Multiple games were played', () => {
   let adr: AdrSetupResult;
   let env: EnvSetupResult;
   // Use the simulator from setupMainTest to ensure consistency
