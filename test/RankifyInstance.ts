@@ -2002,7 +2002,7 @@ describe.only(scriptName + '::Multiple games were played', () => {
         const balances: number[] = [];
         const players = getPlayers(adr, RInstance_MIN_PLAYERS, 0);
         for (let i = 0; i < players.length; i++) {
-          expect(await rankTokenInstance.unlockedBalanceOf(players[i].wallet.address, 3)).to.be.equal(0);
+          expect(await rankTokenInstance.unlockedBalanceOf(players[i].wallet.address, 3)).to.be.equal(i == 0 ? 1 : 0);
           balances[i] = await rankTokenInstance
             .unlockedBalanceOf(players[i].wallet.address, 2)
             .then(bn => bn.toNumber());
