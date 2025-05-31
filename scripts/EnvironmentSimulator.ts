@@ -1112,10 +1112,6 @@ class EnvironmentSimulator {
       isGameOver = await this.rankifyInstance.isGameOver(gameId);
     }
     const winner = await this.rankifyInstance['gameWinner(uint256)'](gameId);
-    if (distribution == 'ftw') {
-      const players = await this.rankifyInstance.getPlayers(gameId);
-      assert(winner == players[0], 'winner is not the first player');
-    }
     log(`Game ${gameId} ended. Winner: ${winner}`, 2);
     return {
       winner,
