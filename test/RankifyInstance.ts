@@ -17,10 +17,11 @@ import { MAODistribution } from '../types/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { generateDeterministicPermutation } from '../scripts/proofs';
 import { HardhatEthersHelpers } from 'hardhat/types';
-import { EnvSetupResult } from '../scripts/setupMockEnvironment';
+import { EnvSetupResult, SignerIdentity } from '../scripts/setupMockEnvironment';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
+import { ProposalsIntegrity } from '../scripts/EnvironmentSimulator';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
@@ -229,12 +230,65 @@ const gameOverTest = (simulator: EnvironmentSimulator) =>
 
 const proposalsMissingTest = (simulator: EnvironmentSimulator) =>
   deployments.createFixture(async () => {
-    await simulator.endTurn({ gameId: 1 });
+    const gameId = await simulator.createGame({
+      minGameTime: RInstance_MIN_GAME_TIME,
+      signer: simulator.adr.gameCreator1.wallet,
+      gameMaster: simulator.adr.gameMaster1.address,
+      gameRank: 1,
+      openNow: true,
+      metadata: 'proposalsMissingTest game',
+    });
 
-    const playersCnt = await simulator.rankifyInstance.getPlayers(1).then(players => players.length);
-    const players = simulator.getPlayers(simulator.adr, playersCnt);
-    const votes = await simulator.mockValidVotes(players, 1, simulator.adr.gameMaster1, true);
-    return { votes };
+    const playersForThisTest = simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS, RInstance_MIN_PLAYERS);
+
+    await simulator.fillParty({
+      players: playersForThisTest,
+      gameId: gameId,
+      shiftTime: true,
+      gameMaster: simulator.adr.gameMaster1,
+      startGame: true,
+    });
+
+    const playerCnt = await simulator.rankifyInstance.getPlayers(gameId).then(players => players.length);
+    const players = simulator.getPlayers(simulator.adr, playerCnt, RInstance_MIN_PLAYERS);
+    const idlers = [0, 1];
+    const currentTurnBN = await simulator.rankifyInstance.getTurn(gameId);
+    const currentTurn = currentTurnBN.toNumber();
+
+    const proposalDataForAllSlots = await simulator.mockProposals({
+      players,
+      gameMaster: simulator.adr.gameMaster1,
+      gameId: gameId,
+      submitNow: false,
+      idlers: idlers,
+      turn: currentTurn,
+    });
+
+    for (let i = 0; i < players.length; i++) {
+      if (!idlers.includes(i)) {
+        await simulator.rankifyInstance
+          .connect(simulator.adr.gameMaster1)
+          .submitProposal(proposalDataForAllSlots[i].params);
+      }
+    }
+
+    // Advance time to allow proposing stage to end
+    const gameState = await simulator.rankifyInstance.getGameState(gameId);
+    await time.increase(gameState.proposingPhaseDuration.toNumber() + 1);
+
+    const integrity = await simulator.getProposalsIntegrity({
+      players,
+      gameId: gameId,
+      turn: currentTurn,
+      gm: simulator.adr.gameMaster1,
+      proposalSubmissionData: proposalDataForAllSlots,
+      idlers: idlers,
+    });
+
+    await simulator.rankifyInstance.connect(simulator.adr.gameMaster1).endProposing(gameId, integrity.newProposals);
+
+    expect(await simulator.rankifyInstance.isVotingStage(gameId)).to.be.true;
+    return { gameId, players, integrity };
   });
 
 const firstTurnMadeTest = (simulator: EnvironmentSimulator) =>
@@ -1228,43 +1282,28 @@ describe(scriptName, () => {
                 ),
               ).to.be.emit(rankifyInstance, 'ProposingStageEnded');
             });
-            describe.skip('When turn is over and there is one proposal missing', async () => {
-              let votes: MockVote[] = [];
+            describe('When turn is over and there is one proposal missing', async () => {
+              let gameId: BigNumber;
+              let players: SignerIdentity[];
+              let integrityData: any;
+
               beforeEach(async () => {
                 const setupResult = await proposalsMissingTest(simulator)();
-                votes = setupResult.votes;
-                proposals = [];
+                gameId = setupResult.gameId;
+                players = setupResult.players;
+                integrityData = setupResult.integrity;
               });
+
               it('Can end next turn ', async () => {
-                // ToDo: add "with correct scores" to the end of the test
-                const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
-                const players = getPlayers(adr, playersCnt);
-                const turn = await rankifyInstance.getTurn(1);
-                // const turnSalt = await getTestShuffleSalt(1, turn, adr.gameMaster1);
-                const integrity = await simulator.getProposalsIntegrity({
-                  players,
-                  gameId: 1,
-                  turn: turn,
-                  gm: adr.gameMaster1,
-                  proposalSubmissionData: await simulator.mockProposals({
-                    players,
-                    gameMaster: adr.gameMaster1,
-                    gameId: 1,
-                    submitNow: true,
-                    idlers: [0],
-                  }),
-                  idlers: [0],
-                });
-                await rankifyInstance.connect(adr.gameMaster1).endProposing(1, integrity.newProposals);
                 await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
+
+                const zeroVotes = players.map(() => Array(players.length).fill(0));
+
                 await expect(
-                  rankifyInstance.connect(adr.gameMaster1).endVoting(
-                    1,
-                    votes.map(v => v.vote),
-                    integrity.permutation,
-                    integrity.nullifier,
-                  ),
-                ).to.be.emit(rankifyInstance, 'TurnEnded');
+                  simulator.rankifyInstance
+                    .connect(simulator.adr.gameMaster1)
+                    .endVoting(gameId, zeroVotes, integrityData.permutation, integrityData.nullifier),
+                ).to.be.emit(simulator.rankifyInstance, 'VotingStageResults');
               });
             });
             describe('When first turn was made', () => {
