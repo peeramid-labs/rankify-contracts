@@ -2,25 +2,47 @@
 'rankify-contracts': minor
 ---
 
-Significant contract architecture changes:
+Major architectural and functional changes:
 
-- **MAODistribution.sol**:
-  - Removed hardcoded `_paymentToken` and `_beneficiary` immutable state variables
-  - Made these configurable per distribution instance by adding to `RankifySettings` struct
-  - Changed `instantiate` to use `calldata` instead of `memory` for gas optimization
-  - Added pre-mint capability to token creation with `preMintAmounts` and `preMintReceivers` arrays
+- **Two-Phase Turn System**: Transitioned from a single `endTurn` function/concept to a two-phase system with distinct `endProposing` and `endVoting` stages. This was a core change impacting many areas:
+  - **Solidity Contracts**:
+    - `RankifyInstanceGameMastersFacet`: `endTurn` replaced by `endVoting`; new `endProposing` function added. Event logic updated (`ProposingStageEnded`, `VotingStageResults` added). Vote/proposal submission logic now phase-aware.
+    - `RankifyInstanceMainFacet`: Added phase-specific view functions (`isProposingStage`, `isVotingStage`, `canEndProposingStage`, `canEndVotingStage`). Removed `canEndTurn`. `startGame` no longer takes `permutationCommitment`.
+    - `LibRankify`: Major rework to support phases. `GameState` and `NewGameParams` updated. `tryPlayerMove` became phase-aware. Added `canEndProposing`, `canEndVoting`, `isVotingStage`, `isProposingStage`. `calculateScores` now returns round winner.
+    - `LibTBG`: Core turn logic refactored. `State` now includes `phase` and `phaseStartedAt` (renamed from `turnStartedAt`). `Settings` includes `turnPhaseDurations`. `nextTurn` became `next` (phase transition). Timeout and early end logic became phase-aware (`isTimeout`, `canTransitionPhaseEarly`).
+    - Interfaces (`IRankifyInstance`) and event/struct definitions updated accordingly across facets.
+  - **Environment Simulator (`scripts/EnvironmentSimulator.ts`)**:
+    - `endTurn` and `endWithIntegrity` refactored to call `endProposing` and `endVoting` separately.
+    - `makeTurn` logic updated to reflect the two-phase process.
+    - `mockValidVotes` and `mockProposals` adjusted for new timing and phase context.
+    - `startGame` and `fillParty` calls to contract's `startGame` updated (no longer pass `permutationCommitment`).
+    - Game creation parameters (`getCreateGameParams`) now include `proposingPhaseDuration` and `votePhaseDuration`.
+  - **Proof Generation (`scripts/proofs.ts`)**:
+    - `generateDeterministicPermutation` calls in `getPlayerVoteSalt`, `mockVotes`, and `generateEndTurnIntegrity` now consistently use `turn: Number(turn)` (removed `- 1` offset).
 
-- **Game Creation Improvements**:
-  - Added `createAndOpenGame` function that creates and opens registration in one transaction
-  - Modified `createGame` to return the created game ID
-  - Added support for passing requirements directly during game creation
+- **MAODistribution.sol Changes**:
+  - Removed hardcoded `_paymentToken` and `_beneficiary`.
+  - Made `paymentToken` and `beneficiary` configurable per instance via `RankifySettings`.
+  - `instantiate` uses `calldata` for `RankifySettings`.
+  - Added pre-mint capability for the distributed token.
 
-- **Requirement Changes**:
-  - Moved `RequirementsConfigured` event to the interface for better organization
-  - Reduced minimum player count from 5 to 3
-  - Removed constraints requiring `minGameTime` to be divisible by number of turns
-  - Changed turn count minimum from > 2 to > 1
+- **Game Creation & Requirement Enhancements**:
+  - `createAndOpenGame` added to `RankifyInstanceMainFacet`.
+  - `createGame` in `RankifyInstanceMainFacet` now returns `gameId`.
+  - Support for passing `LibCoinVending.Requirements` directly during game creation.
+  - `RequirementsConfigured` event moved to `IRankifyInstance`.
+  - Min player count reduced from 5 to 3.
+  - Min game time divisibility constraints by `nTurns` removed.
+  - Min turn count changed from `>2` to `>1`.
 
-- **Tests**:
-  - Updated all tests to work with the new parameter structure
-  - Removed tests for no longer enforced constraints
+- **Deployment and Build Process**:
+  - `deploy/02_deployRankify.ts`: Initial token minting wrapped in try-catch.
+  - `deploy/mao.ts`: `skipIfAlreadyDeployed` for many contracts now conditional via `FORCE_REDEPLOY` env var.
+  - `hardhat.config.ts`: `viaIR: true` enabled. `contractSizer` run is conditional. Build tasks for ABI generation and super interface updated.
+  - `package.json`: Test and build scripts modified (e.g., `rm -rf abi/super-interface.json`).
+
+- **Testing (`test/RankifyInstance.ts`)**:
+  - Extensive updates to align with the two-phase turn system (event names, function calls, state expectations).
+  - Addressed numerous test failures by ensuring consistent `simulatorInstance` and `rankTokenInstance` usage, especially in `beforeEach` and shared fixture contexts.
+  - Investigated and attempted fixes for `insufficient` token errors and `startGame->Not enough players` errors in complex multi-game scenarios, highlighting potential remaining issues in state management across tests or in the simulation of token rewards/locking in `runToTheEnd`.
+  - Many tests are now passing, but the `Multiple games were played` suite still had failing tests related to `RankToken` state at the time of this changeset, despite efforts to ensure instance consistency.
