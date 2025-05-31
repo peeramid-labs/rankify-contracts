@@ -2046,10 +2046,11 @@ describe(scriptName + '::Multiple games were played', () => {
             .unlockedBalanceOf(players[i].wallet.address, 2)
             .then(bn => bn.toNumber());
         }
-        expect(balances[0]).to.be.equal(1);
+        expect(balances[0]).to.be.equal(0);
         for (let i = 1; i < players.length; i++) {
           expect(balances[i]).to.be.equal(balancesBeforeJoined[i]);
         }
+        expect(await rankTokenInstance.balanceOf(adr.players[0].wallet.address, 3)).to.be.equal(1);
       });
     });
   });
