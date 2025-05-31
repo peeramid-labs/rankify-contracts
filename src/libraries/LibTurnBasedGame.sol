@@ -37,11 +37,12 @@ library LibTBG {
         uint256 voteCredits;
         address gameMaster;
         bytes32 implementationStoragePointer;
+        uint256[] turnPhaseDurations;
     }
 
     struct State {
         uint256 currentTurn;
-        uint256 turnStartedAt;
+        uint256 phaseStartedAt;
         uint256 registrationOpenAt;
         uint256 startedAt;
         bool hasStarted;
@@ -54,6 +55,7 @@ library LibTBG {
         mapping(address => uint256) score;
         bool isOvertime;
         address[] leaderboard;
+        uint32 phase;
     }
 
     struct Instance {
@@ -116,6 +118,14 @@ library LibTBG {
             IErrors.invalidConfiguration("LibTBG::init->maxPlayerCnt")
         );
         require(newSettings.gameMaster != address(0), IErrors.invalidConfiguration("LibTBG::init->gameMaster"));
+        uint256 allPhasesTime = 0;
+        for (uint256 i = 0; i < newSettings.turnPhaseDurations.length; i++) {
+            allPhasesTime += newSettings.turnPhaseDurations[i];
+        }
+        require(
+            allPhasesTime == newSettings.timePerTurn,
+            IErrors.invalidConfiguration("LibTBG::init->turnPhaseDurations")
+        );
         tbg.instances[gameId].settings = newSettings;
     }
 
@@ -180,7 +190,7 @@ library LibTBG {
         delete tbg.instances[gameId].state.numPlayersMadeMove;
         delete tbg.instances[gameId].state.players;
         delete tbg.instances[gameId].state.registrationOpenAt;
-        delete tbg.instances[gameId].state.turnStartedAt;
+        delete tbg.instances[gameId].state.startedAt;
         delete tbg.instances[gameId].state.numActivePlayers;
         delete tbg.instances[gameId].settings.gameMaster;
         delete tbg.instances[gameId].settings.implementationStoragePointer;
@@ -190,6 +200,7 @@ library LibTBG {
         delete tbg.instances[gameId].settings.timeToJoin;
         delete tbg.instances[gameId].settings.maxTurns;
         delete tbg.instances[gameId].settings.voteCredits;
+        delete tbg.instances[gameId].settings.turnPhaseDurations;
     }
 
     /**
@@ -285,12 +296,14 @@ library LibTBG {
      *
      * - A boolean indicating whether the current turn has timed out.
      */
-    function isTurnTimedOut(uint256 gameId) internal view returns (bool) {
+    function isTimeout(uint256 gameId) internal view returns (bool) {
         TBGStorageStruct storage tbg = TBGStorage();
         State storage state = _getState(gameId);
         assert(gameId != 0);
         assert(state.hasStarted == true);
-        if (block.timestamp <= tbg.instances[gameId].settings.timePerTurn + state.turnStartedAt) return false;
+        uint32 phase = tbg.instances[gameId].state.phase;
+        if (block.timestamp <= tbg.instances[gameId].settings.turnPhaseDurations[phase] + state.phaseStartedAt)
+            return false;
         return true;
     }
 
@@ -330,11 +343,11 @@ library LibTBG {
      * - The game with `gameId` must have started.
      *
      */
-    function canEndTurn(uint256 gameId) internal view returns (bool) {
-        bool turnTimedOut = isTurnTimedOut(gameId);
+    function canTransitionPhase(uint256 gameId) internal view returns (bool) {
+        bool timedOut = isTimeout(gameId);
         State storage state = _getState(gameId);
         if (!state.hasStarted || isGameOver(gameId)) return false;
-        if (turnTimedOut) return true;
+        if (timedOut) return true;
         return false;
     }
 
@@ -345,7 +358,7 @@ library LibTBG {
      *
      * - A boolean indicating whether the current turn can end early.
      */
-    function canEndTurnEarly(uint256 gameId) internal view returns (bool) {
+    function canTransitionPhaseEarly(uint256 gameId) internal view returns (bool) {
         State storage state = _getState(gameId);
         if (!state.hasStarted || isGameOver(gameId)) return false;
 
@@ -356,7 +369,7 @@ library LibTBG {
                 activePlayersNotMoved++;
             }
         }
-        return activePlayersNotMoved == 0 || canEndTurn(gameId);
+        return activePlayersNotMoved == 0 || canTransitionPhase(gameId);
     }
 
     /**
@@ -366,13 +379,16 @@ library LibTBG {
      *
      * - The current turn in the game with `gameId` must be able to end.
      */
-    modifier onlyInTurnTime(uint256 gameId) {
-        require(isTurnTimedOut(gameId) == false, "onlyInTurnTime -> turn timeout");
+    modifier onlyInTime(uint256 gameId) {
+        require(isTimeout(gameId) == false, "onlyInTime -> turn timeout");
         _;
     }
 
     modifier onlyWhenTurnCanEnd(uint256 gameId) {
-        require(canEndTurn(gameId) == true, "onlyWhenTurnCanEnd: Not everyone made a move yet and there still is time");
+        require(
+            canTransitionPhase(gameId) == true,
+            "onlyWhenTurnCanEnd: Not everyone made a move yet and there still is time"
+        );
         _;
     }
 
@@ -521,7 +537,8 @@ library LibTBG {
         state.hasStarted = true;
         state.hasEnded = false;
         state.currentTurn = 1;
-        state.turnStartedAt = block.timestamp;
+        state.phaseStartedAt = block.timestamp;
+        state.phase = 0;
         state.startedAt = block.timestamp;
         _resetPlayerStates(state);
 
@@ -548,7 +565,7 @@ library LibTBG {
      *
      * Modifies:
      *
-     * - Sets the hasStarted, hasEnded, currentTurn, and turnStartedAt of the game with `gameId` to their new values.
+     * - Sets the hasStarted, hasEnded, currentTurn, and phaseStartedAt of the game with `gameId` to their new values.
      * - Resets the states of the players in the game with `gameId`.
      */
     function startGameEarly(uint256 gameId) internal {
@@ -669,7 +686,7 @@ library LibTBG {
      * - Sets the madeMove of `player` in the game with `gameId` to true.
      * - Increments the numPlayersMadeMove of the game with `gameId`.
      */
-    function playerMove(uint256 gameId, address player) internal onlyInTurnTime(gameId) {
+    function playerMove(uint256 gameId, address player) internal onlyInTime(gameId) {
         State storage state = _getState(gameId);
         enforceHasStarted(gameId);
         enforceIsNotOver(gameId);
@@ -681,7 +698,6 @@ library LibTBG {
 
         // Set player as active when they make a move
         state.isActive[player] = true;
-        state.numActivePlayers++;
     }
 
     function isPlayerTurnComplete(uint256 gameId, address player) internal view returns (bool) {
@@ -736,7 +752,7 @@ library LibTBG {
      *
      * - Clears the current moves in the game with `gameId`.
      * - Increments the currentTurn of the game with `gameId`.
-     * - Sets the turnStartedAt of the game with `gameId` to the current block timestamp.
+     * - Sets the phaseStartedAt of the game with `gameId` to the current block timestamp.
      * - If the current turn is the last turn or the game with `gameId` is in overtime, checks if the game is a tie and sets the isOvertime of the game with `gameId` to the result.
      * - Sets the hasEnded of the game with `gameId` to whether the game is over.
      *
@@ -746,20 +762,16 @@ library LibTBG {
      * - A boolean indicating whether the game is a tie.
      * - A boolean indicating whether the game is over.
      */
-    function nextTurn(uint256 gameId) internal returns (bool, bool, bool) {
-        require(canEndTurnEarly(gameId), "nextTurn->CanEndEarly");
-        State storage state = _getState(gameId);
+    function next(uint256 gameId) internal returns (bool, bool, bool) {
+        require(canTransitionPhaseEarly(gameId), "nextTurn->CanEndEarly");
+        Instance storage instance = _getInstance(gameId);
+        State storage state = instance.state;
         bool wasLastTurn = isLastTurn(gameId);
-        state.currentTurn += 1;
-        state.turnStartedAt = block.timestamp;
-        bool _isLastTurn = isLastTurn(gameId);
-        if (wasLastTurn || state.isOvertime) {
-            bool _isTie = isTie(gameId);
-            state.isOvertime = _isTie;
-        }
-        state.hasEnded = isGameOver(gameId);
+        state.phaseStartedAt = block.timestamp;
+        state.phase += 1;
+        bool _isLastTurn = false;
 
-        // Update player activity status for next turn
+        // Update player activity status for next stage
         uint256 playerCount = state.players.length();
         state.numActivePlayers = 0;
 
@@ -776,8 +788,19 @@ library LibTBG {
             state.madeMove[player] = false;
         }
         state.numPlayersMadeMove = 0;
+        if (state.phase == instance.settings.turnPhaseDurations.length) {
+            state.phase = 0;
+            state.currentTurn += 1;
+            _isLastTurn = isLastTurn(gameId);
+            if (wasLastTurn || state.isOvertime) {
+                bool _isTie = isTie(gameId);
+                state.isOvertime = _isTie;
+            }
+            state.hasEnded = isGameOver(gameId);
 
-        (state.leaderboard, ) = sortByScore(gameId);
+            (state.leaderboard, ) = sortByScore(gameId);
+        }
+
         return (_isLastTurn, state.isOvertime, state.hasEnded);
     }
 
@@ -965,5 +988,15 @@ library LibTBG {
     function isActive(uint256 gameId, address player) internal view returns (bool) {
         State storage state = _getState(gameId);
         return state.isActive[player];
+    }
+
+    function getPhaseDuration(uint256 gameId) internal view returns (uint256) {
+        Settings storage settings = getSettings(gameId);
+        return settings.turnPhaseDurations[getPhase(gameId)];
+    }
+
+    function getPhase(uint256 gameId) internal view returns (uint256) {
+        State storage state = _getState(gameId);
+        return state.phase;
     }
 }

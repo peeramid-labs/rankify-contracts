@@ -29,22 +29,20 @@ interface IRankifyInstance {
         uint128 timePerTurn;
         uint128 timeToJoin;
         string metadata;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
     }
 
     struct GameStateOutput {
         uint256 rank;
         uint256 minGameTime;
         address createdBy;
-        uint256 numOngoingProposals;
-        uint256 numPrevProposals;
         uint256 numCommitments;
-        uint256 numVotesThisTurn;
-        uint256 numVotesPrevTurn;
+        uint256 numVotes;
         LibQuadraticVoting.qVotingStruct voting;
         uint256 currentTurn;
         uint256 turnStartedAt;
         uint256 registrationOpenAt;
-        uint256 startedAt;
         bool hasStarted;
         bool hasEnded;
         uint256 numPlayersMadeMove;
@@ -58,5 +56,9 @@ interface IRankifyInstance {
         uint256 voteCredits;
         address gameMaster;
         string metadata;
+        uint256 phase;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
+        uint256 phaseStartedAt;
     }
 }

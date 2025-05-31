@@ -131,7 +131,7 @@ export const generateEndTurnIntegrity = async ({
 
   const { permutation, secret: nullifier } = await generateDeterministicPermutation({
     gameId,
-    turn: Number(turn) - 1,
+    turn: Number(turn),
     verifierAddress,
     chainId,
     gm,
