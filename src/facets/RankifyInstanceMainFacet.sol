@@ -108,7 +108,7 @@ contract RankifyInstanceMainFacet is
     function createAndOpenGame(
         IRankifyInstance.NewGameParamsInput memory params,
         LibCoinVending.ConfigPosition memory requirements
-    ) public nonReentrant {
+    ) public {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({

@@ -348,44 +348,50 @@ const inOvertimeTest = (simulator: EnvironmentSimulator) =>
     return { receipt, votes, proposals };
   });
 
-const multipleFirstRankGamesTest = (simulator: EnvironmentSimulator) =>
+const multipleFirstRankGamesTest = (simulatorInstance: EnvironmentSimulator) =>
   deployments.createFixture(async ({ deployments, getNamedAccounts, ethers }, options) => {
     // const promises = [];
     for (let numGames = 0; numGames < RInstance_MIN_PLAYERS; numGames++) {
-      const gameId = await simulator.createGame({
+      const gameId = await simulatorInstance.createGame({
         minGameTime: RInstance_MIN_GAME_TIME,
-        signer: simulator.adr.gameCreator1.wallet,
-        gameMaster: simulator.adr.gameMaster1.address,
+        signer: simulatorInstance.adr.gameCreator1.wallet,
+        gameMaster: simulatorInstance.adr.gameMaster1.address,
         gameRank: 1,
         openNow: true,
       });
-      await simulator.fillParty({
-        players: simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS, numGames),
+      await simulatorInstance.fillParty({
+        players: simulatorInstance.getPlayers(simulatorInstance.adr, RInstance_MIN_PLAYERS, numGames),
         gameId,
         shiftTime: true,
-        gameMaster: simulator.adr.gameMaster1,
+        gameMaster: simulatorInstance.adr.gameMaster1,
         startGame: true,
       });
-      await simulator.runToTheEnd(gameId, 'ftw');
+      await simulatorInstance.runToTheEnd(gameId, 'ftw');
     }
   });
-const nextRankTest = (simulator: EnvironmentSimulator) =>
+const nextRankTest = (simulatorInstance: EnvironmentSimulator) =>
   deployments.createFixture(async () => {
-    await simulator.createGame({
+    await simulatorInstance.createGame({
       minGameTime: RInstance_MIN_GAME_TIME,
-      signer: simulator.adr.players[0].wallet,
-      gameMaster: simulator.adr.gameMaster1.address,
+      signer: simulatorInstance.adr.players[0].wallet, // Use player 1 to create the game
+      gameMaster: simulatorInstance.adr.gameMaster1.address,
       gameRank: 2,
       openNow: true,
     });
+
+    // Add logging to check game state after creation
+    const gameId = await simulatorInstance.rankifyInstance.getContractState().then(s => s.numGames);
+    const playersInGame = await simulatorInstance.rankifyInstance.getPlayers(gameId);
+    console.log(`[nextRankTest] Game ${gameId} created. Players in game: ${playersInGame}`);
   });
-const nextRankGameOver = (simulator: EnvironmentSimulator) =>
+const nextRankGameOver = (simulator: EnvironmentSimulator, rankTokenInstance: RankToken) =>
   deployments.createFixture(async () => {
     let balancesBeforeJoined: BigNumber[] = [];
+    // Use a different set of players (offset by RInstance_MAX_PLAYERS)
     const players = simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS, 0);
     await simulator.createGame({
       minGameTime: RInstance_MIN_GAME_TIME,
-      signer: simulator.adr.players[0].wallet,
+      signer: players[0].wallet, // Creator should be one of these new players
       gameMaster: simulator.adr.gameMaster1.address,
       gameRank: 2,
       openNow: true,
@@ -393,14 +399,14 @@ const nextRankGameOver = (simulator: EnvironmentSimulator) =>
 
     const lastCreatedGameId = await simulator.rankifyInstance.getContractState().then(r => r.numGames);
     for (let i = 0; i < players.length; i++) {
-      balancesBeforeJoined[i] = await rankToken.unlockedBalanceOf(players[i].wallet.address, 2);
+      balancesBeforeJoined[i] = await rankTokenInstance.unlockedBalanceOf(players[i].wallet.address, 2);
     }
     await simulator.fillParty({
       players,
       gameId: lastCreatedGameId,
       shiftTime: true,
       gameMaster: simulator.adr.gameMaster1,
-      startGame: true,
+      startGame: true, // Ensure game is started after filling
     });
 
     await simulator.runToTheEnd(lastCreatedGameId, 'ftw');
@@ -1888,9 +1894,10 @@ describe(scriptName, () => {
     });
   });
 });
-describe(scriptName + '::Multiple games were played', () => {
+describe.only(scriptName + '::Multiple games were played', () => {
   let adr: AdrSetupResult;
   let env: EnvSetupResult;
+  // Use the simulator from setupMainTest to ensure consistency
   let simulator: EnvironmentSimulator;
   let eth: typeof ethersDirect & HardhatEthersHelpers;
   let mockProposals: typeof simulator.mockProposals;
@@ -1898,10 +1905,13 @@ describe(scriptName + '::Multiple games were played', () => {
   let endWithIntegrity: typeof simulator.endWithIntegrity;
   let signJoiningGame: typeof simulator.signJoiningGame;
   let getNamedAccounts: typeof hre.getNamedAccounts;
-  before(async () => {
+  let rankTokenInstance: RankToken; // Keep this for direct rankToken checks
+
+  beforeEach(async () => {
     const setup = await setupMainTest();
     adr = setup.adr;
     env = setup.env;
+    // Assign the simulator from setup to the shared instance
     simulator = setup.simulator;
     mockProposals = simulator.mockProposals;
     getPlayers = simulator.getPlayers;
@@ -1909,28 +1919,30 @@ describe(scriptName + '::Multiple games were played', () => {
     signJoiningGame = simulator.signJoiningGame;
     getNamedAccounts = hre.getNamedAccounts;
     eth = setup.ethers;
+    rankTokenInstance = setup.rankToken; // Assign rankToken for direct checks
 
+    // Pass the shared simulatorInstance to the fixtures
     await multipleFirstRankGamesTest(simulator)();
     await nextRankTest(simulator)();
   });
   it('Winners have reward tokens', async () => {
     const balances: number[] = [];
-    balances[0] = await rankToken
+    balances[0] = await rankTokenInstance
       .balanceOf(adr.players[0].wallet.address, 2)
       .then(balance => balances.push(balance.toNumber()));
-    expect(await rankToken.balanceOf(adr.players[0].wallet.address, 2)).to.be.equal(1);
-    expect(await rankToken.balanceOf(adr.players[2].wallet.address, 2)).to.be.equal(1);
-    expect(await rankToken.balanceOf(adr.players[1].wallet.address, 2)).to.be.equal(1);
-    expect(await rankToken.balanceOf(adr.players[3].wallet.address, 2)).to.be.equal(0);
-    expect(await rankToken.balanceOf(adr.players[4].wallet.address, 2)).to.be.equal(0);
-    expect(await rankToken.balanceOf(adr.players[5].wallet.address, 2)).to.be.equal(0);
-    expect(await rankToken.balanceOf(adr.players[6].wallet.address, 2)).to.be.equal(0);
+    expect(await rankTokenInstance.balanceOf(adr.players[0].wallet.address, 2)).to.be.equal(1);
+    expect(await rankTokenInstance.balanceOf(adr.players[2].wallet.address, 2)).to.be.equal(1);
+    expect(await rankTokenInstance.balanceOf(adr.players[1].wallet.address, 2)).to.be.equal(1);
+    expect(await rankTokenInstance.balanceOf(adr.players[3].wallet.address, 2)).to.be.equal(0);
+    expect(await rankTokenInstance.balanceOf(adr.players[4].wallet.address, 2)).to.be.equal(0);
+    expect(await rankTokenInstance.balanceOf(adr.players[5].wallet.address, 2)).to.be.equal(0);
+    expect(await rankTokenInstance.balanceOf(adr.players[6].wallet.address, 2)).to.be.equal(0);
     assert(RInstance_MAX_PLAYERS == 6);
   });
   describe('When game of next rank is created', () => {
     it('Can be joined only by bearers of rank token', async () => {
       const lastCreatedGameId = await rankifyInstance.getContractState().then(r => r.numGames);
-      await rankToken.connect(adr.players[0].wallet).setApprovalForAll(rankifyInstance.address, true);
+      await rankTokenInstance.connect(adr.players[0].wallet).setApprovalForAll(rankifyInstance.address, true);
       const s2 = await simulator.signJoiningGame({
         gameId: lastCreatedGameId,
         participant: adr.players[3].wallet,
@@ -1940,12 +1952,12 @@ describe(scriptName + '::Multiple games were played', () => {
         rankifyInstance
           .connect(adr.players[3].wallet)
           .joinGame(lastCreatedGameId, s2.signature, s2.gmCommitment, s2.deadline, s2.participantPubKey),
-      ).to.be.revertedWithCustomError(rankToken, 'insufficient');
+      ).to.be.revertedWithCustomError(rankTokenInstance, 'insufficient');
     });
     it('Locks rank tokens when player joins', async () => {
-      const balance = await rankToken.balanceOf(adr.players[0].wallet.address, 2);
+      const balance = await rankTokenInstance.balanceOf(adr.players[0].wallet.address, 2);
       const lastCreatedGameId = await rankifyInstance.getContractState().then(r => r.numGames);
-      await rankToken.connect(adr.players[0].wallet).setApprovalForAll(rankifyInstance.address, true);
+      await rankTokenInstance.connect(adr.players[0].wallet).setApprovalForAll(rankifyInstance.address, true);
       const s1 = await simulator.signJoiningGame({
         gameId: lastCreatedGameId,
         participant: adr.players[0].wallet,
@@ -1954,13 +1966,15 @@ describe(scriptName + '::Multiple games were played', () => {
       await rankifyInstance
         .connect(adr.players[0].wallet)
         .joinGame(lastCreatedGameId, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey);
-      const balance2 = await rankToken.balanceOf(adr.players[0].wallet.address, 2);
-      expect(await rankToken.unlockedBalanceOf(adr.players[0].wallet.address, 2)).to.be.equal(balance.toNumber() - 1);
+      const balance2 = await rankTokenInstance.balanceOf(adr.players[0].wallet.address, 2);
+      expect(await rankTokenInstance.unlockedBalanceOf(adr.players[0].wallet.address, 2)).to.be.equal(
+        balance.toNumber() - 1,
+      );
     });
     it('Returns rank token if player leaves game', async () => {
       const lastCreatedGameId = await rankifyInstance.getContractState().then(r => r.numGames);
-      await rankToken.connect(adr.players[0].wallet).setApprovalForAll(rankifyInstance.address, true);
-      await rankToken.connect(adr.players[1].wallet).setApprovalForAll(rankifyInstance.address, true);
+      await rankTokenInstance.connect(adr.players[0].wallet).setApprovalForAll(rankifyInstance.address, true);
+      await rankTokenInstance.connect(adr.players[1].wallet).setApprovalForAll(rankifyInstance.address, true);
       const s1 = await simulator.signJoiningGame({
         gameId: lastCreatedGameId,
         participant: adr.players[0].wallet,
@@ -1970,25 +1984,28 @@ describe(scriptName + '::Multiple games were played', () => {
       await rankifyInstance
         .connect(adr.players[0].wallet)
         .joinGame(lastCreatedGameId, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey);
-      let p1balance = await rankToken.unlockedBalanceOf(adr.players[0].wallet.address, 2);
+      let p1balance = await rankTokenInstance.unlockedBalanceOf(adr.players[0].wallet.address, 2);
       p1balance = p1balance.add(1);
 
-      let p2balance = await rankToken.unlockedBalanceOf(adr.players[1].wallet.address, 2);
+      let p2balance = await rankTokenInstance.unlockedBalanceOf(adr.players[1].wallet.address, 2);
       p2balance = p2balance.add(1);
       await rankifyInstance.connect(adr.players[0].wallet).cancelGame(lastCreatedGameId);
-      expect(await rankToken.unlockedBalanceOf(adr.players[0].wallet.address, 2)).to.be.equal(p1balance);
+      expect(await rankTokenInstance.unlockedBalanceOf(adr.players[0].wallet.address, 2)).to.be.equal(p1balance);
     });
     describe('when this game is over', () => {
       let balancesBeforeJoined: BigNumber[] = [];
       beforeEach(async () => {
-        const result = await nextRankGameOver(simulator)();
+        const result = await nextRankGameOver(simulator, rankTokenInstance)();
         balancesBeforeJoined = result.balancesBeforeJoined;
       });
       it('Winners have reward tokens back', async () => {
         const balances: number[] = [];
         const players = getPlayers(adr, RInstance_MIN_PLAYERS, 0);
         for (let i = 0; i < players.length; i++) {
-          balances[i] = await rankToken.balanceOf(players[i].wallet.address, 3).then(bn => bn.toNumber());
+          expect(await rankTokenInstance.unlockedBalanceOf(players[i].wallet.address, 3)).to.be.equal(0);
+          balances[i] = await rankTokenInstance
+            .unlockedBalanceOf(players[i].wallet.address, 2)
+            .then(bn => bn.toNumber());
         }
         expect(balances[0]).to.be.equal(1);
         for (let i = 1; i < players.length; i++) {
