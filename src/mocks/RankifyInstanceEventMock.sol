@@ -11,15 +11,6 @@ contract RankifyInstanceEventMock {
         string proposal,
         uint256 score
     );
-    event TurnEnded(
-        uint256 indexed gameId,
-        uint256 indexed turn,
-        address[] players,
-        uint256[] scores,
-        string[] newProposals,
-        uint256[] proposerIndices,
-        uint256[][] votes
-    );
 
     event GameOver(uint256 indexed gameId, address[] indexed players, uint256[] indexed scores);
 
@@ -53,7 +44,6 @@ contract RankifyInstanceEventMock {
         for (uint160 i = 0; i < 5; ++i) {
             newProposals[i] = "https://www.youtube.com/watch?v=KaOC9danxNo";
         }
-        emit TurnEnded(1, 1, players, scores, newProposals, scores, votes);
     }
 
     function fireAll() public {
@@ -73,7 +63,6 @@ contract RankifyInstanceEventMock {
         emit OverTime(1);
         emit LastTurn(1);
         emit ProposalScore(1, 2, "0x1233123131", "Some kind of proposal", 0);
-        emit TurnEnded(1, 2, players, scores, newProposals, scores, votes);
         emit GameOver(1, players, new uint256[](0));
         emit ProposalSubmitted(1, 2, address(12), bytes32(0), "0x1289031301");
         emit VoteSubmitted(1, 2, address(12), "0x123131");

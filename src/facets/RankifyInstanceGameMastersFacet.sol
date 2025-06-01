@@ -49,15 +49,6 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         string proposal,
         uint256 score
     );
-    event TurnEnded(
-        uint256 indexed gameId,
-        uint256 indexed turn,
-        address[] players,
-        uint256[] scores,
-        string[] newProposals,
-        uint256[] proposerIndices,
-        uint256[][] votes
-    );
     event LastTurn(uint256 indexed gameId);
     event GameOver(uint256 indexed gameId, address[] players, uint256[] scores);
     event ProposalSubmitted(
