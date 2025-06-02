@@ -212,7 +212,7 @@ library LibRankify {
         CommonParams storage commonParams = instanceState().commonParams;
 
         require(params.minGameTime > 0, "LibRankify::newGame->Min game time zero");
-        require(params.nTurns > 1, IRankifyInstance.invalidTurnCount(params.nTurns));
+        require(params.nTurns > 0, IRankifyInstance.invalidTurnCount(params.nTurns));
         require(params.votePhaseDuration > 0, "LibRankify::newGame->Time per turn voting zero");
         require(params.proposingPhaseDuration > 0, "LibRankify::newGame->Time per turn proposing zero");
         require(
@@ -238,7 +238,7 @@ library LibRankify {
 
         params.gameId.createGame(newSettings); // This will enforce game does not exist yet
         GameState storage game = getGameState(params.gameId);
-        game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.maxPlayerCnt);
+        game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.minPlayerCnt);
         game.metadata = params.metadata;
         game.timePerTurnVoting = params.votePhaseDuration;
         game.timePerTurnProposing = params.proposingPhaseDuration;
@@ -566,26 +566,27 @@ library LibRankify {
     function calculateScores(
         uint256 gameId,
         uint256[][] memory votesRevealed
-    ) public returns (uint256[] memory, uint256[] memory, address) {
+    ) public returns (uint256[] memory, uint256[] memory, address, bool[] memory isActive, uint256[][] memory) {
         address[] memory players = gameId.getPlayers();
-        uint256[] memory scores = new uint256[](players.length);
+        uint256[] memory gameScores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
         address winner = address(0);
         uint256 maxScore = 0;
         GameState storage game = getGameState(gameId);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
-            playerVoted[i] = gameId._getState().isActive[players[i]];
+            isActive[i] = gameId._getState().isActive[players[i]];
+            playerVoted[i] = isActive[i];
         }
-        uint256[] memory roundScores = game.voting.tallyVotes(votesRevealed, playerVoted);
+        (uint256[] memory roundScores, uint256[][] memory finalizedVotingMatrix) = game.voting.tallyVotes(votesRevealed, playerVoted);
         for (uint256 playerIdx = 0; playerIdx < players.length; playerIdx++) {
             //for each player
             if (game.proposalCommitment[players[playerIdx]] != 0) {
                 //if player proposal exists
-                scores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
-                gameId.setScore(players[playerIdx], scores[playerIdx]);
-                if (scores[playerIdx] > maxScore) {
-                    maxScore = scores[playerIdx];
+                gameScores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
+                gameId.setScore(players[playerIdx], gameScores[playerIdx]);
+                if (gameScores[playerIdx] > maxScore) {
+                    maxScore = gameScores[playerIdx];
                     winner = players[playerIdx];
                 }
             } else {
@@ -594,7 +595,7 @@ library LibRankify {
                 // require(roundScores[playerIdx] == 0, "LibRankify->calculateScores: player got votes without proposing");
             }
         }
-        return (scores, roundScores, winner);
+        return (gameScores, roundScores, winner, isActive, finalizedVotingMatrix);
     }
 
     function isVotingStage(uint256 gameId) internal view returns (bool) {
