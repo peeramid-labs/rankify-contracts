@@ -10,11 +10,13 @@ import {ILockableERC1155} from "../interfaces/ILockableERC1155.sol";
  *      It provides functionality to lock and unlock token amounts for specific accounts and IDs.
  */
 abstract contract LockableERC1155 is ERC1155BurnableUpgradeable, ILockableERC1155 {
+    /// @custom:storage-location erc7201:erc1155.lockable.storage.position
     struct LockableERC1155Storage {
         mapping(address => mapping(uint256 tokenId => uint256)) lockedAmounts;
     }
 
-    bytes32 constant LOCKABLE_TOKEN_STORAGE_POSITION = keccak256("erc1155.lockable.storage.position");
+    bytes32 constant LOCKABLE_TOKEN_STORAGE_POSITION = keccak256(abi.encode(uint256(keccak256("erc1155.lockable.storage.position")) - 1)) &
+            ~bytes32(uint256(0xff));
 
     function getLockableERC1155Storage() private pure returns (LockableERC1155Storage storage s) {
         bytes32 position = LOCKABLE_TOKEN_STORAGE_POSITION;
