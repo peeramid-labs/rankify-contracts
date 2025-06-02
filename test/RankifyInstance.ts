@@ -1257,6 +1257,8 @@ describe(scriptName, () => {
                 getPlayers(adr, playerCnt).map(identity => identity.wallet.address),
                 getPlayers(adr, playerCnt).map(() => '0'),
                 [],
+                [],
+                [],
               );
           });
           describe('When all proposals received', () => {

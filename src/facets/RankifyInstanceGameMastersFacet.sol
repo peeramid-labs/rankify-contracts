@@ -76,7 +76,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         address indexed winner,
         address[] players,
         uint256[] scores,
-        uint256[][] votesSorted
+        uint256[][] votesSorted,
+        bool[] isActive,
+        uint256[][] finalizedVotingMatrix
     );
 
     /**
@@ -402,7 +404,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             }
 
             // Calculate scores for previous turn's proposals
-            (, uint256[] memory roundScores, address roundWinner) = gameId.calculateScores(votesSorted);
+            (, uint256[] memory roundScores, address roundWinner, bool[] memory isActive, uint256[][] memory finalizedVotingMatrix) = gameId.calculateScores(votesSorted);
 
             string[] memory proposals = new string[](players.length);
             for (uint256 i = 0; i < players.length; ++i) {
@@ -415,7 +417,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                 uint256 turn = gameId.getTurn();
                 emit ProposalScore(gameId, turn, proposal, proposal, roundScores[i]);
             }
-            emit VotingStageResults(gameId, gameId.getTurn(), roundWinner, players, roundScores, votesSorted);
+            emit VotingStageResults(gameId, gameId.getTurn(), roundWinner, players, roundScores, votesSorted, isActive, finalizedVotingMatrix);
         }
         {
             LibRankify.InstanceState storage instanceState = LibRankify.instanceState();

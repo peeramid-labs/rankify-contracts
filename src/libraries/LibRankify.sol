@@ -573,6 +573,7 @@ library LibRankify {
         address winner = address(0);
         uint256 maxScore = 0;
         GameState storage game = getGameState(gameId);
+        isActive = new bool[](players.length);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
             isActive[i] = gameId._getState().isActive[players[i]];
