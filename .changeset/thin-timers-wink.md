@@ -11,6 +11,7 @@ Major architectural and functional changes:
     - `LibRankify`: Major rework to support phases. `GameState` and `NewGameParams` updated. `tryPlayerMove` became phase-aware. Added `canEndProposing`, `canEndVoting`, `isVotingStage`, `isProposingStage`. `calculateScores` now returns round winner.
     - `LibTBG`: Core turn logic refactored. `State` now includes `phase` and `phaseStartedAt` (renamed from `turnStartedAt`). `Settings` includes `turnPhaseDurations`. `nextTurn` became `next` (phase transition). Timeout and early end logic became phase-aware (`isTimeout`, `canTransitionPhaseEarly`).
     - Interfaces (`IRankifyInstance`) and event/struct definitions updated accordingly across facets.
+    - Minimal required number of turns is now `>0` instead of `>1` to properly reflect new phase-awareness of the game;
   - **Environment Simulator (`scripts/EnvironmentSimulator.ts`)**:
     - `endTurn` and `endWithIntegrity` refactored to call `endProposing` and `endVoting` separately.
     - `makeTurn` logic updated to reflect the two-phase process.
@@ -19,6 +20,12 @@ Major architectural and functional changes:
     - Game creation parameters (`getCreateGameParams`) now include `proposingPhaseDuration` and `votePhaseDuration`.
   - **Proof Generation (`scripts/proofs.ts`)**:
     - `generateDeterministicPermutation` calls in `getPlayerVoteSalt`, `mockVotes`, and `generateEndTurnIntegrity` now consistently use `turn: Number(turn)` (removed `- 1` offset).
+- **Minor contract improvements & bug fixes**:
+  - Enhanced RankifyInstanceGameMastersFacet and LibQuadraticVoting to include additional voting data
+  - Modified `LibQuadraticVoting` to return the `finalizedVotingMatrix` alongside scores, improving the tracking of voting outcomes.
+  - Updated `RankifyInstanceGameMastersFacet` to emit new parameters `isActive` and `finalizedVotingMatrix` in the `VotingStageResults` event.
+  - Adjusted `LibRankify` to initialize the `isActive` array for players, ensuring accurate game state representation.
+  - `LibQuadraticVoting.precomputeValues` in `createGame` now takes correctly `params.minPlayerCnt` as argument to minimum expected vote items;
 
 - **Deployment and Build Process Updates (specific to this branch/PR)**:
   - `deploy/02_deployRankify.ts`: Initial token minting wrapped in try-catch.
