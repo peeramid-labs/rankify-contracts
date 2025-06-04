@@ -40,8 +40,10 @@ library LibQuadraticVoting {
         if (accumulator != voteCredits) require(false, "quadraticVotingError: voteCredits must be i^2 series"); //revert quadraticVotingError("voteCredits must be i^2 series", accumulator, voteCredits);
         q.minQuadraticPositions = iterator;
         // In order to spend all vote credits there must be at least minQuadraticPositions+1 (because proposer is also a player and cannot vote for himself)
-        if (minExpectedVoteItems <= q.minQuadraticPositions)
-            require(false, "quadraticVotingError: Minimum Voting positions above min players");
+        require(
+            minExpectedVoteItems > q.minQuadraticPositions,
+            "quadraticVotingError: Minimum Voting positions above min players"
+        );
         // revert quadraticVotingError(
         //     "Minimum Voting positions above min players",
         //     q.minQuadraticPositions,
@@ -62,12 +64,14 @@ library LibQuadraticVoting {
         qVotingStruct memory q,
         uint256[][] memory tally, // [participant][votedFor]
         bool[] memory isActive
-    ) internal pure returns (uint256[] memory) {
+    ) internal pure returns (uint256[] memory, uint256[][] memory) {
         uint256 notVotedGivesEveryone = q.maxQuadraticPoints;
         uint256[] memory scores = new uint256[](tally.length);
         uint256[] memory creditsUsed = new uint256[](tally.length);
+        uint256[][] memory finalizedVotingMatrix = new uint256[][](tally.length);
 
         for (uint256 participant = 0; participant < tally.length; participant++) {
+            finalizedVotingMatrix[participant] = new uint256[](tally.length);
             //For each proposal
             // console.log("New tally iter");
             uint256[] memory votedFor = tally[participant];
@@ -77,10 +81,12 @@ library LibQuadraticVoting {
                     // Check if participant wasn't voting
                     scores[candidate] += notVotedGivesEveryone; // Gives benefits to everyone but himself
                     creditsUsed[participant] = q.voteCredits;
+                    finalizedVotingMatrix[participant][candidate] = notVotedGivesEveryone;
                 } else {
                     //If participant voted
                     scores[candidate] += votedFor[candidate];
                     creditsUsed[participant] += votedFor[candidate] ** 2;
+                    finalizedVotingMatrix[participant][candidate] = votedFor[candidate];
                 }
             }
             require(
@@ -88,6 +94,6 @@ library LibQuadraticVoting {
                 quadraticVotingError("Quadratic: vote credits overrun", q.voteCredits, creditsUsed[participant])
             );
         }
-        return scores;
+        return (scores, finalizedVotingMatrix);
     }
 }

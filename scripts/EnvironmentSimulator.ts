@@ -258,6 +258,8 @@ class EnvironmentSimulator {
     nTurns: constantParams.RInstance_MAX_TURNS,
     voteCredits: constantParams.RInstance_VOTE_CREDITS,
     minGameTime: constantParams.RInstance_MIN_GAME_TIME,
+    proposingPhaseDuration: constantParams.RInstance_TIME_PER_TURN / 2,
+    votePhaseDuration: constantParams.RInstance_TIME_PER_TURN - constantParams.RInstance_TIME_PER_TURN / 2,
   });
 
   /**
@@ -377,7 +379,7 @@ class EnvironmentSimulator {
     log(`Generating vote salt for player ${player} in game ${gameId}, turn ${turn}`, 3);
     const result = await generateDeterministicPermutation({
       gameId,
-      turn: Number(turn) - 1,
+      turn: Number(turn),
       verifierAddress,
       chainId,
       gm,
@@ -581,6 +583,7 @@ class EnvironmentSimulator {
     verifier,
     players,
     distribution,
+    idlers,
   }: {
     gameId: BigNumberish;
     turn: BigNumberish;
@@ -588,12 +591,13 @@ class EnvironmentSimulator {
     verifier: RankifyDiamondInstance;
     players: SignerIdentity[];
     distribution: 'ftw' | 'semiUniform' | 'equal' | 'zeros';
+    idlers?: number[];
   }): Promise<MockVote[]> => {
     const chainId = await this.hre.getChainId();
     const eip712 = await verifier.inspectEIP712Hashes();
     const { permutation } = await generateDeterministicPermutation({
       gameId,
-      turn: Number(turn) - 1,
+      turn: Number(turn),
       verifierAddress: verifier.address,
       chainId,
       gm,
@@ -601,93 +605,109 @@ class EnvironmentSimulator {
     });
     const votes: MockVote[] = [];
     for (let k = 0; k < players.length; k++) {
-      let creditsLeft = constantParams.RInstance_VOTE_CREDITS;
-      let playerVote: BigNumberish[] = [];
-      if (distribution == 'zeros') {
-        playerVote = players.map(() => 0);
-      }
-      if (distribution == 'ftw') {
-        //   this is on smart contract -> votesSorted[proposer][permutation[candidate]] = votes[proposer][candidate];
-        //   We need to prepare votes to be permuted so that sorting produces winner at minimal index k (skipping voting for himself)
-        const votesToPermute = players.map((proposer, idx) => {
-          if (k !== idx) {
+      if (!idlers || !idlers.includes(k)) {
+        let creditsLeft = constantParams.RInstance_VOTE_CREDITS;
+        let playerVote: BigNumberish[] = [];
+        if (distribution == 'zeros') {
+          playerVote = players.map(() => 0);
+        }
+        if (distribution == 'ftw') {
+          //   this is on smart contract -> votesSorted[proposer][permutation[candidate]] = votes[proposer][candidate];
+          //   We need to prepare votes to be permuted so that sorting produces winner at minimal index k (skipping voting for himself)
+          const votesToPermute = players.map((proposer, idx) => {
+            if (k !== idx) {
+              const voteWeight = Math.floor(Math.sqrt(creditsLeft));
+              creditsLeft -= voteWeight * voteWeight;
+              return voteWeight;
+            } else {
+              return 0;
+            }
+          });
+          playerVote = this.permuteVotes(votesToPermute, permutation);
+        } else if (distribution == 'semiUniform') {
+          const votesToDistribute = players.map(() => {
             const voteWeight = Math.floor(Math.sqrt(creditsLeft));
             creditsLeft -= voteWeight * voteWeight;
             return voteWeight;
-          } else {
-            return 0;
-          }
-        });
-        playerVote = this.permuteVotes(votesToPermute, permutation);
-      } else if (distribution == 'semiUniform') {
-        const votesToDistribute = players.map(() => {
-          const voteWeight = Math.floor(Math.sqrt(creditsLeft));
-          creditsLeft -= voteWeight * voteWeight;
-          return voteWeight;
-        });
-        let votesDistributed = [];
-        do {
-          votesDistributed = this.shuffle(votesToDistribute);
-        } while (votesDistributed[k] !== 0);
-        playerVote = this.permuteVotes(votesDistributed, permutation);
-      } else if (distribution == 'equal') {
-        // Determine if player is in the first or second half
-        const lowSide = k < players.length / 2;
-        const middleIndex = Math.floor(players.length / 2);
-        const isOddLength = players.length % 2 !== 0;
+          });
+          let votesDistributed = [];
+          do {
+            votesDistributed = this.shuffle(votesToDistribute);
+          } while (votesDistributed[k] !== 0);
+          playerVote = this.permuteVotes(votesDistributed, permutation);
+        } else if (distribution == 'equal') {
+          // Determine if player is in the first or second half
+          const lowSide = k < players.length / 2;
+          const middleIndex = Math.floor(players.length / 2);
+          const isOddLength = players.length % 2 !== 0;
 
-        // Initialize votes array
-        let _votes: number[] = new Array(players.length).fill(0);
+          // Initialize votes array
+          let _votes: number[] = new Array(players.length).fill(0);
 
-        // Skip voting if player is in middle position for odd length arrays
-        if (!isOddLength || k !== middleIndex) {
-          if (lowSide) {
-            // Players in first half vote for second half
-            for (let i = players.length - 1; i > 0; i--) {
-              if (i !== k) {
-                // Don't vote for self
-                const voteWeight = Math.floor(Math.sqrt(creditsLeft));
-                if (voteWeight > 0) {
-                  _votes[i] = voteWeight;
-                  creditsLeft -= voteWeight * voteWeight;
-                } else {
-                  break;
+          // Skip voting if player is in middle position for odd length arrays
+          if (!isOddLength || k !== middleIndex) {
+            if (lowSide) {
+              // Players in first half vote for second half
+              for (let i = players.length - 1; i > 0; i--) {
+                if (i !== k) {
+                  // Don't vote for self
+                  const voteWeight = Math.floor(Math.sqrt(creditsLeft));
+                  if (voteWeight > 0) {
+                    _votes[i] = voteWeight;
+                    creditsLeft -= voteWeight * voteWeight;
+                  } else {
+                    break;
+                  }
                 }
               }
-            }
-          } else {
-            // Players in second half vote for first half (including middle)
-            for (let i = 0; i < players.length; i++) {
-              if (i !== k) {
-                // Don't vote for self
-                const voteWeight = Math.floor(Math.sqrt(creditsLeft));
-                if (voteWeight > 0) {
-                  _votes[i] = voteWeight;
-                  creditsLeft -= voteWeight * voteWeight;
-                } else {
-                  break;
+            } else {
+              // Players in second half vote for first half (including middle)
+              for (let i = 0; i < players.length; i++) {
+                if (i !== k) {
+                  // Don't vote for self
+                  const voteWeight = Math.floor(Math.sqrt(creditsLeft));
+                  if (voteWeight > 0) {
+                    _votes[i] = voteWeight;
+                    creditsLeft -= voteWeight * voteWeight;
+                  } else {
+                    break;
+                  }
                 }
               }
             }
           }
+
+          playerVote = this.permuteVotes(_votes, permutation);
         }
 
-        playerVote = this.permuteVotes(_votes, permutation);
+        votes.push(
+          await this.attestVote({
+            voter: players[k],
+            gameId,
+            turn,
+            gm,
+            verifierAddress: verifier.address,
+            vote: playerVote,
+            gameSize: players.length,
+            name: eip712._NAME,
+            version: eip712._VERSION,
+          }),
+        );
+      } else {
+        votes.push(
+          await this.attestVote({
+            voter: players[k],
+            gameId,
+            turn,
+            gm,
+            vote: Array(players.length).fill(0) as BigNumberish[],
+            verifierAddress: verifier.address,
+            gameSize: players.length,
+            name: eip712._NAME,
+            version: eip712._VERSION,
+          }),
+        );
       }
-
-      votes.push(
-        await this.attestVote({
-          voter: players[k],
-          gameId,
-          turn,
-          gm,
-          verifierAddress: verifier.address,
-          vote: playerVote,
-          gameSize: players.length,
-          name: eip712._NAME,
-          version: eip712._VERSION,
-        }),
-      );
     }
     return votes;
   };
@@ -1020,6 +1040,8 @@ class EnvironmentSimulator {
       nTurns: constantParams.RInstance_MAX_TURNS,
       voteCredits: constantParams.RInstance_VOTE_CREDITS,
       minGameTime: minGameTime,
+      proposingPhaseDuration: constantParams.RInstance_TIME_PER_TURN / 2,
+      votePhaseDuration: constantParams.RInstance_TIME_PER_TURN - constantParams.RInstance_TIME_PER_TURN / 2,
     };
     await this.rankifyInstance
       .connect(signer)
@@ -1060,23 +1082,10 @@ class EnvironmentSimulator {
       idlers,
       proposalSubmissionData: proposals,
     });
-    const v = (
-      votes ??
-      (await this.mockValidVotes(
-        this.getPlayers(this.adr, players.length),
-        gameId,
-        this.adr.gameMaster1,
-        turn.eq(1) ? false : true,
-        'ftw',
-      ))
-    ).map(vote => {
-      return vote.vote;
-    });
     log(
       JSON.stringify(
         {
           gameId,
-          votes: v,
           newProposals,
           permutation,
           nullifier,
@@ -1085,11 +1094,26 @@ class EnvironmentSimulator {
         2,
       ),
     );
-    const tx = await this.rankifyInstance
+    const isProposingStage = await this.rankifyInstance.isProposingStage(gameId);
+    if (isProposingStage) {
+      const tx = await this.rankifyInstance
+        .connect(this.adr.gameMaster1)
+        .endProposing(gameId, newProposals)
+        .then(r => r.wait(1));
+      log(tx, 3);
+    }
+    const v = (
+      votes ??
+      (await this.mockValidVotes(this.getPlayers(this.adr, players.length), gameId, this.adr.gameMaster1, true, 'ftw'))
+    ).map(vote => {
+      return vote.vote;
+    });
+    log(JSON.stringify({ gameId, v, permutation, nullifier }, null, 2), 3);
+    const tx2 = await this.rankifyInstance
       .connect(this.adr.gameMaster1)
-      .endTurn(gameId, v, newProposals, permutation, nullifier)
+      .endVoting(gameId, v, permutation, nullifier)
       .then(r => r.wait(1));
-    log(tx, 3);
+    log(tx2, 3);
   }
 
   public async runToTheEnd(gameId: BigNumberish, distribution: 'ftw' | 'semiUniform' | 'equal' = 'ftw') {
@@ -1106,10 +1130,6 @@ class EnvironmentSimulator {
       isGameOver = await this.rankifyInstance.isGameOver(gameId);
     }
     const winner = await this.rankifyInstance['gameWinner(uint256)'](gameId);
-    if (distribution == 'ftw') {
-      const players = await this.rankifyInstance.getPlayers(gameId);
-      assert(winner == players[0], 'winner is not the first player');
-    }
     log(`Game ${gameId} ended. Winner: ${winner}`, 2);
     return {
       winner,
@@ -1144,7 +1164,14 @@ class EnvironmentSimulator {
       proposalSubmissionData: proposals,
       idlers,
     });
-    return this.rankifyInstance.connect(gm).endTurn(gameId, votes, newProposals, permutation, nullifier);
+    const tx1 = this.rankifyInstance
+      .connect(gm)
+      .endProposing(gameId, newProposals)
+      .then(async r => {
+        const tx2 = this.rankifyInstance.connect(gm).endVoting(gameId, votes, permutation, nullifier);
+        return Promise.all([r, tx2]);
+      });
+    return tx1;
   };
 
   async mockProposals({
@@ -1310,11 +1337,6 @@ class EnvironmentSimulator {
         gamePlayerAddresses.includes(player.wallet.address),
       );
       // Submit votes if not first turn
-      if (turn.toNumber() !== 1) {
-        log(`Submitting votes for turn: ${turn}`, 2);
-        lastVotes = await this.mockValidVotes(players, gameId, this.adr.gameMaster1, true, distribution);
-        log(`Votes submitted: ${lastVotes.length}`, 2);
-      }
 
       // Submit proposals
       log('Submitting proposals...', 2);
@@ -1324,6 +1346,20 @@ class EnvironmentSimulator {
         gameId,
         submitNow: true,
       });
+
+      const proposalsIntegrity = await this.getProposalsIntegrity({
+        players,
+        gameId,
+        turn,
+        gm: this.adr.gameMaster1,
+        idlers: [],
+      });
+      await this.rankifyInstance.connect(this.adr.gameMaster1).endProposing(gameId, proposalsIntegrity.newProposals);
+
+      log(`Submitting votes for turn: ${turn}`, 2);
+      lastVotes = await this.mockValidVotes(players, gameId, this.adr.gameMaster1, true, distribution);
+      log(`Votes submitted: ${lastVotes.length}`, 2);
+
       log(`Proposals submitted: ${lastProposals.length}`, 2);
       if (distribution == 'equal' && players.length % 2 !== 0) {
         log('Increasing time for equal distribution and odd number of players', 2);
@@ -1361,6 +1397,7 @@ class EnvironmentSimulator {
     gm: Wallet,
     submitNow?: boolean,
     distribution?: 'ftw' | 'semiUniform' | 'equal',
+    idlers?: number[],
   ) {
     let votes: MockVote[] = [];
     let turn = await this.rankifyInstance.getTurn(gameId);
@@ -1373,19 +1410,20 @@ class EnvironmentSimulator {
       2,
     );
     log(`node env: ${process.env.NODE_ENV}`, 2);
-    if (!turn.eq(1)) {
-      votes = await this.mockVotes({
-        gameId: gameId,
-        turn: turn,
-        verifier: this.rankifyInstance,
-        players: players,
-        gm: gm,
-        distribution: distribution ?? 'semiUniform',
-      });
-      if (submitNow) {
-        this.votersAddresses = players.map(player => player.wallet.address);
-        for (let i = 0; i < players.length; i++) {
-          const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
+    votes = await this.mockVotes({
+      gameId: gameId,
+      turn: turn,
+      verifier: this.rankifyInstance,
+      players: players,
+      gm: gm,
+      distribution: distribution ?? 'semiUniform',
+      idlers: idlers,
+    });
+    if (submitNow) {
+      this.votersAddresses = players.map(player => player.wallet.address);
+      for (let i = 0; i < players.length; i++) {
+        const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
+        if (!idlers?.includes(i)) {
           if (!voted[i]) {
             log(`submitting vote for player ${players[i].wallet.address}`, 2);
             log(votes[i].vote, 2);
@@ -1430,11 +1468,9 @@ class EnvironmentSimulator {
           }
         }
       }
-      log(`Mocked ${votes.length} votes`, 2);
-      return votes;
-    } else {
-      return [];
     }
+    log(`Mocked ${votes.length} votes`, 2);
+    return votes;
   }
 
   async startGame(gameId: BigNumberish) {
@@ -1445,20 +1481,7 @@ class EnvironmentSimulator {
     if (isRegistrationOpen && !state.hasStarted) {
       await time.setNextBlockTimestamp(currentT + Number(constantParams.RInstance_TIME_TO_JOIN) + 1);
       await this.mineBlocks(constantParams.RInstance_TIME_TO_JOIN + 1);
-      await this.rankifyInstance
-        .connect(this.adr.gameMaster1)
-        .startGame(
-          gameId,
-          await generateDeterministicPermutation({
-            gameId: gameId,
-            turn: 0,
-            verifierAddress: this.rankifyInstance.address,
-            chainId: await this.hre.getChainId(),
-            gm: this.adr.gameMaster1,
-            size: await this.rankifyInstance.getPlayers(gameId).then(players => players.length),
-          }).then(perm => perm.commitment),
-        )
-        .then(tx => tx.wait(1));
+      await this.rankifyInstance.connect(this.adr.gameMaster1).startGame(gameId);
     } else {
       log('Game already started, skipping start game');
     }
@@ -1520,17 +1543,7 @@ class EnvironmentSimulator {
       log('Starting game after filling party');
       await this.rankifyInstance
         .connect(gameMaster)
-        .startGame(
-          gameId,
-          await generateDeterministicPermutation({
-            gameId: gameId,
-            turn: 0,
-            verifierAddress: this.rankifyInstance.address,
-            chainId: await this.hre.getChainId(),
-            gm: gameMaster,
-            size: await this.rankifyInstance.getPlayers(gameId).then(players => players.length),
-          }).then(perm => perm.commitment),
-        )
+        .startGame(gameId)
         .then(tx => tx.wait(1));
     }
     return Promise.all(promises.map(p => p.wait(1)));

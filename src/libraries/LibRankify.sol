@@ -62,29 +62,26 @@ library LibRankify {
      * @param rank Required rank level for participation
      * @param minGameTime Minimum duration the game must run
      * @param createdBy Address of the game creator
-     * @param numOngoingProposals Number of active proposals
-     * @param numPrevProposals Number of completed proposals
-     * @param numCommitments Number of vote commitments received
-     * @param numVotesThisTurn Vote count in current turn
-     * @param numVotesPrevTurn Vote count from previous turn
+     * @param numCommitments Number of players who have committed a proposal in the current proposing stage
+     * @param numVotes Number of votes cast in the current voting stage
+     * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
      * @param voting Quadratic voting state for this game
      */
     struct GameState {
         uint256 rank;
+        uint256 timePerTurnVoting;
+        uint256 timePerTurnProposing;
         string metadata;
         uint256 minGameTime;
         address createdBy;
-        uint256 numOngoingProposals;
-        uint256 numPrevProposals;
-        uint256 numCommitments;
-        uint256 numVotesThisTurn;
-        uint256 numVotesPrevTurn;
-        uint256 permutationCommitment;
+        uint256 numCommitments; // Number of players who have committed a proposal in the current proposing stage
+        uint256 numVotes; // Number of votes cast in the current voting stage
+        uint256 permutationCommitment; // Commitment related to the permutation of ongoingProposals, set at end of proposing stage
         LibQuadraticVoting.qVotingStruct voting;
-        mapping(uint256 => string) ongoingProposals; //Previous Turn Proposals (These are being voted on)
-        mapping(address => uint256) proposalCommitment;
-        mapping(address => bytes32) ballotHashes;
-        mapping(address => bool) playerVoted;
+        mapping(uint256 => string) ongoingProposals; // Proposals for the current round (submitted in proposing stage, voted on in voting stage)
+        mapping(address => uint256) proposalCommitment; // Player's commitment to their proposal
+        mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
+        mapping(address => bool) playerVoted; // Has player voted in the current voting stage
         address winner;
     }
 
@@ -112,7 +109,6 @@ library LibRankify {
             game.slot := position
         }
     }
-
     /**
      * @dev Returns the Rankify InstanceSettings storage.
      *
@@ -170,6 +166,8 @@ library LibRankify {
         uint128 minGameTime;
         uint128 timePerTurn;
         uint128 timeToJoin;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
         string metadata;
         // ToDo: It must list gameKey for Game master and game master signature, committing to serve the game
     }
@@ -214,8 +212,16 @@ library LibRankify {
         CommonParams storage commonParams = instanceState().commonParams;
 
         require(params.minGameTime > 0, "LibRankify::newGame->Min game time zero");
-        require(params.nTurns > 1, IRankifyInstance.invalidTurnCount(params.nTurns));
-
+        require(params.nTurns > 0, IRankifyInstance.invalidTurnCount(params.nTurns));
+        require(params.votePhaseDuration > 0, "LibRankify::newGame->Time per turn voting zero");
+        require(params.proposingPhaseDuration > 0, "LibRankify::newGame->Time per turn proposing zero");
+        require(
+            params.votePhaseDuration + params.proposingPhaseDuration == params.timePerTurn,
+            "LibRankify::newGame->Time per turn voting and proposing must sum to time per turn"
+        );
+        uint256[] memory phases = new uint256[](2);
+        phases[0] = params.votePhaseDuration;
+        phases[1] = params.proposingPhaseDuration;
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
             maxPlayerCnt: params.maxPlayerCnt,
@@ -224,15 +230,18 @@ library LibRankify {
             maxTurns: params.nTurns,
             voteCredits: params.voteCredits,
             gameMaster: params.gameMaster,
-            implementationStoragePointer: bytes32(0)
+            implementationStoragePointer: bytes32(0),
+            turnPhaseDurations: phases
         });
 
         InstanceState storage state = instanceState();
 
         params.gameId.createGame(newSettings); // This will enforce game does not exist yet
         GameState storage game = getGameState(params.gameId);
-        game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.maxPlayerCnt);
+        game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.minPlayerCnt);
         game.metadata = params.metadata;
+        game.timePerTurnVoting = params.votePhaseDuration;
+        game.timePerTurnProposing = params.proposingPhaseDuration;
         require(
             SignedMath.abs(int256(uint256(params.minGameTime)) - int256(uint256(commonParams.principalTimeConstant))) <
                 uint256(commonParams.principalTimeConstant) * 2 ** 16,
@@ -491,7 +500,7 @@ library LibRankify {
 
     /**
      * @dev Tries to make a move for a player in a game. `gameId` is the ID of the game. `player` is the address of the player.
-     * The "move" is considered to be a state when player has made all actions he could in the given turn.
+     * The "move" is considered to be a state when player has made all actions he could in the given STAGE (proposing or voting).
      *
      * Requirements:
      *
@@ -499,22 +508,51 @@ library LibRankify {
      *
      * Modifies:
      *
-     * - If the player has not voted and a vote is expected, or if the player has not made a proposal and a proposal is expected, does not make a move and returns `false`.
-     * - Otherwise, makes a move for `player` and returns `true`.
+     * - If the player has not completed their action for the current stage (proposal or vote), does not make a move and returns `false`.
+     * - Otherwise, makes a move for `player` in LibTBG and returns `true`.
      */
     function tryPlayerMove(uint256 gameId, address player) public returns (bool) {
-        uint256 turn = gameId.getTurn();
         GameState storage game = getGameState(gameId);
-        bool expectVote = true;
-        bool expectProposal = true;
-        if (turn == 1) expectVote = false; // Don't expect votes at first turn
-        // else if (gameId.isLastTurn()) expectProposal = false; // For now easiest solution is to keep collecting proposals as that is less complicated boundary case
-        if (game.numPrevProposals < game.voting.minQuadraticPositions) expectVote = false; // If there is not enough proposals then round is skipped votes cannot be filled
-        bool madeMove = true;
-        if (expectVote && !game.playerVoted[player]) madeMove = false;
-        if (expectProposal && game.proposalCommitment[player] == 0) madeMove = false;
-        if (madeMove) gameId.playerMove(player);
-        return madeMove;
+        bool actionCompleted = false;
+
+        if (isProposingStage(gameId)) {
+            // In proposing stage, action is complete if a proposal commitment exists.
+            if (game.proposalCommitment[player] != 0) {
+                actionCompleted = true;
+            }
+        } else if (isVotingStage(gameId)) {
+            // In voting stage, action is complete if player has voted, AND there are enough proposals.
+            if (game.numCommitments < game.voting.minQuadraticPositions || game.playerVoted[player]) {
+                actionCompleted = true;
+            }
+        }
+
+        if (actionCompleted) {
+            gameId.playerMove(player); // Call LibTBG.playerMove
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @dev Checks if the current proposing stage can end.
+     * A proposing stage can end if it's a proposing stage and all players have made their move (committed proposals)
+     * or the time for the stage has run out.
+     */
+    function canEndProposing(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        return isProposingStage(gameId) && gameId.canTransitionPhaseEarly();
+    }
+
+    /**
+     * @dev Checks if the current voting stage can end.
+     * A voting stage can end if it's a voting stage and all players have made their move (voted)
+     * or the time for the stage has run out.
+     * If there are not enough proposals to vote on, this stage effectively ends when LibTBG.canEndTurnEarly() becomes true (likely due to timeout).
+     */
+    function canEndVoting(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        return isVotingStage(gameId) && gameId.canTransitionPhaseEarly();
     }
 
     /**
@@ -528,28 +566,47 @@ library LibRankify {
     function calculateScores(
         uint256 gameId,
         uint256[][] memory votesRevealed
-    ) public returns (uint256[] memory, uint256[] memory) {
+    ) public returns (uint256[] memory, uint256[] memory, address, bool[] memory isActive, uint256[][] memory) {
         address[] memory players = gameId.getPlayers();
-        uint256[] memory scores = new uint256[](players.length);
+        uint256[] memory gameScores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
+        address winner = address(0);
+        uint256 maxScore = 0;
         GameState storage game = getGameState(gameId);
+        isActive = new bool[](players.length);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
-            playerVoted[i] = gameId._getState().isActive[players[i]];
+            isActive[i] = gameId._getState().isActive[players[i]];
+            playerVoted[i] = isActive[i];
         }
-        uint256[] memory roundScores = game.voting.tallyVotes(votesRevealed, playerVoted);
+        (uint256[] memory roundScores, uint256[][] memory finalizedVotingMatrix) = game.voting.tallyVotes(
+            votesRevealed,
+            playerVoted
+        );
         for (uint256 playerIdx = 0; playerIdx < players.length; playerIdx++) {
             //for each player
             if (game.proposalCommitment[players[playerIdx]] != 0) {
                 //if player proposal exists
-                scores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
-                gameId.setScore(players[playerIdx], scores[playerIdx]);
+                gameScores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
+                gameId.setScore(players[playerIdx], gameScores[playerIdx]);
+                if (gameScores[playerIdx] > maxScore) {
+                    maxScore = gameScores[playerIdx];
+                    winner = players[playerIdx];
+                }
             } else {
                 //Player did not propose
                 // TODO: implement tests for this
                 // require(roundScores[playerIdx] == 0, "LibRankify->calculateScores: player got votes without proposing");
             }
         }
-        return (scores, roundScores);
+        return (gameScores, roundScores, winner, isActive, finalizedVotingMatrix);
+    }
+
+    function isVotingStage(uint256 gameId) internal view returns (bool) {
+        return LibTBG.getPhase(gameId) == 1;
+    }
+
+    function isProposingStage(uint256 gameId) internal view returns (bool) {
+        return LibTBG.getPhase(gameId) == 0;
     }
 }
