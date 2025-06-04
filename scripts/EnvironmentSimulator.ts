@@ -1130,7 +1130,7 @@ class EnvironmentSimulator {
       isGameOver = await this.rankifyInstance.isGameOver(gameId);
     }
     const winner = await this.rankifyInstance['gameWinner(uint256)'](gameId);
-    log(`Game ${gameIdf} ended. Winner: ${winner}`, 2);
+    log(`Game ${gameId} ended. Winner: ${winner}`, 2);
     return {
       winner,
       lastVotes,
@@ -1397,6 +1397,7 @@ class EnvironmentSimulator {
     gm: Wallet,
     submitNow?: boolean,
     distribution?: 'ftw' | 'semiUniform' | 'equal',
+    idlers?: number[],
   ) {
     let votes: MockVote[] = [];
     let turn = await this.rankifyInstance.getTurn(gameId);
@@ -1416,51 +1417,54 @@ class EnvironmentSimulator {
       players: players,
       gm: gm,
       distribution: distribution ?? 'semiUniform',
+      idlers: idlers,
     });
     if (submitNow) {
       this.votersAddresses = players.map(player => player.wallet.address);
       for (let i = 0; i < players.length; i++) {
         const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
-        if (!voted[i]) {
-          log(`submitting vote for player ${players[i].wallet.address}`, 2);
-          log(votes[i].vote, 2);
-          if (votes[i].vote.some(v => v != 0)) {
-            await this.rankifyInstance
-              .connect(gm)
-              .submitVote(
-                gameId,
-                votes[i].ballotId,
-                players[i].wallet.address,
-                votes[i].gmSignature,
-                votes[i].voterSignature,
-                votes[i].ballotHash,
-              );
+        if (!idlers?.includes(i)) {
+          if (!voted[i]) {
+            log(`submitting vote for player ${players[i].wallet.address}`, 2);
+            log(votes[i].vote, 2);
+            if (votes[i].vote.some(v => v != 0)) {
+              await this.rankifyInstance
+                .connect(gm)
+                .submitVote(
+                  gameId,
+                  votes[i].ballotId,
+                  players[i].wallet.address,
+                  votes[i].gmSignature,
+                  votes[i].voterSignature,
+                  votes[i].ballotHash,
+                );
+            } else {
+              log(`zero vote for player ${players[i].wallet.address}`, 1);
+            }
           } else {
-            log(`zero vote for player ${players[i].wallet.address}`, 1);
-          }
-        } else {
-          log(`player ${players[i].wallet.address} already voted! Substituting mock with real one`, 2);
-          const playerVotedEvents = await this.rankifyInstance.queryFilter(
-            this.rankifyInstance.filters.VoteSubmitted(gameId, turn, players[i].wallet.address),
-          );
-          assert(playerVotedEvents.length > 0, 'Player should have voted');
-          votes[i].ballotHash = playerVotedEvents[0].args.ballotHash;
-          votes[i].gmSignature = playerVotedEvents[0].args.gmSignature;
-          votes[i].voterSignature = playerVotedEvents[0].args.voterSignature;
-          votes[i].ballotId = playerVotedEvents[0].args.sealedBallotId;
-          try {
-            votes[i].vote = await this.decryptVote({
-              vote: playerVotedEvents[0].args.sealedBallotId,
-              playerPubKey: await this.getCachedPubKey(players[i].wallet.address),
-              gameId,
-              instanceAddress: this.rankifyInstance.address,
-              signer: gm,
-              turn,
-            });
-            log(`Decrypted vote:`, 3);
-            log(votes[i].vote, 3);
-          } catch (e) {
-            console.error('Failed to decrypt vote');
+            log(`player ${players[i].wallet.address} already voted! Substituting mock with real one`, 2);
+            const playerVotedEvents = await this.rankifyInstance.queryFilter(
+              this.rankifyInstance.filters.VoteSubmitted(gameId, turn, players[i].wallet.address),
+            );
+            assert(playerVotedEvents.length > 0, 'Player should have voted');
+            votes[i].ballotHash = playerVotedEvents[0].args.ballotHash;
+            votes[i].gmSignature = playerVotedEvents[0].args.gmSignature;
+            votes[i].voterSignature = playerVotedEvents[0].args.voterSignature;
+            votes[i].ballotId = playerVotedEvents[0].args.sealedBallotId;
+            try {
+              votes[i].vote = await this.decryptVote({
+                vote: playerVotedEvents[0].args.sealedBallotId,
+                playerPubKey: await this.getCachedPubKey(players[i].wallet.address),
+                gameId,
+                instanceAddress: this.rankifyInstance.address,
+                signer: gm,
+                turn,
+              });
+              log(`Decrypted vote:`, 3);
+              log(votes[i].vote, 3);
+            } catch (e) {
+              console.error('Failed to decrypt vote');
+            }
           }
         }
       }

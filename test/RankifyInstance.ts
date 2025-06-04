@@ -1065,7 +1065,7 @@ describe(scriptName, () => {
                 })
                 .then(r => r.newProposals),
             );
-            const votes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, true);
+            const votes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, true, 'semiUniform', [0]);
             let turn = await rankifyInstance.getTurn(1);
             assert(turn.eq(1));
             await simulator.endTurn({
@@ -1101,7 +1101,7 @@ describe(scriptName, () => {
                 .then(r => r.newProposals),
             );
 
-            const newVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
+            const newVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false, 'semiUniform', [0]);
 
             for (let i = 0; i < newVotes.length; i++) {
               if (i !== 0) {
@@ -1463,8 +1463,10 @@ describe(scriptName, () => {
                   const votes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, true);
 
                   // Create a shuffled version of the votes array
-                  const votesShuffled = simulator.shuffle(votes.map(v => v.vote));
-
+                  let votesShuffled = simulator.shuffle(votes.map(v => v.vote));
+                  while (JSON.stringify(votesShuffled) === JSON.stringify(votes.map(v => v.vote))) {
+                    votesShuffled = simulator.shuffle(votes.map(v => v.vote));
+                  }
                   await expect(
                     rankifyInstance
                       .connect(adr.gameMaster1)
