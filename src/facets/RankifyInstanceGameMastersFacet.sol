@@ -348,8 +348,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
      */
     function endVoting(
         uint256 gameId,
-        uint256[][] memory votes, // Renamed from 'votes' for clarity
-        uint256[] memory permutation, // Permutation from when proposals (now being voted on) were set
+        uint256[][] memory votes,
+        uint256[] memory permutation,
         uint256 shuffleSalt
     ) public nonReentrant {
         {
@@ -392,15 +392,18 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             }
 
             // Sort votes according to previous turn's proposer indices
-            for (uint256 proposer = 0; proposer < players.length; ++proposer) {
+            for (uint256 voter = 0; voter < players.length; ++voter) {
                 // permutation is the index where players proposal was shuffled in to
-                // uint256 proposalCol = permutation[proposer];
+                // uint256 proposalCol = permutation[voter];
                 // We slice the votes array to get the votes for the current player
 
                 for (uint256 candidate = 0; candidate < players.length; candidate++) {
-                    votesSorted[proposer][candidate] = votes[proposer][permutation[candidate]];
+                    votesSorted[voter][candidate] = votes[voter][permutation[candidate]];
+                    if (!game.playerVoted[players[voter]]) {
+                        require(votesSorted[voter][candidate] == 0, "Player did not vote but non zero vote was revealed");
+                    }
                 }
-                assert(votesSorted[proposer][proposer] == 0); // did not vote for himself
+                assert(votesSorted[voter][voter] == 0); // did not vote for himself
             }
 
             // Calculate scores for previous turn's proposals

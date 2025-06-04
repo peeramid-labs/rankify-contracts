@@ -583,6 +583,7 @@ class EnvironmentSimulator {
     verifier,
     players,
     distribution,
+    idlers,
   }: {
     gameId: BigNumberish;
     turn: BigNumberish;
@@ -590,6 +591,7 @@ class EnvironmentSimulator {
     verifier: RankifyDiamondInstance;
     players: SignerIdentity[];
     distribution: 'ftw' | 'semiUniform' | 'equal' | 'zeros';
+    idlers?: number[];
   }): Promise<MockVote[]> => {
     const chainId = await this.hre.getChainId();
     const eip712 = await verifier.inspectEIP712Hashes();
@@ -603,93 +605,109 @@ class EnvironmentSimulator {
     });
     const votes: MockVote[] = [];
     for (let k = 0; k < players.length; k++) {
-      let creditsLeft = constantParams.RInstance_VOTE_CREDITS;
-      let playerVote: BigNumberish[] = [];
-      if (distribution == 'zeros') {
-        playerVote = players.map(() => 0);
-      }
-      if (distribution == 'ftw') {
-        //   this is on smart contract -> votesSorted[proposer][permutation[candidate]] = votes[proposer][candidate];
-        //   We need to prepare votes to be permuted so that sorting produces winner at minimal index k (skipping voting for himself)
-        const votesToPermute = players.map((proposer, idx) => {
-          if (k !== idx) {
+      if (!idlers || !idlers.includes(k)) {
+        let creditsLeft = constantParams.RInstance_VOTE_CREDITS;
+        let playerVote: BigNumberish[] = [];
+        if (distribution == 'zeros') {
+          playerVote = players.map(() => 0);
+        }
+        if (distribution == 'ftw') {
+          //   this is on smart contract -> votesSorted[proposer][permutation[candidate]] = votes[proposer][candidate];
+          //   We need to prepare votes to be permuted so that sorting produces winner at minimal index k (skipping voting for himself)
+          const votesToPermute = players.map((proposer, idx) => {
+            if (k !== idx) {
+              const voteWeight = Math.floor(Math.sqrt(creditsLeft));
+              creditsLeft -= voteWeight * voteWeight;
+              return voteWeight;
+            } else {
+              return 0;
+            }
+          });
+          playerVote = this.permuteVotes(votesToPermute, permutation);
+        } else if (distribution == 'semiUniform') {
+          const votesToDistribute = players.map(() => {
             const voteWeight = Math.floor(Math.sqrt(creditsLeft));
             creditsLeft -= voteWeight * voteWeight;
             return voteWeight;
-          } else {
-            return 0;
-          }
-        });
-        playerVote = this.permuteVotes(votesToPermute, permutation);
-      } else if (distribution == 'semiUniform') {
-        const votesToDistribute = players.map(() => {
-          const voteWeight = Math.floor(Math.sqrt(creditsLeft));
-          creditsLeft -= voteWeight * voteWeight;
-          return voteWeight;
-        });
-        let votesDistributed = [];
-        do {
-          votesDistributed = this.shuffle(votesToDistribute);
-        } while (votesDistributed[k] !== 0);
-        playerVote = this.permuteVotes(votesDistributed, permutation);
-      } else if (distribution == 'equal') {
-        // Determine if player is in the first or second half
-        const lowSide = k < players.length / 2;
-        const middleIndex = Math.floor(players.length / 2);
-        const isOddLength = players.length % 2 !== 0;
+          });
+          let votesDistributed = [];
+          do {
+            votesDistributed = this.shuffle(votesToDistribute);
+          } while (votesDistributed[k] !== 0);
+          playerVote = this.permuteVotes(votesDistributed, permutation);
+        } else if (distribution == 'equal') {
+          // Determine if player is in the first or second half
+          const lowSide = k < players.length / 2;
+          const middleIndex = Math.floor(players.length / 2);
+          const isOddLength = players.length % 2 !== 0;
 
-        // Initialize votes array
-        let _votes: number[] = new Array(players.length).fill(0);
+          // Initialize votes array
+          let _votes: number[] = new Array(players.length).fill(0);
 
-        // Skip voting if player is in middle position for odd length arrays
-        if (!isOddLength || k !== middleIndex) {
-          if (lowSide) {
-            // Players in first half vote for second half
-            for (let i = players.length - 1; i > 0; i--) {
-              if (i !== k) {
-                // Don't vote for self
-                const voteWeight = Math.floor(Math.sqrt(creditsLeft));
-                if (voteWeight > 0) {
-                  _votes[i] = voteWeight;
-                  creditsLeft -= voteWeight * voteWeight;
-                } else {
-                  break;
+          // Skip voting if player is in middle position for odd length arrays
+          if (!isOddLength || k !== middleIndex) {
+            if (lowSide) {
+              // Players in first half vote for second half
+              for (let i = players.length - 1; i > 0; i--) {
+                if (i !== k) {
+                  // Don't vote for self
+                  const voteWeight = Math.floor(Math.sqrt(creditsLeft));
+                  if (voteWeight > 0) {
+                    _votes[i] = voteWeight;
+                    creditsLeft -= voteWeight * voteWeight;
+                  } else {
+                    break;
+                  }
                 }
               }
-            }
-          } else {
-            // Players in second half vote for first half (including middle)
-            for (let i = 0; i < players.length; i++) {
-              if (i !== k) {
-                // Don't vote for self
-                const voteWeight = Math.floor(Math.sqrt(creditsLeft));
-                if (voteWeight > 0) {
-                  _votes[i] = voteWeight;
-                  creditsLeft -= voteWeight * voteWeight;
-                } else {
-                  break;
+            } else {
+              // Players in second half vote for first half (including middle)
+              for (let i = 0; i < players.length; i++) {
+                if (i !== k) {
+                  // Don't vote for self
+                  const voteWeight = Math.floor(Math.sqrt(creditsLeft));
+                  if (voteWeight > 0) {
+                    _votes[i] = voteWeight;
+                    creditsLeft -= voteWeight * voteWeight;
+                  } else {
+                    break;
+                  }
                 }
               }
             }
           }
+
+          playerVote = this.permuteVotes(_votes, permutation);
         }
 
-        playerVote = this.permuteVotes(_votes, permutation);
+        votes.push(
+          await this.attestVote({
+            voter: players[k],
+            gameId,
+            turn,
+            gm,
+            verifierAddress: verifier.address,
+            vote: playerVote,
+            gameSize: players.length,
+            name: eip712._NAME,
+            version: eip712._VERSION,
+          }),
+        );
+      } else {
+        votes.push(
+          await this.attestVote({
+            voter: players[k],
+            gameId,
+            turn,
+            gm,
+            vote: Array(players.length).fill(0) as BigNumberish[],
+            verifierAddress: verifier.address,
+            gameSize: players.length,
+            name: eip712._NAME,
+            version: eip712._VERSION,
+          }),
+        );
       }
-
-      votes.push(
-        await this.attestVote({
-          voter: players[k],
-          gameId,
-          turn,
-          gm,
-          verifierAddress: verifier.address,
-          vote: playerVote,
-          gameSize: players.length,
-          name: eip712._NAME,
-          version: eip712._VERSION,
-        }),
-      );
     }
     return votes;
   };
@@ -1112,7 +1130,7 @@ class EnvironmentSimulator {
       isGameOver = await this.rankifyInstance.isGameOver(gameId);
     }
     const winner = await this.rankifyInstance['gameWinner(uint256)'](gameId);
-    log(`Game ${gameId} ended. Winner: ${winner}`, 2);
+    log(`Game ${gameIdf} ended. Winner: ${winner}`, 2);
     return {
       winner,
       lastVotes,

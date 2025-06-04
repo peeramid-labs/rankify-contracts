@@ -2057,3 +2057,274 @@ describe(scriptName + '::Multiple games were played', () => {
     });
   });
 });
+
+describe(scriptName + '::Voting and Proposing Edge Cases', () => {
+  let adr: AdrSetupResult;
+  let env: EnvSetupResult;
+  let simulator: EnvironmentSimulator;
+  let eth: typeof ethersDirect & HardhatEthersHelpers;
+  let getPlayers: typeof simulator.getPlayers;
+  let rankifyInstance: RankifyDiamondInstance;
+
+  beforeEach(async () => {
+    const setup = await setupMainTest();
+    adr = setup.adr;
+    env = setup.env;
+    simulator = setup.simulator;
+    getPlayers = simulator.getPlayers;
+    eth = setup.ethers;
+    rankifyInstance = setup.rankifyInstance;
+    await setupFirstRankTest(simulator)();
+    await setupOpenRegistrationTest(simulator)();
+    await filledPartyTest(simulator)();
+    await startedGameTest(simulator)();
+  });
+
+  it('should handle zero proposers (all idlers)', async () => {
+    const gameId = eth.BigNumber.from(1);
+    const currentTurn = await rankifyInstance.getTurn(gameId);
+    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+    const numPlayers = players.length;
+    const idlers = Array.from(Array(numPlayers).keys());
+
+    const proposalDataForAllSlots = await simulator.mockProposals({
+      players,
+      gameMaster: adr.gameMaster1,
+      gameId: gameId,
+      submitNow: false,
+      idlers: idlers,
+      turn: currentTurn.toNumber(),
+    });
+
+    const gameStateBeforeProposingEnd = await rankifyInstance.getGameState(gameId);
+    await time.increase(gameStateBeforeProposingEnd.proposingPhaseDuration.toNumber() + 1);
+
+    const integrity = await simulator.getProposalsIntegrity({
+      players,
+      gameId: gameId,
+      turn: currentTurn.toNumber(),
+      gm: adr.gameMaster1,
+      proposalSubmissionData: proposalDataForAllSlots,
+      idlers: idlers,
+    });
+
+    await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
+      .to.emit(rankifyInstance, 'ProposingStageEnded')
+      .withArgs(gameId, currentTurn, []);
+
+    expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
+    const gameStateBeforeVotingEnd = await rankifyInstance.getGameState(gameId);
+    await time.increase(gameStateBeforeVotingEnd.votePhaseDuration.toNumber() + 1);
+    const votes = players.map(() => Array(numPlayers).fill(0));
+
+    const tx = await rankifyInstance
+      .connect(adr.gameMaster1)
+      .endVoting(gameId, votes, integrity.permutation, integrity.nullifier);
+    const receipt = await tx.wait();
+    const votingResultsEvent = receipt.events?.find(e => e.event === 'VotingStageResults');
+    expect(votingResultsEvent).to.not.be.undefined;
+
+    const finalScores = await rankifyInstance.getScores(gameId);
+    expect(finalScores[1]).to.deep.equal(Array(numPlayers).fill(0));
+
+    if (currentTurn.lt(RInstance_MAX_TURNS)) {
+      expect(await rankifyInstance.getTurn(gameId)).to.be.equal(currentTurn.add(1));
+    } else {
+      expect(await rankifyInstance.isGameOver(gameId)).to.be.true;
+    }
+  });
+
+  it('should handle one proposer', async () => {
+    const gameId = 1;
+    const currentTurn = await rankifyInstance.getTurn(gameId);
+    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+    const numPlayers = players.length;
+    const proposerIndex = 0;
+    const idlers = Array.from(Array(numPlayers).keys()).filter(i => i !== proposerIndex);
+
+    const proposalDataForAllSlots = await simulator.mockProposals({
+      players,
+      gameMaster: adr.gameMaster1,
+      gameId: gameId,
+      submitNow: false,
+      idlers: idlers,
+      turn: currentTurn.toNumber(),
+    });
+
+    await rankifyInstance.connect(adr.gameMaster1).submitProposal(proposalDataForAllSlots[proposerIndex].params);
+
+    const gameStateBeforeProposingEnd = await rankifyInstance.getGameState(gameId);
+    await time.increase(gameStateBeforeProposingEnd.proposingPhaseDuration.toNumber() + 1);
+
+    const integrity = await simulator.getProposalsIntegrity({
+      players,
+      gameId: gameId,
+      turn: currentTurn.toNumber(),
+      gm: adr.gameMaster1,
+      proposalSubmissionData: proposalDataForAllSlots,
+      idlers: idlers,
+    });
+
+    await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals)).to.emit(
+      rankifyInstance,
+      'ProposingStageEnded',
+    );
+
+    expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
+    const gameStateBeforeVotingEnd = await rankifyInstance.getGameState(gameId);
+    await time.increase(gameStateBeforeVotingEnd.votePhaseDuration.toNumber() + 1);
+    const votes = players.map(() => Array(numPlayers).fill(0));
+
+    const tx = await rankifyInstance
+      .connect(adr.gameMaster1)
+      .endVoting(gameId, votes, integrity.permutation, integrity.nullifier);
+    const receipt = await tx.wait();
+    const votingResultsEvent = receipt.events?.find(e => e.event === 'VotingStageResults');
+    expect(votingResultsEvent).to.not.be.undefined;
+
+    const finalScores = await rankifyInstance.getScores(gameId);
+    expect(finalScores[1]).to.deep.equal([4, 0, 0]);
+
+    if (currentTurn.lt(RInstance_MAX_TURNS)) {
+      expect(await rankifyInstance.getTurn(gameId)).to.be.equal(currentTurn.add(1));
+    } else {
+      expect(await rankifyInstance.isGameOver(gameId)).to.be.true;
+    }
+  });
+
+  it('should handle zero voters (all players propose, nobody votes)', async () => {
+    const gameId = eth.BigNumber.from(1);
+    const currentTurn = await rankifyInstance.getTurn(gameId);
+    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+    const numPlayers = players.length;
+
+    const proposalDataForAllSlots = await simulator.mockProposals({
+      players,
+      gameMaster: adr.gameMaster1,
+      gameId: gameId,
+      submitNow: true,
+      idlers: [],
+      turn: currentTurn.toNumber(),
+    });
+
+    const integrity = await simulator.getProposalsIntegrity({
+      players,
+      gameId: gameId,
+      turn: currentTurn.toNumber(),
+      gm: adr.gameMaster1,
+      proposalSubmissionData: proposalDataForAllSlots,
+      idlers: [],
+    });
+
+    await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals)).to.emit(
+      rankifyInstance,
+      'ProposingStageEnded',
+    );
+
+    expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
+
+    const gameStateBeforeVotingEnd = await rankifyInstance.getGameState(gameId);
+    await time.increase(gameStateBeforeVotingEnd.votePhaseDuration.toNumber() + 1);
+
+    const votes = players.map(() => Array(numPlayers).fill(0));
+
+    const tx = await rankifyInstance
+      .connect(adr.gameMaster1)
+      .endVoting(gameId, votes, integrity.permutation, integrity.nullifier);
+    const receipt = await tx.wait();
+    const votingResultsEvent = receipt.events?.find(e => e.event === 'VotingStageResults');
+    expect(votingResultsEvent).to.not.be.undefined;
+
+    const finalScores = await rankifyInstance.getScores(gameId);
+    expect(finalScores[1]).to.deep.equal(Array(numPlayers).fill(0));
+
+    if (currentTurn.lt(RInstance_MAX_TURNS)) {
+      expect(await rankifyInstance.getTurn(gameId)).to.be.equal(currentTurn.add(1));
+    } else {
+      expect(await rankifyInstance.isGameOver(gameId)).to.be.true;
+    }
+  });
+
+  it('should handle one voter', async () => {
+    const gameId = eth.BigNumber.from(1);
+    const currentTurn = await rankifyInstance.getTurn(gameId);
+    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+    const numPlayers = players.length;
+    const voterIndex = 0;
+
+    const proposalDataForAllSlots = await simulator.mockProposals({
+      players,
+      gameMaster: adr.gameMaster1,
+      gameId: gameId,
+      submitNow: true,
+      idlers: [],
+      turn: currentTurn.toNumber(),
+    });
+
+    const integrity = await simulator.getProposalsIntegrity({
+      players,
+      gameId: gameId,
+      turn: currentTurn.toNumber(),
+      gm: adr.gameMaster1,
+      proposalSubmissionData: proposalDataForAllSlots,
+      idlers: [],
+    });
+
+    await rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals);
+    expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
+
+    const votes = await simulator.mockVotes({
+      gameId: 1,
+      turn: 1,
+      verifier: rankifyInstance,
+      players: players,
+      gm: adr.gameMaster1,
+      distribution: 'ftw',
+      idlers: [1, 2],
+    });
+
+    for (let i = 0; i < numPlayers; i++) {
+      if (i == 0) {
+        await rankifyInstance
+          .connect(adr.gameMaster1)
+          .submitVote(
+            1,
+            votes[i].ballotId,
+            players[i].wallet.address,
+            votes[i].gmSignature,
+            votes[i].voterSignature,
+            votes[i].ballotHash,
+          );
+      }
+    }
+    const gameStateBeforeVotingEnd = await rankifyInstance.getGameState(gameId);
+    await time.increase(gameStateBeforeVotingEnd.votePhaseDuration.toNumber() + 1);
+    const numPlayersMadeMove = await rankifyInstance.getGameState(gameId).then(r => r.numPlayersMadeMove);
+    expect(numPlayersMadeMove).to.be.equal(1);
+    const tx = await rankifyInstance.connect(adr.gameMaster1).endVoting(
+      gameId,
+      votes.map(v => v.vote),
+      integrity.permutation,
+      integrity.nullifier,
+    );
+    await tx.wait();
+    const numActiveAfterVoting = await rankifyInstance.getGameState(gameId).then(r => r.numActivePlayers);
+    expect(numActiveAfterVoting).to.be.equal(1);
+    const notVotingGivesEveryone = await rankifyInstance.getGameState(gameId).then(r => r.voting.maxQuadraticPoints);
+    let expectedScores = [0, 2, 1];
+
+    const receipt = await tx.wait();
+    const votingResultsEvent = receipt.events?.find(e => e.event === 'VotingStageResults');
+    expect(votingResultsEvent).to.not.be.undefined;
+
+    const finalScores = await rankifyInstance.getScores(gameId);
+
+    expect(finalScores[1]).to.deep.equal(expectedScores);
+
+    if (currentTurn.lt(RInstance_MAX_TURNS)) {
+      expect(await rankifyInstance.getTurn(gameId)).to.be.equal(currentTurn.add(1));
+    } else {
+      expect(await rankifyInstance.isGameOver(gameId)).to.be.true;
+    }
+  });
+});
