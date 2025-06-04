@@ -26,6 +26,7 @@ Major architectural and functional changes:
   - Updated `RankifyInstanceGameMastersFacet` to emit new parameters `isActive` and `finalizedVotingMatrix` in the `VotingStageResults` event.
   - Adjusted `LibRankify` to initialize the `isActive` array for players, ensuring accurate game state representation.
   - `LibQuadraticVoting.precomputeValues` in `createGame` now takes correctly `params.minPlayerCnt` as argument to minimum expected vote items;
+  - Fixed bug that allowed game master to submit non-zero votes for players that did not vote;
 
 - **Deployment and Build Process Updates (specific to this branch/PR)**:
   - `deploy/02_deployRankify.ts`: Initial token minting wrapped in try-catch.
