@@ -1,5 +1,65 @@
 # rankify-contracts
 
+## 0.14.0
+
+### Minor Changes
+
+- [#180](https://github.com/peeramid-labs/rankify-contracts/pull/180) [`b2c6d861808e8d4c0898ceed2f836613a701507c`](https://github.com/peeramid-labs/rankify-contracts/commit/b2c6d861808e8d4c0898ceed2f836613a701507c) Thanks [@peersky](https://github.com/peersky)! - Major architectural and functional changes:
+
+  - **Two-Phase Turn System**: Transitioned from a single `endTurn` function/concept to a two-phase system with distinct `endProposing` and `endVoting` stages. This was a core change impacting many areas:
+    - **Solidity Contracts**:
+      - `RankifyInstanceGameMastersFacet`: `endTurn` replaced by `endVoting`; new `endProposing` function added. Event logic updated (`ProposingStageEnded`, `VotingStageResults` added). Vote/proposal submission logic now phase-aware.
+      - `RankifyInstanceMainFacet`: Added new phase-specific view functions: `isProposingStage(uint256 gameId)`, `isVotingStage(uint256 gameId)`, `canEndProposingStage(uint256 gameId)`, `canEndVotingStage(uint256 gameId)`. Removed `canEndTurn`. `startGame` no longer takes `permutationCommitment`.
+      - `LibRankify`: Major rework to support phases. `GameState` and `NewGameParams` updated. `tryPlayerMove` became phase-aware. Added `canEndProposing`, `canEndVoting`, `isVotingStage`, `isProposingStage`. `calculateScores` now returns round winner.
+      - `LibTBG`: Core turn logic refactored. `State` now includes `phase` and `phaseStartedAt` (renamed from `turnStartedAt`). `Settings` includes `turnPhaseDurations`. `nextTurn` became `next` (phase transition). Timeout and early end logic became phase-aware (`isTimeout`, `canTransitionPhaseEarly`).
+      - Interfaces (`IRankifyInstance`) and event/struct definitions updated accordingly across facets.
+      - Minimal required number of turns is now `>0` instead of `>1` to properly reflect new phase-awareness of the game;
+    - **Environment Simulator (`scripts/EnvironmentSimulator.ts`)**:
+      - `endTurn` and `endWithIntegrity` refactored to call `endProposing` and `endVoting` separately.
+      - `makeTurn` logic updated to reflect the two-phase process.
+      - `mockValidVotes` and `mockProposals` adjusted for new timing and phase context.
+      - `startGame` and `fillParty` calls to contract's `startGame` updated (no longer pass `permutationCommitment`).
+      - Game creation parameters (`getCreateGameParams`) now include `proposingPhaseDuration` and `votePhaseDuration`.
+    - **Proof Generation (`scripts/proofs.ts`)**:
+      - `generateDeterministicPermutation` calls in `getPlayerVoteSalt`, `mockVotes`, and `generateEndTurnIntegrity` now consistently use `turn: Number(turn)` (removed `- 1` offset).
+  - **Minor contract improvements & bug fixes**:
+    - Enhanced RankifyInstanceGameMastersFacet and LibQuadraticVoting to include additional voting data
+    - Modified `LibQuadraticVoting` to return the `finalizedVotingMatrix` alongside scores, improving the tracking of voting outcomes.
+    - Updated `RankifyInstanceGameMastersFacet` to emit new parameters `isActive` and `finalizedVotingMatrix` in the `VotingStageResults` event.
+    - Adjusted `LibRankify` to initialize the `isActive` array for players, ensuring accurate game state representation.
+    - `LibQuadraticVoting.precomputeValues` in `createGame` now takes correctly `params.minPlayerCnt` as argument to minimum expected vote items;
+    - Fixed bug that allowed game master to submit non-zero votes for players that did not vote;
+  - **Deployment and Build Process Updates (specific to this branch/PR)**:
+    - `deploy/02_deployRankify.ts`: Initial token minting wrapped in try-catch.
+    - `deploy/mao.ts`: `skipIfAlreadyDeployed` for many contracts now conditional via `FORCE_REDEPLOY` env var.
+    - `hardhat.config.ts`: `viaIR: true` enabled. `contractSizer` run is conditional. Build tasks for ABI generation and super interface updated (includes removal of excessive console logs during compilation tasks).
+    - `package.json`: Test and build scripts modified (e.g., `rm -rf abi/super-interface.json`).
+  - **Testing (`test/RankifyInstance.ts`)**:
+    - Extensive updates to align with the new two-phase turn system (event names, function calls, state expectations, usage of new view functions like `isProposingStage`).
+    - Addressed numerous test failures by ensuring consistent `simulatorInstance` and `rankTokenInstance` usage, especially in `beforeEach` and shared fixture contexts.
+    - Investigated and attempted fixes for `insufficient` token errors and `startGame->Not enough players` errors in complex multi-game scenarios, highlighting potential remaining issues in state management across tests or in the simulation of token rewards/locking in `runToTheEnd`.
+    - Many tests are now passing, but the `Multiple games were played` suite still had failing tests related to `RankToken` state at the time of this changeset, despite efforts to ensure instance consistency.
+
+### Patch Changes
+
+- [#180](https://github.com/peeramid-labs/rankify-contracts/pull/180) [`b2c6d861808e8d4c0898ceed2f836613a701507c`](https://github.com/peeramid-labs/rankify-contracts/commit/b2c6d861808e8d4c0898ceed2f836613a701507c) Thanks [@peersky](https://github.com/peersky)! - - Changed LibRankify functions from `internal` to `public` to counter contract size limit
+
+  - Modified player game tracking to support multiple games:
+    - Changed `playerInGame` from mapping to single uint256 to EnumerableSet.UintSet
+    - Renamed `getPlayersGame` to `getPlayersGames` returning array of game IDs
+    - Added `isPlayerInGame` function to check if player is in specific game
+  - Updated deployment script to deploy LibRankify separately and link to facets
+  - Fixed tests to reflect new multi-game capability
+
+- [`79965567f162094e159221b6d7915633b3e43cd0`](https://github.com/peeramid-labs/rankify-contracts/commit/79965567f162094e159221b6d7915633b3e43cd0) Thanks [@peersky](https://github.com/peersky)! - updated distr artifacts
+
+- [#180](https://github.com/peeramid-labs/rankify-contracts/pull/180) [`b2c6d861808e8d4c0898ceed2f836613a701507c`](https://github.com/peeramid-labs/rankify-contracts/commit/b2c6d861808e8d4c0898ceed2f836613a701507c) Thanks [@peersky](https://github.com/peersky)! - Removed specific time-related divisibility checks from `LibRankify.newGame` function:
+
+  - Removed `require(commonParams.principalTimeConstant % params.nTurns == 0)`
+  - Removed `require(params.minGameTime % params.nTurns == 0)`
+
+  These checks were likely removed to optimize gas or simplify game creation logic by no longer strictly enforcing that `principalTimeConstant` and `minGameTime` are exact multiples of `nTurns`.
+
 ## 0.13.1
 
 ### Patch Changes
