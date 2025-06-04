@@ -400,7 +400,10 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                 for (uint256 candidate = 0; candidate < players.length; candidate++) {
                     votesSorted[voter][candidate] = votes[voter][permutation[candidate]];
                     if (!game.playerVoted[players[voter]]) {
-                        require(votesSorted[voter][candidate] == 0, "Player did not vote but non zero vote was revealed");
+                        require(
+                            votesSorted[voter][candidate] == 0,
+                            "Player did not vote but non zero vote was revealed"
+                        );
                     }
                 }
                 assert(votesSorted[voter][voter] == 0); // did not vote for himself
