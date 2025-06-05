@@ -65,7 +65,7 @@ library LibQuadraticVoting {
         uint256[][] memory tally, // [participant][votedFor]
         bool[] memory hasVoted,
         bool[] memory hasProposed
-    ) internal pure returns (uint256[] memory) {
+    ) internal pure returns (uint256[] memory, uint256[][] memory) {
         uint256 notVotedGivesEveryone = q.maxQuadraticPoints;
         uint256[] memory scores = new uint256[](tally.length);
         uint256[] memory creditsUsed = new uint256[](tally.length);
