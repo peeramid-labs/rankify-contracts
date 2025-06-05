@@ -69,7 +69,12 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         bytes voterSignature,
         bytes32 ballotHash
     );
-    event ProposingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber, uint256 numProposals, string[] proposals);
+    event ProposingStageEnded(
+        uint256 indexed gameId,
+        uint256 indexed roundNumber,
+        uint256 numProposals,
+        string[] proposals
+    );
     event VotingStageResults(
         uint256 indexed gameId,
         uint256 indexed roundNumber,
@@ -405,7 +410,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                         );
                     }
                 }
-               require(votesSorted[voter][voter] == 0, "voted for himself"); // did not vote for himself
+                require(votesSorted[voter][voter] == 0, "voted for himself"); // did not vote for himself
             }
 
             // Calculate scores for previous turn's proposals

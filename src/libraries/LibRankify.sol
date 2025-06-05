@@ -579,7 +579,11 @@ library LibRankify {
             playerVoted[i] = game.playerVoted[players[i]];
             playerProposed[i] = game.proposalCommitment[players[i]] != 0;
         }
-        (uint256[] memory roundScores, uint256[][] memory finalizedVotingMatrix) = game.voting.tallyVotes(votesRevealed, playerVoted, playerProposed);
+        (uint256[] memory roundScores, uint256[][] memory finalizedVotingMatrix) = game.voting.tallyVotes(
+            votesRevealed,
+            playerVoted,
+            playerProposed
+        );
         for (uint256 playerIdx = 0; playerIdx < players.length; playerIdx++) {
             //for each player
             if (game.proposalCommitment[players[playerIdx]] != 0) {
