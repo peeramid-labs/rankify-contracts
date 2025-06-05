@@ -330,7 +330,7 @@ contract RankifyInstanceMainFacet is
      * @param gameId The ID of the game.
      * @return bool Whether the proposing stage can end.
      */
-    function canEndProposingStage(uint256 gameId) public view returns (bool) {
+    function canEndProposingStage(uint256 gameId) public view returns (IRankifyInstance.ProposingEndStatus) {
         return LibRankify.canEndProposing(gameId);
     }
 

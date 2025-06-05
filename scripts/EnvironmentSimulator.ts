@@ -943,9 +943,9 @@ class EnvironmentSimulator {
     log(`Generated proposals integrity with commitment ${commitment}`, 2);
     return {
       newProposals: {
-        a,
-        b,
-        c,
+        a: a as [BigNumberish, BigNumberish],
+        b: b as [[BigNumberish, BigNumberish], [BigNumberish, BigNumberish]],
+        c: c as [BigNumberish, BigNumberish],
         proposals: permutedProposals,
         permutationCommitment: commitment,
       },

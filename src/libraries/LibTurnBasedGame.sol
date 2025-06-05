@@ -981,6 +981,9 @@ library LibTBG {
      */
     function sortByScore(uint256 gameId) internal view returns (address[] memory, uint256[] memory) {
         (address[] memory players, uint256[] memory scores) = getScores(gameId);
+        if (players.length == 0) {
+            return (players, scores);
+        }
         _quickSort(players, scores, 0, int256(scores.length - 1));
         return (players, scores);
     }
