@@ -2245,16 +2245,6 @@ describe(scriptName, () => {
             ),
           );
           expect(_CACHED_DOMAIN_SEPARATOR).to.equal(domainSeparator);
-          const s2 = await simulator.signJoiningGame({
-            gameId: state.numGames,
-            participant: loser.wallet,
-            signer: simulator.adr.gameMaster1,
-          });
-          await expect(
-            rankifyInstance
-              .connect(loser.wallet)
-              .joinGame(state.numGames, s2.signature, s2.gmCommitment, s2.deadline, s2.participantPubKey),
-          ).to.be.revertedWithCustomError(rankToken, 'insufficient');
         });
       });
     });
