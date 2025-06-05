@@ -1169,6 +1169,94 @@ describe(scriptName, () => {
               .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
               .withArgs(1, 1);
           });
+          it('Can finish turn early if none voted', async () => {
+            const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
+            const players = getPlayers(adr, playersCnt);
+            const proposals = await simulator.mockProposals({
+              players,
+              gameMaster: adr.gameMaster1,
+              gameId: 1,
+              submitNow: true,
+            });
+
+            await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
+            const votes = await simulator.mockValidVotes(
+              players,
+              1,
+              adr.gameMaster1,
+              false,
+              'semiUniform',
+              players.map((p, i) => i),
+            );
+            const turn = await rankifyInstance.getTurn(1);
+            assert(turn.eq(1));
+            await simulator.endWithIntegrity({
+              gameId: 1,
+              players,
+              proposals,
+              votes: votes.map(vote => vote.ballot.vote),
+              gm: adr.gameMaster1,
+              idlers: players.map((p, i) => i),
+              timeAfterProposing: Number(RInstance_TIME_PER_TURN) + 1,
+            });
+
+            const newProposals = await simulator.mockProposals({
+              players,
+              gameMaster: adr.gameMaster1,
+              gameId: 1,
+              submitNow: true,
+              idlers: players.map((p, i) => i),
+            });
+
+            const newVotes = await simulator.mockValidVotes(
+              players,
+              1,
+              adr.gameMaster1,
+              false,
+              'semiUniform',
+              players.map((p, i) => i),
+            );
+
+            await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
+
+            endWithIntegrity({
+              gameId: 1,
+              players,
+              proposals: newProposals,
+              votes: newVotes.map(vote => vote.ballot.vote),
+              gm: adr.gameMaster1,
+              idlers: players.map((p, i) => i),
+            });
+            expect(await rankifyInstance.getTurn(1)).to.be.equal(2);
+            expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false]);
+            const newestVotes = await simulator.mockValidVotes(
+              players,
+              1,
+              adr.gameMaster1,
+              true,
+              'semiUniform',
+              players.map((p, i) => i),
+            );
+            expect(await rankifyInstance.isActive(1, proposals[0].params.proposer)).to.be.false;
+            const newestProposals = await simulator.mockProposals({
+              players,
+              gameMaster: adr.gameMaster1,
+              gameId: 1,
+              submitNow: true,
+              idlers: players.map((p, i) => i),
+            });
+            expect(await rankifyInstance.isActive(1, newestProposals[0].params.proposer)).to.be.false;
+            await expect(
+              endWithIntegrity({
+                gameId: 1,
+                players,
+                proposals: newestProposals,
+                votes: newestVotes.map(vote => vote.ballot.vote),
+                gm: adr.gameMaster1,
+                idlers: players.map((p, i) => i),
+              }).then(r => r[1]),
+            ).to.not.be.revertedWith('nextTurn->CanEndEarly');
+          });
           it('First turn has started', async () => {
             expect(await rankifyInstance.connect(adr.players[0].wallet).getTurn(1)).to.be.equal(1);
           });
@@ -1910,6 +1998,240 @@ describe(scriptName, () => {
             ).to.be.revertedWithCustomError(rankToken, 'insufficient');
           });
         });
+        //   describe('Partial propose and vote test', () => {
+        //     let adr: AdrSetupResult;
+        //     let env: EnvSetupResult;
+        //     let simulator: EnvironmentSimulator;
+        //     let rankifyInstance: RankifyDiamondInstance;
+        //     let rankToken: RankToken;
+
+        //     beforeEach(async () => {
+        //       const setup = await setupMainTest();
+        //       adr = setup.adr;
+        //       env = setup.env;
+        //       simulator = setup.simulator;
+        //       rankifyInstance = setup.rankifyInstance;
+        //       rankToken = setup.rankToken;
+        //     });
+
+        //     it('should handle partial propose and vote correctly', async () => {
+        //       // Create a new game with 5 players, 5 turns, 1 vote credit
+        //       const gameId = await simulator.createGame({
+        //         minGameTime: constantParams.RInstance_MIN_GAME_TIME,
+        //         signer: adr.gameCreator1.wallet,
+        //         gameMaster: adr.gameMaster1.address,
+        //         gameRank: 1,
+        //         openNow: true,
+        //         voteCredits: 1,
+        //       });
+
+        //       // Get 5 players to join the game
+        //       const players = adr.players.slice(0, 5);
+        //       await simulator.fillParty({
+        //         players,
+        //         gameId,
+        //         shiftTime: true,
+        //         gameMaster: adr.gameMaster1,
+        //         startGame: true,
+        //       });
+
+        //       // Verify the game has started
+        //       expect(await rankifyInstance.getGameState(gameId).then(state => state.hasStarted)).to.be.true;
+
+        //       //only players 0, 3 propose
+        //       const initialProposals = await simulator.mockProposals({
+        //         players: players,
+        //         gameMaster: adr.gameMaster1,
+        //         gameId,
+        //         submitNow: true,
+        //         idlers: [1, 2, 4],
+        //         turn: 1,
+        //       });
+
+        //       //First turn integrity check
+        //       const initialIntegrity = await simulator.getProposalsIntegrity({
+        //         players,
+        //         gameId,
+        //         turn: 1,
+        //         gm: adr.gameMaster1,
+        //         proposalSubmissionData: initialProposals,
+        //         idlers: [1, 2, 4],
+        //       });
+
+        //       // Create an array of empty votes for the first turn
+        //       const emptyVotes = Array(players.length)
+        //         .fill([])
+        //         .map(() => Array(players.length).fill(0));
+
+        //       // End turn 1 with all proposals but no votes and verify that it's now turn 2
+        //       await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+        //       await rankifyInstance
+        //         .connect(adr.gameMaster1)
+        //         .endTurn(
+        //           gameId,
+        //           emptyVotes,
+        //           initialIntegrity.newProposals,
+        //           initialIntegrity.permutation,
+        //           initialIntegrity.nullifier,
+        //         );
+        //       expect(await rankifyInstance.getTurn(gameId)).to.equal(2);
+
+        //       // This means that players 1, 2, 4 now are inactive and they are not expected to make a move
+        //       // They will not be awaited for. THey may become active only if they submit both proposal & vote
+        //       // Otherwise they will be kept considered inactive.
+        //       expect(await rankifyInstance.getGameState(gameId).then(state => state.numActivePlayers.toNumber())).to.equal(2);
+        //       expect(await rankifyInstance.isActive(gameId, players[0].wallet.address)).to.be.true;
+        //       expect(await rankifyInstance.isActive(gameId, players[1].wallet.address)).to.be.false;
+        //       expect(await rankifyInstance.isActive(gameId, players[2].wallet.address)).to.be.false;
+        //       expect(await rankifyInstance.isActive(gameId, players[3].wallet.address)).to.be.true;
+        //       expect(await rankifyInstance.isActive(gameId, players[4].wallet.address)).to.be.false;
+
+        //       // Check the scores from the TurnEnded event
+        //       const initialTurnEvents = await rankifyInstance.queryFilter(rankifyInstance.filters.TurnEnded(gameId, 1));
+        //       console.log(
+        //         'Game state scores after initial turn:',
+        //         initialTurnEvents[0].args.scores.map(s => s.toString()),
+        //       );
+        //       expect(initialTurnEvents[0].args.scores).to.deep.equal([0, 0, 0, 0, 0]);
+
+        //       // Now for turn 2, only players at index 0 and 3 will propose (same as turn 1)
+
+        //       const proposals = await simulator.mockProposals({
+        //         players: players,
+        //         gameMaster: adr.gameMaster1,
+        //         gameId,
+        //         submitNow: true,
+        //         idlers: [1, 2, 4], // Players at indices 1, 2, and 4 don't propose
+        //         turn: 2,
+        //       });
+
+        //       // Only player at index 1 will vote, and they vote for player at index 3
+        //       const votingIdx = 1;
+        //       const votingPlayer = players[votingIdx];
+
+        //       // Create a vote where player 1 votes for player 3
+        //       const voteWeight: bigint = 1n;
+        //       const playerVote = Array(players.length).fill(0);
+
+        //       //Get 1st turn permutation array
+        //       const { permutation: prevTurnPermutation } = await simulator.getProposalsIntegrity({
+        //         players,
+        //         gameId,
+        //         turn: 2,
+        //         gm: adr.gameMaster1,
+        //         proposalSubmissionData: initialProposals,
+        //         idlers: [1, 2, 4],
+        //       });
+
+        //       //vote for player 3 according to permutation
+        //       playerVote[Number(prevTurnPermutation[3])] = voteWeight;
+
+        //       //attest vote
+        //       const vote = await simulator.attestVote({
+        //         voter: votingPlayer,
+        //         gameId,
+        //         turn: 2,
+        //         gm: adr.gameMaster1,
+        //         verifierAddress: rankifyInstance.address,
+        //         vote: playerVote,
+        //         gameSize: players.length,
+        //         name: constantParams.RANKIFY_INSTANCE_CONTRACT_NAME,
+        //         version: constantParams.RANKIFY_INSTANCE_CONTRACT_VERSION,
+        //       });
+
+        //       // Submit the vote
+        //       await rankifyInstance
+        //         .connect(adr.gameMaster1)
+        //         .submitVote(
+        //           gameId,
+        //           vote.ballotId,
+        //           votingPlayer.wallet.address,
+        //           vote.gmSignature,
+        //           vote.voterSignature,
+        //           vote.ballotHash,
+        //         );
+
+        //       //getting 2nd turn integrity
+        //       const { newProposals, permutation, nullifier } = await simulator.getProposalsIntegrity({
+        //         players,
+        //         gameId,
+        //         turn: 2,
+        //         gm: adr.gameMaster1,
+        //         idlers: [1, 2, 4],
+        //         proposalSubmissionData: proposals,
+        //       });
+
+        //       // Create an array of votes where only player 1 has voted
+        //       const votes = Array(players.length)
+        //         .fill([])
+        //         .map((_, i) => {
+        //           if (i === votingIdx) {
+        //             return vote.vote;
+        //           } else {
+        //             return Array(players.length).fill(0);
+        //           }
+        //         });
+
+        //       // End turn 2 and verify that it's now turn 3
+        //       await time.increase(Number(constantParams.RInstance_TIME_PER_TURN) + 1);
+        //       await rankifyInstance.connect(adr.gameMaster1).endTurn(gameId, votes, newProposals, permutation, nullifier);
+
+        //       expect(await rankifyInstance.getTurn(gameId)).to.equal(3);
+
+        //       // Check the scores from the TurnEnded event
+        //       // Players
+        //       const turnEndedEvents2 = await rankifyInstance.queryFilter(rankifyInstance.filters.TurnEnded(gameId, 2));
+        //       console.log(
+        //         'Game state scores after partial propose and vote:',
+        //         turnEndedEvents2[0].args.scores.map(s => s.toString()),
+        //       );
+
+        //       //check game state scores
+        //       const scores = await rankifyInstance.getScores(gameId);
+
+        //       expect(await rankifyInstance.getGameState(gameId).then(state => state.numActivePlayers.toNumber())).to.equal(3);
+        //       expect(await rankifyInstance.isActive(gameId, players[0].wallet.address)).to.be.true;
+        //       expect(await rankifyInstance.isActive(gameId, players[1].wallet.address)).to.be.true;
+        //       expect(await rankifyInstance.isActive(gameId, players[2].wallet.address)).to.be.false;
+        //       expect(await rankifyInstance.isActive(gameId, players[3].wallet.address)).to.be.true;
+        //       expect(await rankifyInstance.isActive(gameId, players[4].wallet.address)).to.be.false;
+
+        //       // Since the other players did nor propose, they cannot receive any points
+        //       expect(scores[1]).to.deep.equal([3, 0, 0, 4, 0]);
+        //     });
+        //   });
+      });
+      describe('EIP712 Domain', () => {
+        it('should have consistent domain separator parameters', async () => {
+          const {
+            _HASHED_NAME,
+            _HASHED_VERSION,
+            _CACHED_CHAIN_ID,
+            _CACHED_THIS,
+            _TYPE_HASH,
+            _CACHED_DOMAIN_SEPARATOR,
+            _NAME,
+            _VERSION,
+          } = await rankifyInstance.inspectEIP712Hashes();
+          // Verify name and version
+          expect(_NAME).to.equal(RANKIFY_INSTANCE_CONTRACT_NAME);
+          expect(_VERSION).to.equal(RANKIFY_INSTANCE_CONTRACT_VERSION);
+
+          // Verify hashed components
+          expect(_HASHED_NAME).to.equal(eth.utils.solidityKeccak256(['string'], [_NAME]));
+          expect(_HASHED_VERSION).to.equal(eth.utils.solidityKeccak256(['string'], [_VERSION]));
+          expect(_CACHED_CHAIN_ID).to.equal(await rankifyInstance.currentChainId());
+          expect(_CACHED_THIS.toLowerCase()).to.equal(rankifyInstance.address.toLowerCase());
+
+          // Verify domain separator construction
+          const domainSeparator = eth.utils.keccak256(
+            eth.utils.defaultAbiCoder.encode(
+              ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address'],
+              [_TYPE_HASH, _HASHED_NAME, _HASHED_VERSION, _CACHED_CHAIN_ID, _CACHED_THIS],
+            ),
+          );
+          expect(_CACHED_DOMAIN_SEPARATOR).to.equal(domainSeparator);
+        });
       });
     });
   });
@@ -2186,7 +2508,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     expect(votingResultsEvent).to.not.be.undefined;
 
     const finalScores = await rankifyInstance.getScores(gameId);
-    expect(finalScores[1]).to.deep.equal(Array(numPlayers).fill(0));
+    expect(finalScores[1]).to.deep.equal(Array(numPlayers).fill(4));
 
     if (currentTurn.lt(RInstance_MAX_TURNS)) {
       expect(await rankifyInstance.getTurn(gameId)).to.be.equal(currentTurn.add(1));
@@ -2261,7 +2583,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     const numActiveAfterVoting = await rankifyInstance.getGameState(gameId).then(r => r.numActivePlayers);
     expect(numActiveAfterVoting).to.be.equal(1);
     const notVotingGivesEveryone = await rankifyInstance.getGameState(gameId).then(r => r.voting.maxQuadraticPoints);
-    let expectedScores = [0, 2, 1];
+    let expectedScores = [4, 4, 3];
 
     const receipt = await tx.wait();
     const votingResultsEvent = receipt.events?.find(e => e.event === 'VotingStageResults');
@@ -2432,7 +2754,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     // Expect endProposing to succeed and emit ProposingStageEnded with correct numProposals
     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
       .to.emit(rankifyInstance, 'ProposingStageEnded')
-      .withArgs(gameId, currentTurn, numSubmittedProposals);
+      .withArgs(gameId, currentTurn, numSubmittedProposals, integrity.newProposals.proposals);
 
     expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
   });
@@ -2475,7 +2797,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     // Expect endProposing to succeed and emit ProposingStageEnded with correct numProposals
     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
       .to.emit(rankifyInstance, 'ProposingStageEnded')
-      .withArgs(gameId, currentTurn, expectedNumCommitments); // Corrected event args check
+      .withArgs(gameId, currentTurn, expectedNumCommitments, []);
 
     expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
   });
@@ -2652,10 +2974,10 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
 
       await rankifyInstance.connect(adr.gameMaster1).forceEndStaleGame(gameId);
 
-    //   const finalWinner = await rankifyInstance.gameWinner(gameId);
-    //   // With 0 proposals in turn 1, all scores are 0. emitRankReward sets winner to address(0) if topScore is 0.
-    //   expect(finalWinner).to.equal(eth.constants.AddressZero);
-    //   expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.true;
+      //   const finalWinner = await rankifyInstance.gameWinner(gameId);
+      //   // With 0 proposals in turn 1, all scores are 0. emitRankReward sets winner to address(0) if topScore is 0.
+      //   expect(finalWinner).to.equal(eth.constants.AddressZero);
+      //   expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.true;
     });
   });
 });

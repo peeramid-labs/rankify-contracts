@@ -517,6 +517,11 @@ contract RankifyInstanceMainFacet is
         return gameId.isActive(player);
     }
 
+    function madeMove(uint256 gameId, address player) public view returns (bool) {
+        LibTBG.State storage turnState = LibTBG._getState(gameId);
+        return turnState.madeMove[player];
+    }
+
     function exitRankToken(uint256 rankId, uint256 amount) external {
         require(amount != 0, "cannot specify zero exit amount");
         LibRankify.InstanceState storage state = LibRankify.instanceState();

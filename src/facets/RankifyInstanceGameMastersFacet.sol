@@ -69,7 +69,12 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         bytes voterSignature,
         bytes32 ballotHash
     );
-    event ProposingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber, uint256 numProposals);
+    event ProposingStageEnded(
+        uint256 indexed gameId,
+        uint256 indexed roundNumber,
+        uint256 numProposals,
+        string[] proposals
+    );
     event VotingStageResults(
         uint256 indexed gameId,
         uint256 indexed roundNumber,
@@ -254,7 +259,6 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         uint256 turn = params.gameId.getTurn();
         game.proposalCommitment[params.proposer] = params.commitment;
         params.gameId.enforceHasStarted();
-
         params.gameId.tryPlayerMove(params.proposer);
         game.numCommitments += 1;
         emit ProposalSubmitted(
@@ -406,7 +410,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                         );
                     }
                 }
-                assert(votesSorted[voter][voter] == 0); // did not vote for himself
+                require(votesSorted[voter][voter] == 0, "voted for himself"); // did not vote for himself
             }
 
             // Calculate scores for previous turn's proposals
@@ -419,14 +423,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             ) = gameId.calculateScores(votesSorted);
 
             string[] memory proposals = new string[](players.length);
+            uint256 turn = gameId.getTurn();
             for (uint256 i = 0; i < players.length; ++i) {
-                proposals[i] = game.ongoingProposals[permutation[i]];
-            }
-            for (uint256 i = 0; i < players.length; ++i) {
-                // console.log("permutation[i]", permutation[i]);
-                // console.log("proposal[i](sorted)", game.ongoingProposals[i]);
-                string memory proposal = proposals[i];
-                uint256 turn = gameId.getTurn();
+                string memory proposal = game.ongoingProposals[permutation[i]];
                 emit ProposalScore(gameId, turn, proposal, proposal, roundScores[i]);
             }
             emit VotingStageResults(
@@ -537,7 +536,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         for (uint256 i = 0; i < newProposals.proposals.length; ++i) {
             game.ongoingProposals[i] = newProposals.proposals[i];
         }
-        emit ProposingStageEnded(gameId, gameId.getTurn(), game.numCommitments);
+        emit ProposingStageEnded(gameId, gameId.getTurn(), game.numCommitments, newProposals.proposals);
         gameId.next();
     }
 

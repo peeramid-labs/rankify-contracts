@@ -1015,6 +1015,7 @@ class EnvironmentSimulator {
     gameRank,
     openNow,
     metadata,
+    voteCredits = constantParams.RInstance_VOTE_CREDITS,
   }: {
     minGameTime: BigNumberish;
     signer: Wallet | SignerWithAddress;
@@ -1022,6 +1023,7 @@ class EnvironmentSimulator {
     gameRank: BigNumberish;
     openNow?: boolean;
     metadata?: string;
+    voteCredits?: BigNumberish;
   }) {
     log(`Creating game with rank ${gameRank} and minGameTime ${minGameTime}`, 2);
     await this.env.rankifyToken
@@ -1038,7 +1040,7 @@ class EnvironmentSimulator {
       timePerTurn: constantParams.RInstance_TIME_PER_TURN,
       timeToJoin: constantParams.RInstance_TIME_TO_JOIN,
       nTurns: constantParams.RInstance_MAX_TURNS,
-      voteCredits: constantParams.RInstance_VOTE_CREDITS,
+      voteCredits,
       minGameTime: minGameTime,
       proposingPhaseDuration: constantParams.RInstance_TIME_PER_TURN / 2,
       votePhaseDuration: constantParams.RInstance_TIME_PER_TURN - constantParams.RInstance_TIME_PER_TURN / 2,
@@ -1421,8 +1423,8 @@ class EnvironmentSimulator {
     });
     if (submitNow) {
       this.votersAddresses = players.map(player => player.wallet.address);
+      const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
       for (let i = 0; i < players.length; i++) {
-        const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
         if (!idlers?.includes(i)) {
           if (!voted[i]) {
             log(`submitting vote for player ${players[i].wallet.address}`, 2);

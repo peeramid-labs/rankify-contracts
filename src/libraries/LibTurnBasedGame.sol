@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
 // import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -697,8 +696,6 @@ library LibTBG {
         require(tbg.playerInGames[player].contains(gameId), "is not in the game");
         state.madeMove[player] = true;
         state.numPlayersMadeMove += 1;
-
-        // Set player as active when they make a move
         state.isActive[player] = true;
     }
 
