@@ -1159,7 +1159,7 @@ describe(scriptName, () => {
               ),
             ).to.be.revertedWith('Cannot end proposing stage');
           });
-          it('Can finish turn early if none participants made a move', async () => {
+          it('Can finish turn early if none voted', async () => {
             const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
             const players = getPlayers(adr, playersCnt);
             const proposals = await simulator.mockProposals({
@@ -1171,7 +1171,14 @@ describe(scriptName, () => {
             });
 
             await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
-            const votes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
+            const votes = await simulator.mockValidVotes(
+              players,
+              1,
+              adr.gameMaster1,
+              false,
+              'semiUniform',
+              players.map((p, i) => i),
+            );
             const turn = await rankifyInstance.getTurn(1);
             assert(turn.eq(1));
             await simulator.endWithIntegrity({
@@ -1191,25 +1198,34 @@ describe(scriptName, () => {
               idlers: players.map((p, i) => i),
             });
 
-            const newVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
+            const newVotes = await simulator.mockValidVotes(
+              players,
+              1,
+              adr.gameMaster1,
+              false,
+              'semiUniform',
+              players.map((p, i) => i),
+            );
 
             await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
-            await expect(
-              endWithIntegrity({
-                gameId: 1,
-                players,
-                proposals: newProposals,
-                votes: newVotes.map(vote => vote.ballot.vote),
-                gm: adr.gameMaster1,
-                idlers: players.map((p, i) => i),
-              }),
-            ).to.emit(rankifyInstance, 'TurnEnded');
-            expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false, false, false]);
+
+            endWithIntegrity({
+              gameId: 1,
+              players,
+              proposals: newProposals,
+              votes: newVotes.map(vote => vote.ballot.vote),
+              gm: adr.gameMaster1,
+              idlers: players.map((p, i) => i),
+            });
+            expect(await rankifyInstance.getTurn(1)).to.be.equal(2);
+            expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false]);
             const newestVotes = await simulator.mockValidVotes(
-              [players[0], ...players.slice(2)],
+              players,
               1,
               adr.gameMaster1,
               true,
+              'semiUniform',
+              players.map((p, i) => i),
             );
             expect(await rankifyInstance.isActive(1, proposals[0].params.proposer)).to.be.false;
             const newestProposals = await simulator.mockProposals({
@@ -1228,73 +1244,7 @@ describe(scriptName, () => {
                 votes: newestVotes.map(vote => vote.ballot.vote),
                 gm: adr.gameMaster1,
                 idlers: players.map((p, i) => i),
-              }),
-            ).to.not.be.revertedWith('nextTurn->CanEndEarly');
-          });
-          it('Can finish turn early if there is participants who sent proposal but rest did not make a move', async () => {
-            const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
-            const players = getPlayers(adr, playersCnt);
-            const proposals = await simulator.mockProposals({
-              players,
-              gameMaster: adr.gameMaster1,
-              gameId: 1,
-              submitNow: true,
-              idlers: players.map((p, i) => i).slice(0, playersCnt - 1),
-            });
-
-            await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
-            const votes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
-            const turn = await rankifyInstance.getTurn(1);
-            assert(turn.eq(1));
-            await simulator.endWithIntegrity({
-              gameId: 1,
-              players,
-              proposals,
-              votes: votes.map(vote => vote.ballot.vote),
-              gm: adr.gameMaster1,
-              idlers: players.map((p, i) => i),
-            });
-
-            const newProposals = await simulator.mockProposals({
-              players,
-              gameMaster: adr.gameMaster1,
-              gameId: 1,
-              submitNow: true,
-              idlers: players.map((p, i) => i),
-            });
-
-            const newVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
-
-            await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
-            await expect(
-              endWithIntegrity({
-                gameId: 1,
-                players,
-                proposals: newProposals,
-                votes: newVotes.map(vote => vote.ballot.vote),
-                gm: adr.gameMaster1,
-                idlers: players.map((p, i) => i).slice(0, playersCnt - 1),
-              }),
-            ).to.emit(rankifyInstance, 'TurnEnded');
-            const newestVotes = await simulator.mockValidVotes(players, 1, adr.gameMaster1, false);
-            expect(await rankifyInstance.isActive(1, proposals[0].params.proposer)).to.be.false;
-            const newestProposals = await simulator.mockProposals({
-              players,
-              gameMaster: adr.gameMaster1,
-              gameId: 1,
-              submitNow: true,
-              idlers: players.map((p, i) => i).slice(0, playersCnt - 1),
-            });
-            expect(await rankifyInstance.isActive(1, newestProposals[0].params.proposer)).to.be.false;
-            await expect(
-              endWithIntegrity({
-                gameId: 1,
-                players,
-                proposals: newestProposals,
-                votes: newestVotes.map(vote => vote.ballot.vote),
-                gm: adr.gameMaster1,
-                idlers: players.map((p, i) => i).slice(0, playersCnt - 1),
-              }),
+              }).then(r => r[1]),
             ).to.not.be.revertedWith('nextTurn->CanEndEarly');
           });
           it('First turn has started', async () => {
@@ -2485,7 +2435,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
 
     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
       .to.emit(rankifyInstance, 'ProposingStageEnded')
-      .withArgs(gameId, currentTurn, []);
+      .withArgs(gameId, currentTurn, [], []);
 
     expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
     const gameStateBeforeVotingEnd = await rankifyInstance.getGameState(gameId);
@@ -2611,7 +2561,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     expect(votingResultsEvent).to.not.be.undefined;
 
     const finalScores = await rankifyInstance.getScores(gameId);
-    expect(finalScores[1]).to.deep.equal(Array(numPlayers).fill(0));
+    expect(finalScores[1]).to.deep.equal(Array(numPlayers).fill(4));
 
     if (currentTurn.lt(RInstance_MAX_TURNS)) {
       expect(await rankifyInstance.getTurn(gameId)).to.be.equal(currentTurn.add(1));
@@ -2686,7 +2636,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     const numActiveAfterVoting = await rankifyInstance.getGameState(gameId).then(r => r.numActivePlayers);
     expect(numActiveAfterVoting).to.be.equal(1);
     const notVotingGivesEveryone = await rankifyInstance.getGameState(gameId).then(r => r.voting.maxQuadraticPoints);
-    let expectedScores = [0, 2, 1];
+    let expectedScores = [4, 4, 3];
 
     const receipt = await tx.wait();
     const votingResultsEvent = receipt.events?.find(e => e.event === 'VotingStageResults');
