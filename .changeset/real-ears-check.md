@@ -9,7 +9,7 @@
     *   A corresponding `ErrorProposingStageEndFailed(uint256 gameId, IRankifyInstance.ProposingEndStatus status)` error has been introduced to clearly communicate reasons for proposing stage failures.
 
 *   **Stale Game Resolution:**
-    *   A new function, `forceEndStaleGame`, has been added to the `RankifyInstanceGameMastersFacet.sol`. This allows a Game Master to forcibly end a game that is stuck.
+    *   A new function, `forceEndStaleGame`, has been added to the `RankifyInstanceGameMastersFacet.sol`. This allows to forcibly end a game that is stuck.
     *   Conditions for using `forceEndStaleGame`:
         1.  The minimum game duration (`minGameTime`) must have passed.
         2.  The game must currently be in the proposing stage.
@@ -18,7 +18,7 @@
     *   The library function `LibRankify.isGameStaleForForcedEnd` was added to encapsulate these specific conditions.
     *   A new `StaleGameEnded(uint256 indexed gameId, address indexed winner)` event is emitted when a game is ended this way.
     *   A new `ErrorCannotForceEndGame(uint256 gameId)` error is returned if `forceEndStaleGame` is called inappropriately.
-    *   Note: The `prevrandao`-based tie-breaking mechanism for stale/tied games mentioned in the original issue is **not** part of this specific changeset. Winner determination in stale scenarios currently relies on the existing scoring logic.
+    *   Note: The `prevrandao`-based tie-breaking mechanism for stale/tied games mentioned in the original issue is **not** part of this specific changeset. Winner determination in stale scenarios currently relies on the existing scoring logic. Tie cases are handled by picking the first player in the leaderboard.
 
 *   **Interface and Library Updates:**
     *   `IRankifyInstance.sol`: Added the `ProposingEndStatus` enum, the `StaleGameEnded` event, and the new error types (`ErrorProposingStageEndFailed`, `ErrorCannotForceEndGame`).
@@ -34,4 +34,4 @@
     *   The function selector for `forceEndStaleGame` was correctly added to the facet cut in `ArguableVotingTournament.sol`.
     *   Minor type casting improvements were made in the `EnvironmentSimulator.ts` test helper script.
 
-x
+
