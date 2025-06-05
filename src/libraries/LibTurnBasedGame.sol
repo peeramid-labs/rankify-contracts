@@ -540,6 +540,7 @@ library LibTBG {
         state.phaseStartedAt = block.timestamp;
         state.phase = 0;
         state.startedAt = block.timestamp;
+        state.leaderboard = new address[](state.players.length());
         _resetPlayerStates(state);
 
         // Initialize all players as active
@@ -548,6 +549,7 @@ library LibTBG {
         for (uint256 i = 0; i < playerCount; i++) {
             address player = state.players.at(i);
             state.isActive[player] = true;
+            state.leaderboard[i] = player;
         }
     }
 
