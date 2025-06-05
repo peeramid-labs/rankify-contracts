@@ -16,22 +16,6 @@ contract RankifyInstanceRequirementsFacet {
     using LibTBG for uint256;
     using LibRankify for uint256;
     using LibTBG for LibTBG.State;
-    event RequirementsConfigured(uint256 indexed gameId, LibCoinVending.ConfigPosition config);
-
-    /**
-     * @dev Sets the join requirements for a specific game.
-     * Only the game creator can call this function.
-     * The game must be in the pre-registration stage.
-     *
-     * @param gameId The ID of the game.
-     * @param config The configuration position for the join requirements.
-     */
-    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
-        gameId.enforceIsGameCreator(msg.sender);
-        gameId.enforceIsPreRegistrationStage();
-        LibCoinVending.configure(bytes32(gameId), config);
-        emit RequirementsConfigured(gameId, config);
-    }
 
     /**
      * @dev Retrieves the join requirements for a specific game.
@@ -70,16 +54,12 @@ contract RankifyInstanceRequirementsFacet {
             rank: gameState.rank,
             minGameTime: gameState.minGameTime,
             createdBy: gameState.createdBy,
-            numOngoingProposals: gameState.numOngoingProposals,
-            numPrevProposals: gameState.numPrevProposals,
             numCommitments: gameState.numCommitments,
-            numVotesThisTurn: gameState.numVotesThisTurn,
-            numVotesPrevTurn: gameState.numVotesPrevTurn,
+            numVotes: gameState.numVotes,
             voting: gameState.voting,
             currentTurn: tbgInstanceState.state.currentTurn,
-            turnStartedAt: tbgInstanceState.state.turnStartedAt,
+            turnStartedAt: tbgInstanceState.state.startedAt,
             registrationOpenAt: tbgInstanceState.state.registrationOpenAt,
-            startedAt: tbgInstanceState.state.startedAt,
             hasStarted: tbgInstanceState.state.hasStarted,
             hasEnded: tbgInstanceState.state.hasEnded,
             numPlayersMadeMove: tbgInstanceState.state.numPlayersMadeMove,
@@ -92,7 +72,11 @@ contract RankifyInstanceRequirementsFacet {
             maxTurns: tbgInstanceState.settings.maxTurns,
             voteCredits: tbgInstanceState.settings.voteCredits,
             gameMaster: tbgInstanceState.settings.gameMaster,
-            metadata: gameState.metadata
+            metadata: gameState.metadata,
+            phase: tbgInstanceState.state.phase,
+            proposingPhaseDuration: tbgInstanceState.settings.turnPhaseDurations[0],
+            votePhaseDuration: tbgInstanceState.settings.turnPhaseDurations[1],
+            phaseStartedAt: tbgInstanceState.state.phaseStartedAt
         });
     }
 }

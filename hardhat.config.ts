@@ -23,6 +23,7 @@ import fs from 'fs';
 type ContractMap = Record<string, { abi: object }>;
 
 subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) => {
+  // For every artifact, create duplicate .ts file with the abi in it
   const output = await next();
   const promises = Object.entries(args.output.contracts).map(async ([sourceName, contract]) => {
     // Extract the contract name from the full path
@@ -36,14 +37,14 @@ subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) 
       await writeFile(file, data);
     }
   });
+
   await Promise.all(promises);
   return output;
 });
 
 task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').setAction(async (_, hre) => {
+  // Diamond ABI is generated after compile artifacts, hence we need to generate it manually after compilation
   try {
-    const originalConsoleLog = console.log;
-    console.log = () => {};
     const diamondDirpath = join('./abi/hardhat-diamond-abi/HardhatDiamondABI.sol');
     await mkdir(diamondDirpath, { recursive: true });
     const diamondAbiPath = join(diamondDirpath, 'RankifyDiamondInstance.json');
@@ -53,7 +54,6 @@ task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').s
       const data = `export const abi = ${inspect(abi, false, null)} as const; export default abi;`;
       await writeFile(join(diamondDirpath, 'RankifyDiamondInstance.ts'), data);
     }
-    console.log = originalConsoleLog;
   } catch (error) {
     console.warn('Failed to generate diamond ABI:', error);
   }
@@ -75,8 +75,6 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
 
 task('getSuperInterface', 'Prints the super interface of a contract')
   .setAction(async (taskArgs: { outputPath: string }, hre) => {
-    const originalConsoleLog = console.log;
-    console.log = () => {};
     const su = getSuperInterface(taskArgs.outputPath + '/super-interface.json');
     let return_value: Record<string, string> = {};
     Object.values(su.functions).forEach(x => {
@@ -89,7 +87,6 @@ task('getSuperInterface', 'Prints the super interface of a contract')
       return_value[su.getSighash(x)] = x.format(FormatTypes.full);
     });
     fs.writeFileSync(taskArgs.outputPath + '/signatures.json', JSON.stringify(return_value, null, 2));
-    console.log = originalConsoleLog;
   })
   .addParam('outputPath', 'The path to the abi file');
 
@@ -166,6 +163,12 @@ export default {
   mocha: {
     timeout: 400000,
   },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: process.env.SIZE_REPORT === 'true' ? true : false,
+    strict: true,
+  },
   defaultNetwork: 'hardhat',
   networks: {
     buildbear: {
@@ -221,6 +224,7 @@ export default {
       {
         version: '0.8.28',
         settings: {
+          viaIR: true,
           optimizer: {
             enabled: true,
             runs: 2000,

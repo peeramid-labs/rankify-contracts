@@ -33,6 +33,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       console.log(`[MAO Deploy] ${message}`);
     }
   };
+  const skipDistributionIfAlreadyDeployed = !process.env.FORCE_REDEPLOY;
 
   const SACMDeployment = await deployments.get('SimpleAccessManager');
   const accessManagerCode = await hre.ethers.provider.getCode(SACMDeployment.address);
@@ -92,24 +93,38 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     skipIfAlreadyDeployed: true,
   });
 
+  const libRankifyDeployment = await deploy('LibRankify', {
+    from: deployer,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
+  });
+
   const RankifyMainFacetDeployment = await deploy('RankifyInstanceMainFacet', {
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: false,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
   });
 
   const RankifyReqsFacetDeployment = await deploy('RankifyInstanceRequirementsFacet', {
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
   });
 
   const RankifyGMFacetDeployment = await deploy('RankifyInstanceGameMastersFacet', {
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
   });
 
   const OwnershipFacetDeployment = await deploy('OwnershipFacet', {
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
   });
 
   const addresses: ArguableVotingTournament.ArguableTournamentAddressesStruct = {
@@ -125,7 +140,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     from: deployer,
     gasLimit: 8000000,
     estimatedGasLimit: 8000000,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
     args: [initializerAdr, initializerSelector, _distributionName, _distributionVersion, addresses],
   });
 
@@ -189,11 +204,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const proposalIntegrity18Groth16VerifierDeployment = await deployments.get('ProposalsIntegrity15Groth16Verifier');
   const result = await deploy('MAODistribution', {
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
     args: [
       _trustedForwarder,
-      rankifyToken.address,
-      DAO,
       [proposalIntegrity18Groth16VerifierDeployment.address, ph5.address, ph6.address, ph2.address],
       rankTokenCodeId,
       arguableVotingTournamentCodeId,

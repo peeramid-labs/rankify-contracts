@@ -117,7 +117,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: EIP712InspectorFacetSelectors
         });
-        bytes4[] memory RankifyInstanceMainFacetSelectors = new bytes4[](30);
+        bytes4[] memory RankifyInstanceMainFacetSelectors = new bytes4[](36);
         RankifyInstanceMainFacetSelectors[0] = RankifyInstanceMainFacet.cancelGame.selector;
         RankifyInstanceMainFacetSelectors[1] = RankifyInstanceMainFacet.gameCreator.selector;
         RankifyInstanceMainFacetSelectors[2] = RankifyInstanceMainFacet.createGame.selector;
@@ -134,21 +134,26 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         RankifyInstanceMainFacetSelectors[13] = RankifyInstanceMainFacet.getScores.selector;
         RankifyInstanceMainFacetSelectors[14] = RankifyInstanceMainFacet.isOvertime.selector;
         RankifyInstanceMainFacetSelectors[15] = RankifyInstanceMainFacet.isGameOver.selector;
-        RankifyInstanceMainFacetSelectors[16] = RankifyInstanceMainFacet.getPlayersGame.selector;
+        RankifyInstanceMainFacetSelectors[16] = RankifyInstanceMainFacet.getPlayersGames.selector;
         RankifyInstanceMainFacetSelectors[17] = RankifyInstanceMainFacet.isLastTurn.selector;
         RankifyInstanceMainFacetSelectors[18] = RankifyInstanceMainFacet.isRegistrationOpen.selector;
         RankifyInstanceMainFacetSelectors[19] = RankifyInstanceMainFacet.getGameRank.selector;
         RankifyInstanceMainFacetSelectors[20] = RankifyInstanceMainFacet.getPlayers.selector;
         RankifyInstanceMainFacetSelectors[21] = RankifyInstanceMainFacet.canStartGame.selector;
-        RankifyInstanceMainFacetSelectors[22] = RankifyInstanceMainFacet.canEndTurn.selector;
+        RankifyInstanceMainFacetSelectors[22] = RankifyInstanceMainFacet.canEndVotingStage.selector;
         RankifyInstanceMainFacetSelectors[23] = RankifyInstanceMainFacet.isPlayerTurnComplete.selector;
         RankifyInstanceMainFacetSelectors[24] = RankifyInstanceMainFacet.getPlayerVotedArray.selector;
         RankifyInstanceMainFacetSelectors[25] = RankifyInstanceMainFacet.getPlayersMoved.selector;
         RankifyInstanceMainFacetSelectors[26] = RankifyInstanceMainFacet.estimateGamePrice.selector;
         RankifyInstanceMainFacetSelectors[27] = RankifyInstanceMainFacet.isActive.selector;
-
         RankifyInstanceMainFacetSelectors[28] = RankifyInstanceMainFacet.exitRankToken.selector;
         RankifyInstanceMainFacetSelectors[29] = RankifyInstanceMainFacet.gameWinner.selector;
+        RankifyInstanceMainFacetSelectors[30] = RankifyInstanceMainFacet.isPlayerInGame.selector;
+        RankifyInstanceMainFacetSelectors[31] = RankifyInstanceMainFacet.createAndOpenGame.selector;
+        RankifyInstanceMainFacetSelectors[32] = RankifyInstanceMainFacet.setJoinRequirements.selector;
+        RankifyInstanceMainFacetSelectors[33] = RankifyInstanceMainFacet.canEndProposingStage.selector;
+        RankifyInstanceMainFacetSelectors[34] = RankifyInstanceMainFacet.isProposingStage.selector;
+        RankifyInstanceMainFacetSelectors[35] = RankifyInstanceMainFacet.isVotingStage.selector;
 
         facetCuts[2] = IDiamondCut.FacetCut({
             facetAddress: address(_RankifyMainFacet),
@@ -156,14 +161,13 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: RankifyInstanceMainFacetSelectors
         });
 
-        bytes4[] memory RankifyInstanceRequirementsFacetSelectors = new bytes4[](5);
-        RankifyInstanceRequirementsFacetSelectors[0] = RankifyInstanceRequirementsFacet.setJoinRequirements.selector;
-        RankifyInstanceRequirementsFacetSelectors[1] = RankifyInstanceRequirementsFacet.getJoinRequirements.selector;
-        RankifyInstanceRequirementsFacetSelectors[2] = RankifyInstanceRequirementsFacet
+        bytes4[] memory RankifyInstanceRequirementsFacetSelectors = new bytes4[](4);
+        RankifyInstanceRequirementsFacetSelectors[0] = RankifyInstanceRequirementsFacet.getJoinRequirements.selector;
+        RankifyInstanceRequirementsFacetSelectors[1] = RankifyInstanceRequirementsFacet
             .getJoinRequirementsByToken
             .selector;
-        RankifyInstanceRequirementsFacetSelectors[3] = RankifyInstanceRequirementsFacet.getGameState.selector;
-        RankifyInstanceRequirementsFacetSelectors[4] = RankifyInstanceRequirementsFacet.getCommonParams.selector;
+        RankifyInstanceRequirementsFacetSelectors[2] = RankifyInstanceRequirementsFacet.getGameState.selector;
+        RankifyInstanceRequirementsFacetSelectors[3] = RankifyInstanceRequirementsFacet.getCommonParams.selector;
 
         facetCuts[3] = IDiamondCut.FacetCut({
             facetAddress: address(_RankifyReqsFacet),
@@ -171,10 +175,11 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: RankifyInstanceRequirementsFacetSelectors
         });
 
-        bytes4[] memory RankifyInstanceGameMastersFacetSelectors = new bytes4[](3);
+        bytes4[] memory RankifyInstanceGameMastersFacetSelectors = new bytes4[](4);
         RankifyInstanceGameMastersFacetSelectors[0] = RankifyInstanceGameMastersFacet.submitVote.selector;
         RankifyInstanceGameMastersFacetSelectors[1] = RankifyInstanceGameMastersFacet.submitProposal.selector;
-        RankifyInstanceGameMastersFacetSelectors[2] = RankifyInstanceGameMastersFacet.endTurn.selector;
+        RankifyInstanceGameMastersFacetSelectors[2] = RankifyInstanceGameMastersFacet.endVoting.selector;
+        RankifyInstanceGameMastersFacetSelectors[3] = RankifyInstanceGameMastersFacet.endProposing.selector;
 
         facetCuts[4] = IDiamondCut.FacetCut({
             facetAddress: address(_RankifyGMFacet),

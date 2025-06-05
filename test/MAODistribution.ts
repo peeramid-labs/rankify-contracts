@@ -60,6 +60,8 @@ describe('MAODistribution', async function () {
         tokenSettings: {
           tokenName: 'tokenName',
           tokenSymbol: 'tokenSymbol',
+          preMintAmounts: [ethers.utils.parseEther('100')],
+          preMintReceivers: [oSigner.address],
         },
         rankifySettings: {
           rankTokenContractURI: 'https://example.com/rank',
@@ -67,6 +69,7 @@ describe('MAODistribution', async function () {
           principalCost: 1,
           principalTimeConstant: 1,
           owner: oSigner.address,
+          paymentToken: rankify.address,
         },
       };
       // Encode the arguments using generateDistributorData
@@ -97,6 +100,8 @@ describe('MAODistribution', async function () {
         tokenSettings: {
           tokenName: 'tokenName',
           tokenSymbol: 'tokenSymbol',
+          preMintAmounts: [ethers.utils.parseEther('100')],
+          preMintReceivers: [oSigner.address],
         },
         rankifySettings: {
           rankTokenContractURI: 'https://example.com/rank',
@@ -104,6 +109,7 @@ describe('MAODistribution', async function () {
           principalCost: 1,
           principalTimeConstant: 1,
           owner,
+          paymentToken: rankify.address,
         },
       };
       // Encode the arguments using generateDistributorData

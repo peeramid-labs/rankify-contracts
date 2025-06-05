@@ -1,5 +1,53 @@
 # rankify-contracts
 
+## 0.13.1
+
+### Patch Changes
+
+- [`4fb1d387d1d2d283a30d6d17f467d69d32ac82b1`](https://github.com/peeramid-labs/rankify-contracts/commit/4fb1d387d1d2d283a30d6d17f467d69d32ac82b1) Thanks [@peersky](https://github.com/peersky)! - arbsepolia deployment arfifacts
+
+## 0.13.0
+
+### Minor Changes
+
+- [#179](https://github.com/peeramid-labs/rankify-contracts/pull/179) [`b620687f3589daefa2dff164f3de14f6406ca9b6`](https://github.com/peeramid-labs/rankify-contracts/commit/b620687f3589daefa2dff164f3de14f6406ca9b6) Thanks [@peersky](https://github.com/peersky)! - Significant contract architecture changes:
+
+  - **MAODistribution.sol**:
+    - Removed hardcoded `_paymentToken` and `_beneficiary` immutable state variables
+    - Made these configurable per distribution instance by adding to `RankifySettings` struct
+    - Changed `instantiate` to use `calldata` instead of `memory` for gas optimization
+    - Added pre-mint capability to token creation with `preMintAmounts` and `preMintReceivers` arrays
+  - **Game Creation Improvements**:
+    - Added `createAndOpenGame` function that creates and opens registration in one transaction
+    - Modified `createGame` to return the created game ID
+    - Added support for passing requirements directly during game creation
+  - **Requirement Changes**:
+    - Moved `RequirementsConfigured` event to the interface for better organization
+    - Reduced minimum player count from 5 to 3
+    - Removed constraints requiring `minGameTime` to be divisible by number of turns
+    - Changed turn count minimum from > 2 to > 1
+  - **Tests**:
+    - Updated all tests to work with the new parameter structure
+    - Removed tests for no longer enforced constraints
+
+### Patch Changes
+
+- [#179](https://github.com/peeramid-labs/rankify-contracts/pull/179) [`b620687f3589daefa2dff164f3de14f6406ca9b6`](https://github.com/peeramid-labs/rankify-contracts/commit/b620687f3589daefa2dff164f3de14f6406ca9b6) Thanks [@peersky](https://github.com/peersky)! - - Changed LibRankify functions from `internal` to `public` to counter contract size limit
+
+  - Modified player game tracking to support multiple games:
+    - Changed `playerInGame` from mapping to single uint256 to EnumerableSet.UintSet
+    - Renamed `getPlayersGame` to `getPlayersGames` returning array of game IDs
+    - Added `isPlayerInGame` function to check if player is in specific game
+  - Updated deployment script to deploy LibRankify separately and link to facets
+  - Fixed tests to reflect new multi-game capability
+
+- [#179](https://github.com/peeramid-labs/rankify-contracts/pull/179) [`b620687f3589daefa2dff164f3de14f6406ca9b6`](https://github.com/peeramid-labs/rankify-contracts/commit/b620687f3589daefa2dff164f3de14f6406ca9b6) Thanks [@peersky](https://github.com/peersky)! - Removed specific time-related divisibility checks from `LibRankify.newGame` function:
+
+  - Removed `require(commonParams.principalTimeConstant % params.nTurns == 0)`
+  - Removed `require(params.minGameTime % params.nTurns == 0)`
+
+  These checks were likely removed to optimize gas or simplify game creation logic by no longer strictly enforcing that `principalTimeConstant` and `minGameTime` are exact multiples of `nTurns`.
+
 ## 0.12.4
 
 ### Patch Changes

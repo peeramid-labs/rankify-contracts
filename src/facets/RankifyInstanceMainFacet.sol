@@ -36,6 +36,11 @@ contract RankifyInstanceMainFacet is
     using LibTBG for LibTBG.Settings;
     using LibRankify for uint256;
 
+    // Event for when a voting stage ends and scores are calculated
+    event VotingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber, address[] players, uint256[] scores);
+    // Event for when a proposing stage ends (this might be better in GameMastersFacet if emitted there)
+    // event ProposingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber);
+
     /**
      * @dev Internal function to create a new game with the specified parameters
      * @param params Struct containing all necessary parameters for game creation
@@ -44,7 +49,10 @@ contract RankifyInstanceMainFacet is
      *         - Configuring the coin vending system
      *         - Emitting the game creation event
      */
-    function createGame(LibRankify.NewGameParams memory params) private nonReentrant {
+    function createGame(
+        LibRankify.NewGameParams memory params,
+        LibCoinVending.ConfigPosition memory requirements
+    ) private nonReentrant returns (uint256) {
         //TODO: add this back in start  game to verify commitment from game master
         //  bytes32 digest = _hashTypedDataV4(
         //     keccak256(
@@ -59,9 +67,9 @@ contract RankifyInstanceMainFacet is
         // );
 
         LibRankify.newGame(params);
-        LibCoinVending.ConfigPosition memory emptyConfig;
-        LibCoinVending.configure(bytes32(params.gameId), emptyConfig);
+        LibCoinVending.configure(bytes32(params.gameId), requirements);
         emit gameCreated(params.gameId, params.gameMaster, msg.sender, params.gameRank);
+        return params.gameId;
     }
 
     /**
@@ -73,7 +81,7 @@ contract RankifyInstanceMainFacet is
      *         - Creates a new game with specified settings
      * @custom:security nonReentrant
      */
-    function createGame(IRankifyInstance.NewGameParamsInput memory params) public {
+    function createGame(IRankifyInstance.NewGameParamsInput memory params) public returns (uint256) {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
@@ -88,10 +96,56 @@ contract RankifyInstanceMainFacet is
             minGameTime: params.minGameTime,
             timePerTurn: params.timePerTurn,
             timeToJoin: params.timeToJoin,
-            metadata: params.metadata
+            metadata: params.metadata,
+            votePhaseDuration: params.votePhaseDuration,
+            proposingPhaseDuration: params.proposingPhaseDuration
         });
 
-        createGame(newGameParams);
+        LibCoinVending.ConfigPosition memory emptyConfig;
+        return createGame(newGameParams, emptyConfig);
+    }
+
+    function createAndOpenGame(
+        IRankifyInstance.NewGameParamsInput memory params,
+        LibCoinVending.ConfigPosition memory requirements
+    ) public {
+        LibRankify.enforceIsInitialized();
+        LibRankify.InstanceState storage settings = LibRankify.instanceState();
+        LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
+            gameId: settings.numGames + 1,
+            gameRank: params.gameRank,
+            creator: msg.sender,
+            minPlayerCnt: params.minPlayerCnt,
+            maxPlayerCnt: params.maxPlayerCnt,
+            gameMaster: params.gameMaster,
+            nTurns: params.nTurns,
+            voteCredits: params.voteCredits,
+            minGameTime: params.minGameTime,
+            timePerTurn: params.timePerTurn,
+            timeToJoin: params.timeToJoin,
+            metadata: params.metadata,
+            votePhaseDuration: params.votePhaseDuration,
+            proposingPhaseDuration: params.proposingPhaseDuration
+        });
+
+        uint256 gameId = createGame(newGameParams, requirements);
+        gameId.openRegistration();
+        emit RequirementsConfigured(gameId, requirements);
+    }
+
+    /**
+     * @dev Sets the join requirements for a specific game.
+     * Only the game creator can call this function.
+     * The game must be in the pre-registration stage.
+     *
+     * @param gameId The ID of the game.
+     * @param config The configuration position for the join requirements.
+     */
+    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
+        gameId.enforceIsGameCreator(msg.sender);
+        gameId.enforceIsPreRegistrationStage();
+        LibCoinVending.configure(bytes32(gameId), config);
+        emit IRankifyInstance.RequirementsConfigured(gameId, config);
     }
 
     /**
@@ -192,17 +246,14 @@ contract RankifyInstanceMainFacet is
     /**
      * @dev Starts a game with the provided game ID early. `gameId` is the ID of the game.
      * @param gameId The ID of the game.
-     * @param permutationCommitment The commitment to the permutation issued by the game master.
      * @notice This function:
      *         - Calls the `enforceGameExists` function.
      *         - Calls the `startGameEarly` function.
      *         - Emits a _GameStarted_ event.
      */
-    function startGame(uint256 gameId, uint256 permutationCommitment) public {
+    function startGame(uint256 gameId) public {
         gameId.enforceGameExists();
         gameId.startGameEarly();
-        LibRankify.GameState storage game = gameId.getGameState();
-        game.permutationCommitment = permutationCommitment;
         emit GameStarted(gameId);
     }
 
@@ -257,6 +308,42 @@ contract RankifyInstanceMainFacet is
     }
 
     /**
+     * @dev Returns whether the game is currently in the proposing stage.
+     * @param gameId The ID of the game.
+     * @return bool True if in proposing stage, false otherwise.
+     */
+    function isProposingStage(uint256 gameId) public view returns (bool) {
+        return gameId.isProposingStage();
+    }
+
+    /**
+     * @dev Returns whether the game is currently in the voting stage.
+     * @param gameId The ID of the game.
+     * @return bool True if in voting stage, false otherwise.
+     */
+    function isVotingStage(uint256 gameId) public view returns (bool) {
+        return gameId.isVotingStage();
+    }
+
+    /**
+     * @dev Checks if the current proposing stage can end for the game with the specified ID.
+     * @param gameId The ID of the game.
+     * @return bool Whether the proposing stage can end.
+     */
+    function canEndProposingStage(uint256 gameId) public view returns (bool) {
+        return LibRankify.canEndProposing(gameId);
+    }
+
+    /**
+     * @dev Checks if the current voting stage can end for the game with the specified ID.
+     * @param gameId The ID of the game.
+     * @return bool Whether the voting stage can end.
+     */
+    function canEndVotingStage(uint256 gameId) public view returns (bool) {
+        return LibRankify.canEndVoting(gameId);
+    }
+
+    /**
      * @dev Returns the current turn of the game with the specified ID
      * @param gameId The ID of the game
      * @return uint256 The current turn of the game
@@ -307,8 +394,18 @@ contract RankifyInstanceMainFacet is
      * @param player The address of the player
      * @return uint256 The ID of the game
      */
-    function getPlayersGame(address player) public view returns (uint256) {
-        return LibTBG.getPlayersGame(player);
+    function getPlayersGames(address player) public view returns (uint256[] memory) {
+        return LibTBG.getPlayersGames(player);
+    }
+
+    /**
+     * @dev Returns whether the specified player is in the specified game
+     * @param gameId The ID of the game
+     * @param player The address of the player
+     * @return bool Whether the player is in the game
+     */
+    function isPlayerInGame(uint256 gameId, address player) public view returns (bool) {
+        return gameId.isPlayerInGame(player);
     }
 
     /**
@@ -373,15 +470,6 @@ contract RankifyInstanceMainFacet is
      */
     function canStartGame(uint256 gameId) public view returns (bool) {
         return gameId.canStartEarly();
-    }
-
-    /**
-     * @dev Returns whether the turn can be ended early for the game with the specified ID
-     * @param gameId The ID of the game
-     * @return bool Whether the turn can be ended early
-     */
-    function canEndTurn(uint256 gameId) public view returns (bool) {
-        return gameId.canEndTurnEarly();
     }
 
     /**

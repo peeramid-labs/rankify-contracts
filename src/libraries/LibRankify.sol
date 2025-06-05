@@ -61,29 +61,26 @@ library LibRankify {
      * @param rank Required rank level for participation
      * @param minGameTime Minimum duration the game must run
      * @param createdBy Address of the game creator
-     * @param numOngoingProposals Number of active proposals
-     * @param numPrevProposals Number of completed proposals
-     * @param numCommitments Number of vote commitments received
-     * @param numVotesThisTurn Vote count in current turn
-     * @param numVotesPrevTurn Vote count from previous turn
+     * @param numCommitments Number of players who have committed a proposal in the current proposing stage
+     * @param numVotes Number of votes cast in the current voting stage
+     * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
      * @param voting Quadratic voting state for this game
      */
     struct GameState {
         uint256 rank;
+        uint256 timePerTurnVoting;
+        uint256 timePerTurnProposing;
         string metadata;
         uint256 minGameTime;
         address createdBy;
-        uint256 numOngoingProposals;
-        uint256 numPrevProposals;
-        uint256 numCommitments;
-        uint256 numVotesThisTurn;
-        uint256 numVotesPrevTurn;
-        uint256 permutationCommitment;
+        uint256 numCommitments; // Number of players who have committed a proposal in the current proposing stage
+        uint256 numVotes; // Number of votes cast in the current voting stage
+        uint256 permutationCommitment; // Commitment related to the permutation of ongoingProposals, set at end of proposing stage
         LibQuadraticVoting.qVotingStruct voting;
-        mapping(uint256 => string) ongoingProposals; //Previous Turn Proposals (These are being voted on)
-        mapping(address => uint256) proposalCommitment;
-        mapping(address => bytes32) ballotHashes;
-        mapping(address => bool) playerVoted;
+        mapping(uint256 => string) ongoingProposals; // Proposals for the current round (submitted in proposing stage, voted on in voting stage)
+        mapping(address => uint256) proposalCommitment; // Player's commitment to their proposal
+        mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
+        mapping(address => bool) playerVoted; // Has player voted in the current voting stage
         address winner;
     }
 
@@ -94,7 +91,7 @@ library LibRankify {
      *
      * - `true` if the strings are equal, `false` otherwise.
      */
-    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
+    function compareStrings(string memory a, string memory b) public pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
 
@@ -105,13 +102,12 @@ library LibRankify {
      *
      * - The game storage for `gameId`.
      */
-    function getGameState(uint256 gameId) internal view returns (GameState storage game) {
+    function getGameState(uint256 gameId) public view returns (GameState storage game) {
         bytes32 position = LibTBG.getGameDataStorage(gameId);
         assembly {
             game.slot := position
         }
     }
-
     /**
      * @dev Returns the Rankify InstanceSettings storage.
      *
@@ -126,11 +122,11 @@ library LibRankify {
         }
     }
 
-    bytes32 internal constant _PROPOSAL_PROOF_TYPEHASH =
+    bytes32 public constant _PROPOSAL_PROOF_TYPEHASH =
         keccak256("signProposalByGM(uint256 gameId,uint256 turn,bytes32 proposalNHash,string encryptedProposal)");
-    bytes32 internal constant _VOTE_PROOF_TYPEHASH =
+    bytes32 public constant _VOTE_PROOF_TYPEHASH =
         keccak256("signVote(uint256 vote1,uint256 vote2,uint256 vote3,uint256 gameId,uint256 turn,bytes32 salt)");
-    bytes32 internal constant _VOTE_SUBMIT_PROOF_TYPEHASH =
+    bytes32 public constant _VOTE_SUBMIT_PROOF_TYPEHASH =
         keccak256("publicSignVote(uint256 gameId,uint256 turn,bytes32 vote1,bytes32 vote2,bytes32 vote3)");
 
     /**
@@ -140,7 +136,7 @@ library LibRankify {
      *
      * - The contract must be initialized.
      */
-    function enforceIsInitialized() internal view {
+    function enforceIsInitialized() public view {
         InstanceState storage settings = instanceState();
         require(settings.contractInitialized, "onlyInitialized");
     }
@@ -152,7 +148,7 @@ library LibRankify {
      *
      * - The game with `gameId` must exist.
      */
-    function enforceGameExists(uint256 gameId) internal view {
+    function enforceGameExists(uint256 gameId) public view {
         enforceIsInitialized();
         require(gameId.gameExists(), "game not found");
     }
@@ -169,11 +165,13 @@ library LibRankify {
         uint128 minGameTime;
         uint128 timePerTurn;
         uint128 timeToJoin;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
         string metadata;
         // ToDo: It must list gameKey for Game master and game master signature, committing to serve the game
     }
 
-    function getGamePrice(uint128 minGameTime, CommonParams memory commonParams) internal pure returns (uint256) {
+    function getGamePrice(uint128 minGameTime, CommonParams memory commonParams) public pure returns (uint256) {
         return
             Math.mulDiv(
                 uint256(commonParams.principalCost),
@@ -201,7 +199,7 @@ library LibRankify {
      * - Sets the rank of the game to `gameRank`.
      * - Mints new rank tokens.
      */
-    function newGame(NewGameParams memory params) internal {
+    function newGame(NewGameParams memory params) public {
         // address signer = ECDSA.recover(digest, gameMasterSignature);
         //TODO: add this back in start game to verify commitment from game master
         // require(
@@ -212,21 +210,17 @@ library LibRankify {
         enforceIsInitialized();
         CommonParams storage commonParams = instanceState().commonParams;
 
-        require(
-            commonParams.principalTimeConstant % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(commonParams.principalTimeConstant, params.nTurns)
-        );
-        require(
-            commonParams.principalTimeConstant % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(commonParams.principalTimeConstant, params.minGameTime)
-        );
-        require(
-            params.minGameTime % params.nTurns == 0,
-            IRankifyInstance.NoDivisionReminderAllowed(params.nTurns, params.minGameTime)
-        );
         require(params.minGameTime > 0, "LibRankify::newGame->Min game time zero");
-        require(params.nTurns > 2, IRankifyInstance.invalidTurnCount(params.nTurns));
-
+        require(params.nTurns > 0, IRankifyInstance.invalidTurnCount(params.nTurns));
+        require(params.votePhaseDuration > 0, "LibRankify::newGame->Time per turn voting zero");
+        require(params.proposingPhaseDuration > 0, "LibRankify::newGame->Time per turn proposing zero");
+        require(
+            params.votePhaseDuration + params.proposingPhaseDuration == params.timePerTurn,
+            "LibRankify::newGame->Time per turn voting and proposing must sum to time per turn"
+        );
+        uint256[] memory phases = new uint256[](2);
+        phases[0] = params.votePhaseDuration;
+        phases[1] = params.proposingPhaseDuration;
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
             maxPlayerCnt: params.maxPlayerCnt,
@@ -235,18 +229,21 @@ library LibRankify {
             maxTurns: params.nTurns,
             voteCredits: params.voteCredits,
             gameMaster: params.gameMaster,
-            implementationStoragePointer: bytes32(0)
+            implementationStoragePointer: bytes32(0),
+            turnPhaseDurations: phases
         });
 
         InstanceState storage state = instanceState();
 
         params.gameId.createGame(newSettings); // This will enforce game does not exist yet
         GameState storage game = getGameState(params.gameId);
-        game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.maxPlayerCnt);
+        game.voting = LibQuadraticVoting.precomputeValues(params.voteCredits, params.minPlayerCnt);
         game.metadata = params.metadata;
+        game.timePerTurnVoting = params.votePhaseDuration;
+        game.timePerTurnProposing = params.proposingPhaseDuration;
         require(
             SignedMath.abs(int256(uint256(params.minGameTime)) - int256(uint256(commonParams.principalTimeConstant))) <
-                uint256(commonParams.principalTimeConstant) * 16,
+                uint256(commonParams.principalTimeConstant) * 2 ** 16,
             "Min game time out of bounds"
         );
         require(commonParams.minimumParticipantsInCircle <= params.minPlayerCnt, "Min player count too low");
@@ -277,7 +274,7 @@ library LibRankify {
      * - The game with `gameId` must exist.
      * - `candidate` must be the creator of the game.
      */
-    function enforceIsGameCreator(uint256 gameId, address candidate) internal view {
+    function enforceIsGameCreator(uint256 gameId, address candidate) public view {
         enforceGameExists(gameId);
         GameState storage game = getGameState(gameId);
         require(game.createdBy == candidate, "Only game creator");
@@ -291,7 +288,7 @@ library LibRankify {
      * - The game with `gameId` must exist.
      * - `candidate` must be the game master of the game.
      */
-    function enforceIsGM(uint256 gameId, address candidate) internal view {
+    function enforceIsGM(uint256 gameId, address candidate) public view {
         enforceGameExists(gameId);
         require(gameId.getGM() == candidate, "Only game master");
     }
@@ -326,7 +323,7 @@ library LibRankify {
      * - Increases the payments balance of the game by the join game price.
      * - Adds `player` to the game.
      */
-    function joinGame(uint256 gameId, address player, bytes memory gameMasterSignature, bytes32 digest) internal {
+    function joinGame(uint256 gameId, address player, bytes memory gameMasterSignature, bytes32 digest) public {
         enforceGameExists(gameId);
         fulfillRankRq(gameId, player);
         gameId.addPlayer(player);
@@ -429,7 +426,7 @@ library LibRankify {
      *
      * - Locks the rank token(s) of `player` in the rank token contract.
      */
-    function fulfillRankRq(uint256 gameId, address player) internal {
+    function fulfillRankRq(uint256 gameId, address player) public {
         InstanceState storage instance = instanceState();
         GameState storage game = getGameState(gameId);
         if (game.rank > 1) {
@@ -461,7 +458,7 @@ library LibRankify {
      *
      * - Calls `emitRankReward` for the main rank and each additional rank in the game.
      */
-    function emitRankRewards(uint256 gameId, address[] memory leaderboard) internal {
+    function emitRankRewards(uint256 gameId, address[] memory leaderboard) public {
         InstanceState storage instance = LibRankify.instanceState();
         emitRankReward(gameId, leaderboard, instance.commonParams.rankTokenAddress);
     }
@@ -490,7 +487,7 @@ library LibRankify {
      * - Removes `player` from the game.
      * - If the game rank is greater than 1, unlocks the game rank token for `player` in the rank token contract.
      */
-    function removeAndUnlockPlayer(uint256 gameId, address player) internal {
+    function removeAndUnlockPlayer(uint256 gameId, address player) public {
         enforceGameExists(gameId);
         gameId.removePlayer(player); //This will throw if game is in the process
         InstanceState storage instance = instanceState();
@@ -502,7 +499,7 @@ library LibRankify {
 
     /**
      * @dev Tries to make a move for a player in a game. `gameId` is the ID of the game. `player` is the address of the player.
-     * The "move" is considered to be a state when player has made all actions he could in the given turn.
+     * The "move" is considered to be a state when player has made all actions he could in the given STAGE (proposing or voting).
      *
      * Requirements:
      *
@@ -510,25 +507,51 @@ library LibRankify {
      *
      * Modifies:
      *
-     * - If the player has not voted and a vote is expected, or if the player has not made a proposal and a proposal is expected, does not make a move and returns `false`.
-     * - Otherwise, makes a move for `player` and returns `true`.
+     * - If the player has not completed their action for the current stage (proposal or vote), does not make a move and returns `false`.
+     * - Otherwise, makes a move for `player` in LibTBG and returns `true`.
      */
-    function tryPlayerMove(uint256 gameId, address player) internal returns (bool) {
-        uint256 turn = gameId.getTurn();
+    function tryPlayerMove(uint256 gameId, address player) public returns (bool) {
         GameState storage game = getGameState(gameId);
-        bool expectVote = true;
-        if (turn == 1) expectVote = false; // Don't expect votes at first turn
-        // else if (gameId.isLastTurn()) expectProposal = false; // For now easiest solution is to keep collecting proposals as that is less complicated boundary case
-        uint256 numProposals = game.numPrevProposals;
-        uint256 qPos = game.voting.minQuadraticPositions;
-        bool playerVoted = game.playerVoted[player];
-        if (numProposals < qPos) expectVote = false; // If there is not enough proposals then round is skipped votes cannot be filled
-        if (numProposals == qPos && playerVoted) expectVote = false;
-        bool madeMove = true;
-        if (expectVote && !playerVoted) madeMove = false;
-        if (game.proposalCommitment[player] == 0) madeMove = false;
-        if (madeMove) gameId.playerMove(player);
-        return madeMove;
+        bool actionCompleted = false;
+
+        if (isProposingStage(gameId)) {
+            // In proposing stage, action is complete if a proposal commitment exists.
+            if (game.proposalCommitment[player] != 0) {
+                actionCompleted = true;
+            }
+        } else if (isVotingStage(gameId)) {
+            // In voting stage, action is complete if player has voted, AND there are enough proposals.
+            if (game.numCommitments < game.voting.minQuadraticPositions || game.playerVoted[player]) {
+                actionCompleted = true;
+            }
+        }
+
+        if (actionCompleted) {
+            gameId.playerMove(player); // Call LibTBG.playerMove
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @dev Checks if the current proposing stage can end.
+     * A proposing stage can end if it's a proposing stage and all players have made their move (committed proposals)
+     * or the time for the stage has run out.
+     */
+    function canEndProposing(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        return isProposingStage(gameId) && gameId.canTransitionPhaseEarly();
+    }
+
+    /**
+     * @dev Checks if the current voting stage can end.
+     * A voting stage can end if it's a voting stage and all players have made their move (voted)
+     * or the time for the stage has run out.
+     * If there are not enough proposals to vote on, this stage effectively ends when LibTBG.canEndTurnEarly() becomes true (likely due to timeout).
+     */
+    function canEndVoting(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        return isVotingStage(gameId) && gameId.canTransitionPhaseEarly();
     }
 
     /**
@@ -542,30 +565,45 @@ library LibRankify {
     function calculateScores(
         uint256 gameId,
         uint256[][] memory votesRevealed
-    ) internal returns (uint256[] memory, uint256[] memory) {
+    ) public returns (uint256[] memory, uint256[] memory, address, bool[] memory isActive, uint256[][] memory) {
         address[] memory players = gameId.getPlayers();
-        uint256[] memory scores = new uint256[](players.length);
+        uint256[] memory gameScores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
         bool[] memory playerProposed = new bool[](players.length);
+        address winner = address(0);
+        uint256 maxScore = 0;
         GameState storage game = getGameState(gameId);
+        isActive = new bool[](players.length);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
             playerVoted[i] = game.playerVoted[players[i]];
             playerProposed[i] = game.proposalCommitment[players[i]] != 0;
         }
-        uint256[] memory roundScores = game.voting.tallyVotes(votesRevealed, playerVoted, playerProposed);
+        (uint256[] memory roundScores, uint256[][] memory finalizedVotingMatrix) = game.voting.tallyVotes(votesRevealed, playerVoted, playerProposed);
         for (uint256 playerIdx = 0; playerIdx < players.length; playerIdx++) {
             //for each player
             if (game.proposalCommitment[players[playerIdx]] != 0) {
                 //if player proposal exists
-                scores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
-                gameId.setScore(players[playerIdx], scores[playerIdx]);
+                gameScores[playerIdx] = gameId.getScore(players[playerIdx]) + roundScores[playerIdx];
+                gameId.setScore(players[playerIdx], gameScores[playerIdx]);
+                if (gameScores[playerIdx] > maxScore) {
+                    maxScore = gameScores[playerIdx];
+                    winner = players[playerIdx];
+                }
             } else {
                 //Player did not propose
                 // TODO: implement tests for this
                 // require(roundScores[playerIdx] == 0, "LibRankify->calculateScores: player got votes without proposing");
             }
         }
-        return (scores, roundScores);
+        return (gameScores, roundScores, winner, isActive, finalizedVotingMatrix);
+    }
+
+    function isVotingStage(uint256 gameId) internal view returns (bool) {
+        return LibTBG.getPhase(gameId) == 1;
+    }
+
+    function isProposingStage(uint256 gameId) internal view returns (bool) {
+        return LibTBG.getPhase(gameId) == 0;
     }
 }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibQuadraticVoting} from "../libraries/LibQuadraticVoting.sol";
+import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 
 interface IRankifyInstance {
     error NoDivisionReminderAllowed(uint256 a, uint256 b);
@@ -16,7 +17,7 @@ interface IRankifyInstance {
     event GameClosed(uint256 indexed gameId);
     event PlayerLeft(uint256 indexed gameId, address indexed player);
     event RankTokenExited(address indexed player, uint256 rankId, uint256 amount, uint256 _toMint);
-
+    event RequirementsConfigured(uint256 indexed gameId, LibCoinVending.ConfigPosition config);
     struct NewGameParamsInput {
         uint256 gameRank;
         uint256 minPlayerCnt;
@@ -28,22 +29,20 @@ interface IRankifyInstance {
         uint128 timePerTurn;
         uint128 timeToJoin;
         string metadata;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
     }
 
     struct GameStateOutput {
         uint256 rank;
         uint256 minGameTime;
         address createdBy;
-        uint256 numOngoingProposals;
-        uint256 numPrevProposals;
         uint256 numCommitments;
-        uint256 numVotesThisTurn;
-        uint256 numVotesPrevTurn;
+        uint256 numVotes;
         LibQuadraticVoting.qVotingStruct voting;
         uint256 currentTurn;
         uint256 turnStartedAt;
         uint256 registrationOpenAt;
-        uint256 startedAt;
         bool hasStarted;
         bool hasEnded;
         uint256 numPlayersMadeMove;
@@ -57,5 +56,9 @@ interface IRankifyInstance {
         uint256 voteCredits;
         address gameMaster;
         string metadata;
+        uint256 phase;
+        uint256 votePhaseDuration;
+        uint256 proposingPhaseDuration;
+        uint256 phaseStartedAt;
     }
 }
