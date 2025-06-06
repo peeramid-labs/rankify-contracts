@@ -692,11 +692,15 @@ describe(scriptName, () => {
       );
 
       // Check beneficiary receives 10% of game cost
-
+      const beneficiaryShare = gamePrice.mul(10).div(100);
       expect(finalBeneficiaryBalance).to.equal(
-        initialBeneficiaryBalance.add(gamePrice),
+        initialBeneficiaryBalance.add(beneficiaryShare),
         'Beneficiary should receive 10% of game cost',
       );
+
+      // Check 90% of game cost is burned
+      const burnedAmount = gamePrice.mul(90).div(100);
+      expect(finalTotalSupply).to.equal(initialTotalSupply.sub(burnedAmount), '90% of game cost should be burned');
     });
     it('can get game state', async () => {
       const state = await rankifyInstance.getGameState(1);
