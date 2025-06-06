@@ -22,6 +22,7 @@ import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { ProposalsIntegrity } from '../scripts/EnvironmentSimulator';
+import { parseInstantiated } from '../scripts';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
@@ -89,12 +90,12 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   const evts = await env.distributor.queryFilter(filter);
   rankifyInstance = (await ethers.getContractAt(
     'RankifyDiamondInstance',
-    evts[0].args.instances[2],
+    parseInstantiated(evts[0].args.instances).ACIDInstance,
   )) as RankifyDiamondInstance;
 
   govtToken = (await ethers.getContractAt(
     'DistributableGovernanceERC20',
-    evts[0].args.instances[0],
+    parseInstantiated(evts[0].args.instances).govToken,
   )) as DistributableGovernanceERC20;
 
   await env.rankifyToken.connect(adr.gameCreator1.wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
@@ -111,7 +112,10 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   await env.rankifyToken.connect(adr.players[8].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
   await env.rankifyToken.connect(adr.players[9].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
 
-  rankToken = (await ethers.getContractAt('RankToken', evts[0].args.instances[11])) as RankToken;
+  rankToken = (await ethers.getContractAt(
+    'RankToken',
+    parseInstantiated(evts[0].args.instances).rankToken,
+  )) as RankToken;
   const requirement: LibCoinVending.ConfigPositionStruct = {
     ethValues: {
       have: ethers.utils.parseEther('0.1'),

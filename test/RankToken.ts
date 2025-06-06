@@ -9,6 +9,7 @@ import { MAODistribution } from '../types/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult, EnvSetupResult } from '../scripts/setupMockEnvironment';
 import { constantParams } from '../scripts/EnvironmentSimulator';
+import { parseInstantiated } from '../scripts';
 let adr: AdrSetupResult;
 let env: EnvSetupResult;
 let rankifyInstance: RankifyDiamondInstance;
@@ -60,7 +61,7 @@ describe('Rank Token Test', async function () {
     const evts = await env.distributor.queryFilter(filter);
     rankifyInstance = (await ethers.getContractAt(
       'RankifyDiamondInstance',
-      evts[0].args.instances[3],
+      parseInstantiated(evts[0].args.instances).ACIDInstance,
     )) as RankifyDiamondInstance;
     await network.provider.send('hardhat_setBalance', [rankifyInstance.address, '0x9000000000000000000']);
     await env.rankifyToken
@@ -83,7 +84,10 @@ describe('Rank Token Test', async function () {
     await env.rankifyToken.connect(adr.players[8].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
     await env.rankifyToken.connect(adr.players[9].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
 
-    rankToken = (await ethers.getContractAt('RankToken', evts[0].args.instances[11])) as RankToken;
+    rankToken = (await ethers.getContractAt(
+      'RankToken',
+      parseInstantiated(evts[0].args.instances).rankToken,
+    )) as RankToken;
   });
   //   it('Allows only owner to set rankingInstance', async () => {
   //     await expect(rankToken.connect(deployer).updateRankingInstance(adr.gameCreator1.wallet.address))

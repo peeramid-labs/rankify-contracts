@@ -10,6 +10,7 @@ import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import addDistribution from '../scripts/addDistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
+import { parseInstantiated } from '../scripts';
 
 describe('MAODistribution', async function () {
   let contract: MAODistribution;
@@ -92,7 +93,7 @@ describe('MAODistribution', async function () {
 
       const ACIDContract = (await ethers.getContractAt(
         'RankifyDiamondInstance',
-        evts[0].args.instances[2],
+        parseInstantiated(evts[0].args.instances).ACIDInstance,
       )) as RankifyDiamondInstance;
       expect((await ACIDContract.functions['getGM(uint256)'](0))[0]).to.equal(ethers.constants.AddressZero);
     });
@@ -133,7 +134,10 @@ describe('MAODistribution', async function () {
       const evts = await distributorContract.queryFilter(filter);
       expect(evts.length).to.equal(1);
 
-      const RankTokenContract = (await ethers.getContractAt('RankToken', evts[0].args.instances[11])) as RankToken;
+      const RankTokenContract = (await ethers.getContractAt(
+        'RankToken',
+        parseInstantiated(evts[0].args.instances).rankToken,
+      )) as RankToken;
       await RankTokenContract.connect(oSigner).setContractURI('foo');
       await RankTokenContract.connect(oSigner).setURI('Uri_foo');
       expect(await RankTokenContract.contractURI()).to.equal('foo');
