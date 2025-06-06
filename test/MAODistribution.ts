@@ -57,18 +57,21 @@ describe('MAODistribution', async function () {
       const { owner } = await getNamedAccounts();
       const oSigner = await ethers.getSigner(owner);
       const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-        tokenSettings: {
+        govSettings: {
           tokenName: 'tokenName',
           tokenSymbol: 'tokenSymbol',
           preMintAmounts: [ethers.utils.parseEther('100')],
           preMintReceivers: [oSigner.address],
+          orgName: 'orgName',
+          votingDelay: 3600,
+          votingPeriod: 3600,
+          quorum: 51,
         },
         rankifySettings: {
           rankTokenContractURI: 'https://example.com/rank',
           rankTokenURI: 'https://example.com/rank',
           principalCost: 1,
           principalTimeConstant: 1,
-          owner: oSigner.address,
           paymentToken: rankify.address,
         },
       };
@@ -97,18 +100,21 @@ describe('MAODistribution', async function () {
       const { owner } = await getNamedAccounts();
       const oSigner = await ethers.getSigner(owner);
       const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-        tokenSettings: {
+        govSettings: {
           tokenName: 'tokenName',
           tokenSymbol: 'tokenSymbol',
           preMintAmounts: [ethers.utils.parseEther('100')],
           preMintReceivers: [oSigner.address],
+          orgName: 'orgName',
+          votingDelay: 3600,
+          votingPeriod: 3600,
+          quorum: 51,
         },
         rankifySettings: {
           rankTokenContractURI: 'https://example.com/rank',
           rankTokenURI: 'https://example.com/rank',
           principalCost: 1,
           principalTimeConstant: 1,
-          owner,
           paymentToken: rankify.address,
         },
       };

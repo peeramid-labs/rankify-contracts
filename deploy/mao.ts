@@ -184,6 +184,21 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log('GovernanceToken already registered in CodeIndex');
   }
 
+  const governorDeployment = await deploy('Governor', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+  });
+
+  const governorDeploymentCode = await hre.ethers.provider.getCode(governorDeployment.address);
+  const governorDeploymentCodeId = ethers.utils.keccak256(governorDeploymentCode);
+  const governorDeploymentCodeIdAddress = await codeIndexContract.get(governorDeploymentCodeId);
+  if (governorDeploymentCodeIdAddress === ethers.constants.AddressZero) {
+    log('Registering Governor in CodeIndex...');
+    await (await codeIndexContract.register(governorDeployment.address)).wait(1);
+  } else {
+    log('Governor already registered in CodeIndex');
+  }
+
   const pc = poseidonContract;
   const ph5 = await deploy('Poseidon5', {
     from: deployer,

@@ -53,11 +53,15 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   const oSigner = await ethers.getSigner(owner);
   console.log('oSigner', oSigner.address);
   const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-    tokenSettings: {
+    govSettings: {
       tokenName: 'tokenName',
       tokenSymbol: 'tokenSymbol',
       preMintAmounts: [ethers.utils.parseEther('100')],
       preMintReceivers: [oSigner.address],
+      orgName: 'orgName',
+      votingDelay: 3600,
+      votingPeriod: 3600,
+      quorum: 51,
     },
     rankifySettings: {
       paymentToken: env.rankifyToken.address,
@@ -65,7 +69,6 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
       rankTokenURI: 'https://example.com/rank',
       principalCost: constantParams.PRINCIPAL_COST,
       principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
-      owner,
     },
   };
   const data = generateDistributorData(distributorArguments);
