@@ -10,7 +10,7 @@ import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import addDistribution from '../scripts/addDistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
-import { parseInstantiated } from '../scripts';
+import { parseInstantiated } from '../scripts/parseInstantiated';
 
 describe('MAODistribution', async function () {
   let contract: MAODistribution;

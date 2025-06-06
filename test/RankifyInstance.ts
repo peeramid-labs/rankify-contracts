@@ -22,7 +22,7 @@ import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { ProposalsIntegrity } from '../scripts/EnvironmentSimulator';
-import { parseInstantiated } from '../scripts';
+import { parseInstantiated } from '../scripts/parseInstantiated';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
