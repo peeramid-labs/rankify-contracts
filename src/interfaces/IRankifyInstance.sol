@@ -6,9 +6,19 @@ import {LibQuadraticVoting} from "../libraries/LibQuadraticVoting.sol";
 import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 
 interface IRankifyInstance {
+    enum ProposingEndStatus {
+        Success,
+        MinProposalsNotMetAndNotStale,
+        GameIsStaleAndCanEnd, // Explicit status for when min proposals not met but game is stale
+        PhaseConditionsNotMet, // Basic LibTBG conditions not met
+        NotProposingStage
+    }
+
     error NoDivisionReminderAllowed(uint256 a, uint256 b);
     error invalidTurnCount(uint256 nTurns);
     error RankNotSpecified();
+    error ErrorProposingStageEndFailed(uint256 gameId, ProposingEndStatus status);
+    error ErrorCannotForceEndGame(uint256 gameId);
 
     event RegistrationOpen(uint256 indexed gameId);
     event PlayerJoined(uint256 indexed gameId, address indexed participant, bytes32 gmCommitment, string voterPubKey);
@@ -18,6 +28,8 @@ interface IRankifyInstance {
     event PlayerLeft(uint256 indexed gameId, address indexed player);
     event RankTokenExited(address indexed player, uint256 rankId, uint256 amount, uint256 _toMint);
     event RequirementsConfigured(uint256 indexed gameId, LibCoinVending.ConfigPosition config);
+    event StaleGameEnded(uint256 indexed gameId, address winner);
+
     struct NewGameParamsInput {
         uint256 gameRank;
         uint256 minPlayerCnt;

@@ -482,8 +482,12 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         gameId.enforceHasStarted();
         gameId.enforceIsNotOver();
         require(gameId.isProposingStage(), "Not in proposing stage");
-        require(gameId.canEndProposing(), "Cannot end proposing stage");
         LibRankify.GameState storage game = gameId.getGameState();
+        IRankifyInstance.ProposingEndStatus status = gameId.canEndProposing();
+        require(
+            status == IRankifyInstance.ProposingEndStatus.Success,
+            IRankifyInstance.ErrorProposingStageEndFailed(gameId, status)
+        );
         address[] memory players = gameId.getPlayers();
 
         LibRankify.InstanceState storage instanceState = LibRankify.instanceState();
@@ -534,5 +538,25 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         }
         emit ProposingStageEnded(gameId, gameId.getTurn(), game.numCommitments, newProposals.proposals);
         gameId.next();
+    }
+
+    /**
+     * @notice Allows a Game Master to forcibly end a game that has become stale.
+     * A game is considered stale if minimum game time has passed, it's stuck in the proposing stage
+     * with insufficient proposals, and the proposing phase has timed out.
+     * @param gameId The ID of the game to forcibly end.
+     * @custom:security nonReentrant Restricted to Game Master.
+     */
+    function forceEndStaleGame(uint256 gameId) public nonReentrant {
+        gameId.enforceGameExists();
+        require(!LibTBG.isGameOver(gameId), "Rankify: Game already over");
+        require(LibRankify.isGameStaleForForcedEnd(gameId), IRankifyInstance.ErrorCannotForceEndGame(gameId));
+
+        LibRankify.GameState storage game = gameId.getGameState();
+        LibTBG.State storage tbgState = gameId._getState();
+        tbgState.hasEnded = true;
+        (address[] memory players, uint256[] memory finalScores) = gameId.closeGame(onPlayersGameEnd);
+        emit GameOver(gameId, players, finalScores);
+        emit IRankifyInstance.StaleGameEnded(gameId, game.winner);
     }
 }

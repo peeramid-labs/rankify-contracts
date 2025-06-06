@@ -536,11 +536,48 @@ library LibRankify {
     /**
      * @dev Checks if the current proposing stage can end.
      * A proposing stage can end if it's a proposing stage and all players have made their move (committed proposals)
-     * or the time for the stage has run out.
+     * or the time for the stage has run out, subject to minimum proposal and stale game rules.
+     * Returns a status indicating whether and how the proposing stage can end.
      */
-    function canEndProposing(uint256 gameId) internal view returns (bool) {
+    function canEndProposing(uint256 gameId) internal view returns (IRankifyInstance.ProposingEndStatus) {
         enforceGameExists(gameId);
-        return isProposingStage(gameId) && gameId.canTransitionPhaseEarly();
+        if (!isProposingStage(gameId)) {
+            return IRankifyInstance.ProposingEndStatus.NotProposingStage;
+        }
+        LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
+        LibTBG.State storage tbgState = tbgInstanceState.state;
+        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
+        GameState storage game = getGameState(gameId);
+
+        bool canTransitionBasicTBG = gameId.canTransitionPhaseEarly();
+
+        if (canTransitionBasicTBG) {
+            // Check if transition is due to timeout or all players moved
+            bool allPlayersMoved = tbgState.numPlayersMadeMove == game.numCommitments;
+            bool phaseTimedOut = block.timestamp >= tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0]; // Proposing is phase 0
+
+            if (game.numCommitments >= game.voting.minQuadraticPositions) {
+                return IRankifyInstance.ProposingEndStatus.Success;
+            }
+            // If not enough proposals:
+            bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
+            if (minGameTimeReached) {
+                // Even if proposals are insufficient, if minGameTime is met and phase can end by TBG rules (timeout/all_moved),
+                // it's considered stale and can proceed (but facet will revert as it needs Success)
+                return IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd;
+            }
+            // If minGameTime not reached, and not enough proposals, and phase timed out (or all moved without enough proposals)
+            if (phaseTimedOut || allPlayersMoved) {
+                // All moved but not enough proposals is a specific type of not met
+                return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+            }
+            // This case should ideally be covered by PhaseConditionsNotMet if canTransitionBasicTBG was false initially
+            // or if canTransitionBasicTBG was true only because of allPlayersMoved but minProposals not met (and not stale)
+            // This logic path might need refinement to ensure all conditions map to an enum state clearly.
+            // For now, if it got here, it means minProposalsNotMet and not stale.
+            return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+        }
+        return IRankifyInstance.ProposingEndStatus.PhaseConditionsNotMet;
     }
 
     /**
@@ -609,5 +646,50 @@ library LibRankify {
 
     function isProposingStage(uint256 gameId) internal view returns (bool) {
         return LibTBG.getPhase(gameId) == 0;
+    }
+
+    /**
+     * @dev Checks if a game is in a state where it can be forcibly ended due to being stale.
+     * Conditions for being stale for forced end:
+     * 1. Game exists and is not already over.
+     * 2. Minimum game time has been reached.
+     * 3. Game is stuck in the proposing stage:
+     *    a. Proposing phase has timed out.
+     *    b. Not all active players have made their move (committed proposals).
+     *    c. The number of submitted proposals is less than minQuadraticPositions.
+     * @param gameId The ID of the game.
+     * @return bool True if the game is stale and can be forcibly ended, false otherwise.
+     */
+    function isGameStaleForForcedEnd(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        if (LibTBG.isGameOver(gameId)) {
+            return false; // Already over
+        }
+
+        LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
+        LibTBG.State storage tbgState = tbgInstanceState.state;
+        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
+        GameState storage game = getGameState(gameId);
+
+        bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
+        if (!minGameTimeReached) {
+            return false;
+        }
+
+        // Check if stuck in proposing stage
+        if (isProposingStage(gameId)) {
+            bool proposingPhaseTimedOut = block.timestamp >=
+                tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0];
+            bool notAllActivePlayersMoved = tbgState.numPlayersMadeMove < tbgState.numActivePlayers;
+            bool minProposalsNotMet = game.numCommitments < game.voting.minQuadraticPositions;
+
+            if (proposingPhaseTimedOut && notAllActivePlayersMoved && minProposalsNotMet) {
+                return true;
+            }
+        }
+
+        // Potentially add conditions for being stuck in voting if other scenarios arise in the future
+
+        return false;
     }
 }

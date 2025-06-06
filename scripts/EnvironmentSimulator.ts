@@ -1146,6 +1146,7 @@ class EnvironmentSimulator {
     votes,
     gm,
     idlers,
+    timeAfterProposing,
   }: {
     gameId: BigNumberish;
     players: [SignerIdentity, SignerIdentity, ...SignerIdentity[]];
@@ -1153,6 +1154,7 @@ class EnvironmentSimulator {
     votes: BigNumberish[][];
     gm: Wallet;
     idlers?: number[];
+    timeAfterProposing?: number;
   }) => {
     let turn = await this.rankifyInstance.getTurn(gameId);
     if (turn.eq(0) && process.env.NODE_ENV == 'TEST') {
@@ -1170,6 +1172,9 @@ class EnvironmentSimulator {
       .connect(gm)
       .endProposing(gameId, newProposals)
       .then(async r => {
+        if (timeAfterProposing) {
+          await time.increase(timeAfterProposing);
+        }
         const tx2 = this.rankifyInstance.connect(gm).endVoting(gameId, votes, permutation, nullifier);
         return Promise.all([r, tx2]);
       });
