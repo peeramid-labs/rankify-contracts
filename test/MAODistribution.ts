@@ -3,7 +3,7 @@
 import { deployments, ethers, getNamedAccounts } from 'hardhat';
 import hre from 'hardhat';
 import { expect } from 'chai';
-import { MAODistribution, DAODistributor, Rankify, RankifyDiamondInstance, RankToken } from '../types';
+import { MAODistribution, DAODistributor, Rankify, RankifyDiamondInstance, RankToken, Governor } from '../types';
 import { setupTest } from './utils';
 
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
@@ -97,7 +97,7 @@ describe('MAODistribution', async function () {
       )) as RankifyDiamondInstance;
       expect((await ACIDContract.functions['getGM(uint256)'](0))[0]).to.equal(ethers.constants.AddressZero);
     });
-    it('Can allows initiator to set contractURI', async () => {
+    it('Can allows DAO to set contractURI', async () => {
       const { owner } = await getNamedAccounts();
       const oSigner = await ethers.getSigner(owner);
       const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
@@ -138,11 +138,20 @@ describe('MAODistribution', async function () {
         'RankToken',
         parseInstantiated(evts[0].args.instances).rankToken,
       )) as RankToken;
-      await RankTokenContract.connect(oSigner).setContractURI('foo');
-      await RankTokenContract.connect(oSigner).setURI('Uri_foo');
+      const governor = (await ethers.getContractAt(
+        'Governor',
+        parseInstantiated(evts[0].args.instances).governor,
+      )) as Governor;
+      const DAOSigner = await ethers.getImpersonatedSigner(governor.address);
+      await oSigner.sendTransaction({
+        to: governor.address,
+        value: ethers.utils.parseEther('0.1'),
+      });
+      await RankTokenContract.connect(DAOSigner).setContractURI('foo');
+      await RankTokenContract.connect(DAOSigner).setURI('Uri_foo');
       expect(await RankTokenContract.contractURI()).to.equal('foo');
       expect(await RankTokenContract.uri(1)).to.equal('Uri_foo');
-      expect(await RankTokenContract.owner()).to.be.equal(oSigner.address);
+      expect(await RankTokenContract.owner()).to.be.equal(governor.address);
     });
   });
 });
