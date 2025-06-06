@@ -1236,7 +1236,7 @@ describe(scriptName, () => {
               gm: adr.gameMaster1,
               idlers: players.map((p, i) => i),
             });
-            expect(await rankifyInstance.getTurn(1)).to.be.equal(2);
+            expect(await rankifyInstance.getTurn(1)).to.be.equal(3);
             expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false]);
             const newestVotes = await simulator.mockValidVotes(
               players,
