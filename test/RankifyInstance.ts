@@ -1219,7 +1219,7 @@ describe(scriptName, () => {
 
             await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
 
-            endWithIntegrity({
+            await endWithIntegrity({
               gameId: 1,
               players,
               proposals: newProposals,
