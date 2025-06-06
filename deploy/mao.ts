@@ -221,12 +221,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     from: deployer,
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
     args: [
-      _trustedForwarder,
       [proposalIntegrity18Groth16VerifierDeployment.address, ph5.address, ph6.address, ph2.address],
       rankTokenCodeId,
       arguableVotingTournamentCodeId,
       accessManagerId,
       govTokenDeploymentCodeId,
+      governorDeploymentCodeId,
       _distributionName, // These could be other, currently duplicates with dependency, good as long as not used
       _distributionVersion,
       constantParams.RInstance_MIN_PLAYERS,
