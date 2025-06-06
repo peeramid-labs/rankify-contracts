@@ -28,11 +28,15 @@ describe('Rank Token Test', async function () {
     const { owner } = await getNamedAccounts();
     const oSigner = await ethers.getSigner(owner);
     const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-      tokenSettings: {
+      govSettings: {
         tokenName: 'tokenName',
         tokenSymbol: 'tokenSymbol',
         preMintAmounts: [ethers.utils.parseEther('100')],
         preMintReceivers: [oSigner.address],
+        orgName: 'orgName',
+        votingDelay: 3600,
+        votingPeriod: 3600,
+        quorum: 51,
       },
       rankifySettings: {
         // beneficiary: oSigner.address,
@@ -41,7 +45,6 @@ describe('Rank Token Test', async function () {
         principalCost: constantParams.PRINCIPAL_COST,
         principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
         rankTokenURI: 'https://example.com/rank',
-        owner,
       },
     };
     // Use generateDistributorData to encode the arguments
