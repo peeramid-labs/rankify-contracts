@@ -1,6 +1,7 @@
 import { Distributor } from '../types';
 import { BytesLike } from 'ethers';
 import { Signer } from 'ethers';
+import { parseInstantiated } from './parseInstantiated';
 
 export const instantiateMAO = async ({
   distributor,
@@ -21,15 +22,7 @@ export const instantiateMAO = async ({
   if (evts.length > 1) throw new Error('Multiple Instantiated events found');
   const instances = evts[0].args.instances;
 
-  return {
-    govToken: instances[0],
-    govTokenAccessManager: instances[1],
-    ACIDInstance: instances[2],
-    ACIDAccessManager: instances[10],
-    rankToken: instances[11],
-    instanceId: evts[0].args.newInstanceId,
-    distributorsId: evts[0].args.distributionId,
-  };
+  return parseInstantiated(instances);
 };
 
 export default instantiateMAO;
