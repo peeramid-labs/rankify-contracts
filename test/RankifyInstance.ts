@@ -1205,7 +1205,6 @@ describe(scriptName, () => {
               gameMaster: adr.gameMaster1,
               gameId: 1,
               submitNow: true,
-              idlers: players.map((p, i) => i),
             });
 
             const newVotes = await simulator.mockValidVotes(
@@ -1226,6 +1225,7 @@ describe(scriptName, () => {
               votes: newVotes.map(vote => vote.ballot.vote),
               gm: adr.gameMaster1,
               idlers: players.map((p, i) => i),
+              timeAfterProposing: Number(RInstance_TIME_PER_TURN) + 1,
             });
             expect(await rankifyInstance.getTurn(1)).to.be.equal(3);
             expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false]);
@@ -1243,9 +1243,8 @@ describe(scriptName, () => {
               gameMaster: adr.gameMaster1,
               gameId: 1,
               submitNow: true,
-              idlers: players.map((p, i) => i),
             });
-            expect(await rankifyInstance.isActive(1, newestProposals[0].params.proposer)).to.be.false;
+            expect(await rankifyInstance.isActive(1, newestProposals[0].params.proposer)).to.be.true;
             await expect(
               endWithIntegrity({
                 gameId: 1,
@@ -1254,6 +1253,7 @@ describe(scriptName, () => {
                 votes: newestVotes.map(vote => vote.ballot.vote),
                 gm: adr.gameMaster1,
                 idlers: players.map((p, i) => i),
+                timeAfterProposing: Number(RInstance_TIME_PER_TURN) + 1,
               }).then(r => r[1]),
             ).to.not.be.revertedWith('nextTurn->CanEndEarly');
           });
