@@ -249,7 +249,6 @@ library LibRankify {
         require(commonParams.minimumParticipantsInCircle <= params.minPlayerCnt, "Min player count too low");
         uint256 gamePrice = getGamePrice(params.minGameTime, commonParams);
         address beneficiary = commonParams.beneficiary;
-        Rankify(commonParams.gamePaymentToken).transferFrom(params.creator, beneficiary, gamePrice);
 
         require(params.gameRank != 0, IRankifyInstance.RankNotSpecified());
 
@@ -258,6 +257,7 @@ library LibRankify {
         game.rank = params.gameRank;
         game.minGameTime = params.minGameTime;
 
+        Rankify(commonParams.gamePaymentToken).transferFrom(params.creator, beneficiary, gamePrice);
         IRankToken rankTokenContract = IRankToken(state.commonParams.rankTokenAddress);
         rankTokenContract.mint(address(this), 1, params.gameRank + 1, "");
     }
