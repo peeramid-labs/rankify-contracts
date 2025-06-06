@@ -27,7 +27,6 @@ struct MAOApp {
     SimpleAccessManager govTokenManager;
 }
 
-
 /**
  * @title MAODistribution
  * @dev This contract implements the IDistribution and CodeIndexer interfaces. It uses the Clones library for address cloning.
@@ -61,7 +60,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
     }
 
     using Clones for address;
-    address private immutable _trustedForwarder;
     ShortString private immutable _distributionName;
     uint256 private immutable _distributionVersion;
     address private immutable _rankTokenBase;
@@ -278,7 +276,11 @@ contract MAODistribution is IDistribution, CodeIndexer {
         DistributorArguments memory args = abi.decode(data, (DistributorArguments));
 
         (address[] memory tokenInstances, , ) = createOrg(args.govSettings);
-        (address[] memory RankifyInstances, , ) = createRankify(args.rankifySettings, tokenInstances[0], tokenInstances[2]);
+        (address[] memory RankifyInstances, , ) = createRankify(
+            args.rankifySettings,
+            tokenInstances[0],
+            tokenInstances[2]
+        );
 
         address[] memory returnValue = new address[](tokenInstances.length + RankifyInstances.length);
 
