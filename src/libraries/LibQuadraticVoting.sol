@@ -63,7 +63,8 @@ library LibQuadraticVoting {
     function tallyVotes(
         qVotingStruct memory q,
         uint256[][] memory tally, // [participant][votedFor]
-        bool[] memory isActive
+        bool[] memory hasVoted,
+        bool[] memory hasProposed
     ) internal pure returns (uint256[] memory, uint256[][] memory) {
         uint256 notVotedGivesEveryone = q.maxQuadraticPoints;
         uint256[] memory scores = new uint256[](tally.length);
@@ -77,7 +78,7 @@ library LibQuadraticVoting {
             uint256[] memory votedFor = tally[participant];
             for (uint256 candidate = 0; candidate < tally.length; candidate++) {
                 // For each potential voter
-                if (!isActive[participant] && isActive[candidate]) {
+                if (!hasVoted[participant] && hasProposed[candidate] && candidate != participant) {
                     // Check if participant wasn't voting
                     scores[candidate] += notVotedGivesEveryone; // Gives benefits to everyone but himself
                     creditsUsed[participant] = q.voteCredits;
