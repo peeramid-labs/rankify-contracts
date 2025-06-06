@@ -303,7 +303,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         srcs[1] = address(_RankifyDistributionBase);
         srcs[2] = address(_governanceERC20Base);
         srcs[3] = address(_accessManagerBase);
-        srcs[5] = address(_DAO);
+        srcs[4] = address(_DAO);
         return (srcs, ShortString.unwrap(_distributionName), _distributionVersion);
     }
 
