@@ -1,7 +1,7 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
+import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
 import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
 import { BigNumber, BigNumberish } from 'ethers';
@@ -40,6 +40,7 @@ let votersAddresses: string[];
 let rankifyInstance: RankifyDiamondInstance;
 let rankToken: RankToken;
 let govtToken: DistributableGovernanceERC20;
+let governor: Governor;
 
 const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAccounts, ethers }, options) => {
   const setup = await setupTest();
@@ -126,6 +127,8 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
     },
     contracts: [],
   };
+  governor = (await ethers.getContractAt('Governor', parseInstantiated(evts[0].args.instances).governor)) as Governor;
+  console.log('governor', governor.address);
   requirement.contracts = [];
   requirement.contracts.push({
     contractAddress: env.mockERC20.address,
@@ -166,7 +169,18 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   });
   const simulator = new EnvironmentSimulator(hre, env, adr, rankifyInstance, rankToken);
 
-  return { requirement, ethers, getNamedAccounts, adr, env, simulator, rankifyInstance, govtToken, rankToken };
+  return {
+    requirement,
+    ethers,
+    getNamedAccounts,
+    adr,
+    env,
+    simulator,
+    rankifyInstance,
+    govtToken,
+    governor,
+    rankToken,
+  };
 });
 const setupFirstRankTest = (simulator: EnvironmentSimulator) =>
   deployments.createFixture(async () => {
@@ -509,11 +523,10 @@ describe(scriptName, () => {
     eth = setup.ethers;
   });
   it('Has correct initial settings', async () => {
-    const { DAO } = await hre.getNamedAccounts();
     const state = await rankifyInstance.connect(adr.gameCreator1.wallet).getContractState();
     expect(state.commonParams.principalTimeConstant).to.be.equal(PRINCIPAL_TIME_CONSTANT);
     expect(state.commonParams.principalCost).to.be.equal(PRINCIPAL_COST);
-    expect(state.commonParams.beneficiary).to.be.equal(DAO);
+    expect(state.commonParams.beneficiary).to.be.equal(governor.address);
     expect(state.commonParams.rankTokenAddress).to.be.equal(rankToken.address);
   });
   it('Ownership is renounced', async () => {
@@ -736,11 +749,10 @@ describe(scriptName, () => {
           votePhaseDuration: RInstance_TIME_PER_TURN / 2,
           proposingPhaseDuration: RInstance_TIME_PER_TURN - RInstance_TIME_PER_TURN / 2,
         };
-        const { DAO } = await getNamedAccounts();
         const totalSupplyBefore = await env.rankifyToken.totalSupply();
         await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createGame(params)).changeTokenBalances(
           env.rankifyToken,
-          [adr.gameCreator1.wallet.address, DAO],
+          [adr.gameCreator1.wallet.address, governor.address],
           [expectedPrice.mul(-1), expectedPrice.mul(10).div(100)],
         );
         expect(await env.rankifyToken.totalSupply()).to.be.equal(totalSupplyBefore.sub(expectedPrice.mul(90).div(100)));
