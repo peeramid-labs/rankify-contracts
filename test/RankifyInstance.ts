@@ -731,7 +731,7 @@ describe(scriptName, () => {
           [adr.gameCreator1.wallet.address, DAO],
           [expectedPrice.mul(-1), expectedPrice],
         );
-        expect(await env.rankifyToken.totalSupply()).to.be.equal(totalSupplyBefore.sub(expectedPrice));
+        expect(await env.rankifyToken.totalSupply()).to.be.equal(totalSupplyBefore);
         // Get actual game price
         const actualPrice = await rankifyInstance.estimateGamePrice(testCase.minGameTime);
 
