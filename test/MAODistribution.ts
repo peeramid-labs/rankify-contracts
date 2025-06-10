@@ -3,13 +3,14 @@
 import { deployments, ethers, getNamedAccounts } from 'hardhat';
 import hre from 'hardhat';
 import { expect } from 'chai';
-import { MAODistribution, DAODistributor, Rankify, RankifyDiamondInstance, RankToken } from '../types';
+import { MAODistribution, DAODistributor, Rankify, RankifyDiamondInstance, RankToken, Governor } from '../types';
 import { setupTest } from './utils';
 
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import addDistribution from '../scripts/addDistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
+import { parseInstantiated } from '../scripts/parseInstantiated';
 
 describe('MAODistribution', async function () {
   let contract: MAODistribution;
@@ -57,18 +58,21 @@ describe('MAODistribution', async function () {
       const { owner } = await getNamedAccounts();
       const oSigner = await ethers.getSigner(owner);
       const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-        tokenSettings: {
+        govSettings: {
           tokenName: 'tokenName',
           tokenSymbol: 'tokenSymbol',
           preMintAmounts: [ethers.utils.parseEther('100')],
           preMintReceivers: [oSigner.address],
+          orgName: 'orgName',
+          votingDelay: 3600,
+          votingPeriod: 3600,
+          quorum: 51,
         },
         rankifySettings: {
           rankTokenContractURI: 'https://example.com/rank',
           rankTokenURI: 'https://example.com/rank',
           principalCost: 1,
           principalTimeConstant: 1,
-          owner: oSigner.address,
           paymentToken: rankify.address,
         },
       };
@@ -89,26 +93,29 @@ describe('MAODistribution', async function () {
 
       const ACIDContract = (await ethers.getContractAt(
         'RankifyDiamondInstance',
-        evts[0].args.instances[2],
+        parseInstantiated(evts[0].args.instances).ACIDInstance,
       )) as RankifyDiamondInstance;
       expect((await ACIDContract.functions['getGM(uint256)'](0))[0]).to.equal(ethers.constants.AddressZero);
     });
-    it('Can allows initiator to set contractURI', async () => {
+    it('Can allows DAO to set contractURI', async () => {
       const { owner } = await getNamedAccounts();
       const oSigner = await ethers.getSigner(owner);
       const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-        tokenSettings: {
+        govSettings: {
           tokenName: 'tokenName',
           tokenSymbol: 'tokenSymbol',
           preMintAmounts: [ethers.utils.parseEther('100')],
           preMintReceivers: [oSigner.address],
+          orgName: 'orgName',
+          votingDelay: 3600,
+          votingPeriod: 3600,
+          quorum: 51,
         },
         rankifySettings: {
           rankTokenContractURI: 'https://example.com/rank',
           rankTokenURI: 'https://example.com/rank',
           principalCost: 1,
           principalTimeConstant: 1,
-          owner,
           paymentToken: rankify.address,
         },
       };
@@ -127,12 +134,24 @@ describe('MAODistribution', async function () {
       const evts = await distributorContract.queryFilter(filter);
       expect(evts.length).to.equal(1);
 
-      const RankTokenContract = (await ethers.getContractAt('RankToken', evts[0].args.instances[11])) as RankToken;
-      await RankTokenContract.connect(oSigner).setContractURI('foo');
-      await RankTokenContract.connect(oSigner).setURI('Uri_foo');
+      const RankTokenContract = (await ethers.getContractAt(
+        'RankToken',
+        parseInstantiated(evts[0].args.instances).rankToken,
+      )) as RankToken;
+      const governor = (await ethers.getContractAt(
+        'Governor',
+        parseInstantiated(evts[0].args.instances).governor,
+      )) as Governor;
+      const DAOSigner = await ethers.getImpersonatedSigner(governor.address);
+      await oSigner.sendTransaction({
+        to: governor.address,
+        value: ethers.utils.parseEther('0.1'),
+      });
+      await RankTokenContract.connect(DAOSigner).setContractURI('foo');
+      await RankTokenContract.connect(DAOSigner).setURI('Uri_foo');
       expect(await RankTokenContract.contractURI()).to.equal('foo');
       expect(await RankTokenContract.uri(1)).to.equal('Uri_foo');
-      expect(await RankTokenContract.owner()).to.be.equal(oSigner.address);
+      expect(await RankTokenContract.owner()).to.be.equal(governor.address);
     });
   });
 });
