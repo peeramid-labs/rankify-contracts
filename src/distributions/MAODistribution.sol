@@ -13,9 +13,20 @@ import "../initializers/RankifyInstanceInit.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@peeramid-labs/eds/src/abstracts/CodeIndexer.sol";
 import "hardhat/console.sol";
-import {TokenSettings} from "../vendor/aragon/interfaces.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStrings.sol";
+import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
+import {Governor} from "../Governor.sol";
+struct MAOApp {
+    IRankifyInstance fellowship;
+    RankToken rankToken;
+    DistributableGovernanceERC20 governanceToken;
+    IGovernor DAO;
+    SimpleAccessManager rankTokenManager;
+    SimpleAccessManager govTokenManager;
+}
+
 /**
  * @title MAODistribution
  * @dev This contract implements the IDistribution and CodeIndexer interfaces. It uses the Clones library for address cloning.
@@ -29,24 +40,26 @@ contract MAODistribution is IDistribution, CodeIndexer {
         uint96 principalTimeConstant;
         string rankTokenURI;
         string rankTokenContractURI;
-        address owner;
         address paymentToken;
     }
 
-    struct TokenArguments {
+    struct GovernanceArgs {
         string tokenName;
         string tokenSymbol;
         uint256[] preMintAmounts;
         address[] preMintReceivers;
+        string orgName;
+        uint48 votingDelay;
+        uint32 votingPeriod;
+        uint256 quorum;
     }
 
     struct DistributorArguments {
-        TokenArguments tokenSettings;
+        GovernanceArgs govSettings;
         UserRankifySettings rankifySettings;
     }
 
     using Clones for address;
-    address private immutable _trustedForwarder;
     ShortString private immutable _distributionName;
     uint256 private immutable _distributionVersion;
     address private immutable _rankTokenBase;
@@ -58,13 +71,13 @@ contract MAODistribution is IDistribution, CodeIndexer {
     address private immutable _poseidon5;
     address private immutable _poseidon6;
     address private immutable _poseidon2;
+    address private immutable _DAO;
 
     /**
      * @notice Initializes the contract with the provided parameters and performs necessary checks.
      * @dev Retrieves contract addresses from a contract index using the provided identifiers
      *      and initializes the distribution system.
      * @dev WARNING: distributionName must be less then 31 bytes long to comply with ShortStrings immutable format
-     * @param trustedForwarder Address of the trusted forwarder for meta-transactions (WARNING: Not yet reviewed)
      * @param rankTokenCodeId Identifier for the rank token implementation in CodeIndex
      * @param RankifyDIistributionId Identifier for the Rankify distribution implementation
      * @param accessManagerId Identifier for the access manager implementation
@@ -74,12 +87,12 @@ contract MAODistribution is IDistribution, CodeIndexer {
      * @param minParticipantsInCircle Minimum number of participants in a circle
      */
     constructor(
-        address trustedForwarder,
         address[] memory zkpVerifier,
         bytes32 rankTokenCodeId,
         bytes32 RankifyDIistributionId,
         bytes32 accessManagerId,
         bytes32 governanceERC20BaseId,
+        bytes32 DAOId,
         string memory distributionName,
         LibSemver.Version memory distributionVersion,
         uint256 minParticipantsInCircle
@@ -87,7 +100,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
         require(minParticipantsInCircle > 2, "minParticipantsInCircle must be greater than 2");
         _minParticipantsInCircle = minParticipantsInCircle;
 
-        _trustedForwarder = trustedForwarder;
         _distributionName = ShortStrings.toShortString(distributionName);
         _distributionVersion = LibSemver.toUint256(distributionVersion);
         _rankTokenBase = getContractsIndex().get(rankTokenCodeId);
@@ -121,16 +133,19 @@ contract MAODistribution is IDistribution, CodeIndexer {
         if (_accessManagerBase == address(0)) {
             revert("Access manager base not found");
         }
+        _DAO = getContractsIndex().get(DAOId);
+        if (_DAO == address(0)) {
+            revert("DAO base not found");
+        }
         require(
             ERC165Checker.supportsInterface(_accessManagerBase, type(IERC7746).interfaceId),
             "Access manager does not support IERC7746"
         );
     }
 
-    function createToken(TokenArguments memory args) internal returns (address[] memory instances, bytes32, uint256) {
+    function createOrg(GovernanceArgs memory args) internal returns (address[] memory instances, bytes32, uint256) {
         MintSettings memory mintSettings = MintSettings(args.preMintReceivers, args.preMintAmounts);
         address token = _governanceERC20Base.clone();
-        TokenSettings memory tokenSettings = TokenSettings(token, args.tokenName, args.tokenSymbol);
 
         SimpleAccessManager.SimpleAccessManagerInitializer[]
             memory govTokenAccessSettings = new SimpleAccessManager.SimpleAccessManagerInitializer[](1);
@@ -140,24 +155,35 @@ contract MAODistribution is IDistribution, CodeIndexer {
 
         SimpleAccessManager govTokenAccessManager = SimpleAccessManager(_accessManagerBase.clone());
 
-        govTokenAccessManager.initialize(govTokenAccessSettings, tokenSettings.addr, IDistributor(msg.sender)); // msg.sender must be IDistributor or it will revert
-        DistributableGovernanceERC20(tokenSettings.addr).initialize(
-            tokenSettings.name,
-            tokenSettings.symbol,
+        govTokenAccessManager.initialize(govTokenAccessSettings, token, IDistributor(msg.sender)); // msg.sender must be IDistributor or it will revert
+        DistributableGovernanceERC20(token).initialize(
+            args.tokenName,
+            args.tokenSymbol,
             mintSettings,
             address(govTokenAccessManager)
         );
 
-        address[] memory returnValue = new address[](2);
+        address payable governor = payable(_DAO.clone());
+        Governor(governor).initialize(
+            args.orgName,
+            DistributableGovernanceERC20(token),
+            args.votingDelay,
+            args.votingPeriod,
+            args.quorum
+        );
+
+        address[] memory returnValue = new address[](3);
         returnValue[0] = token;
         returnValue[1] = address(govTokenAccessManager);
+        returnValue[2] = governor;
 
         return (returnValue, "OSxDistribution", 1);
     }
 
     function createRankify(
         UserRankifySettings memory args,
-        address derivedToken
+        address derivedToken,
+        address governor
     ) internal returns (address[] memory instances, bytes32, uint256) {
         address rankToken = _rankTokenBase.clone();
 
@@ -200,7 +226,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
             args.rankTokenURI,
             args.rankTokenContractURI,
             address(rankTokenAccessManager),
-            args.owner
+            governor
         );
 
         (
@@ -215,7 +241,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
             principalTimeConstant: args.principalTimeConstant,
             minimumParticipantsInCircle: _minParticipantsInCircle,
             paymentToken: args.paymentToken,
-            beneficiary: args.owner,
+            beneficiary: governor,
             derivedToken: derivedToken,
             proposalIntegrityVerifier: _proposalIntegrityVerifier,
             poseidon5: _poseidon5,
@@ -228,12 +254,10 @@ contract MAODistribution is IDistribution, CodeIndexer {
             LibSemver.toString(LibSemver.parse(RankifyDistributionVersion)),
             RankifyInit
         );
-        address[] memory returnValue = new address[](RankifyDistrAddresses.length + 2);
-        for (uint256 i; i < RankifyDistrAddresses.length; ++i) {
-            returnValue[i] = RankifyDistrAddresses[i];
-        }
-        returnValue[RankifyDistrAddresses.length] = address(rankTokenAccessManager);
-        returnValue[RankifyDistrAddresses.length + 1] = rankToken;
+        address[] memory returnValue = new address[](3);
+        returnValue[0] = RankifyDistrAddresses[0]; // Diamond Proxy
+        returnValue[1] = address(rankTokenAccessManager);
+        returnValue[2] = rankToken;
 
         return (returnValue, RankifyDistributionName, RankifyDistributionVersion);
     }
@@ -244,15 +268,19 @@ contract MAODistribution is IDistribution, CodeIndexer {
      * @return instances An array of addresses representing the new instances.
      * @return distributionName A bytes32 value representing the name of the distribution.
      * @return distributionVersion A uint256 value representing the version of the distribution.
-     * @dev `instances` array contents: GovernanceToken, Gov Token AccessManager, Rankify Diamond, 8x Rankify Diamond facets, RankTokenAccessManager, RankToken
+     * @dev `instances` array contents: GovernanceToken, Gov Token AccessManager, Governor, Rankify Diamond proxy, RankTokenAccessManager, RankToken
      */
     function instantiate(
         bytes calldata data
     ) public override returns (address[] memory instances, bytes32 distributionName, uint256 distributionVersion) {
         DistributorArguments memory args = abi.decode(data, (DistributorArguments));
 
-        (address[] memory tokenInstances, , ) = createToken(args.tokenSettings);
-        (address[] memory RankifyInstances, , ) = createRankify(args.rankifySettings, tokenInstances[0]);
+        (address[] memory tokenInstances, , ) = createOrg(args.govSettings);
+        (address[] memory RankifyInstances, , ) = createRankify(
+            args.rankifySettings,
+            tokenInstances[0],
+            tokenInstances[2]
+        );
 
         address[] memory returnValue = new address[](tokenInstances.length + RankifyInstances.length);
 
@@ -271,11 +299,11 @@ contract MAODistribution is IDistribution, CodeIndexer {
 
     function get() external view returns (address[] memory sources, bytes32, uint256) {
         address[] memory srcs = new address[](5);
-        srcs[0] = address(_trustedForwarder);
-        srcs[1] = address(_rankTokenBase);
-        srcs[2] = address(_RankifyDistributionBase);
-        srcs[3] = address(_governanceERC20Base);
-        srcs[4] = address(_accessManagerBase);
+        srcs[0] = address(_rankTokenBase);
+        srcs[1] = address(_RankifyDistributionBase);
+        srcs[2] = address(_governanceERC20Base);
+        srcs[3] = address(_accessManagerBase);
+        srcs[4] = address(_DAO);
         return (srcs, ShortString.unwrap(_distributionName), _distributionVersion);
     }
 
@@ -286,5 +314,16 @@ contract MAODistribution is IDistribution, CodeIndexer {
      */
     function distributionSchema(DistributorArguments memory args) external pure returns (DistributorArguments memory) {
         return args;
+    }
+
+    function parseAppComponents(address[] memory appComponents) internal pure returns (MAOApp memory) {
+        MAOApp memory app;
+        app.governanceToken = DistributableGovernanceERC20(appComponents[0]);
+        app.govTokenManager = SimpleAccessManager(appComponents[1]);
+        app.DAO = IGovernor(appComponents[2]);
+        app.fellowship = IRankifyInstance(appComponents[3]);
+        app.rankTokenManager = SimpleAccessManager(appComponents[4]);
+        app.rankToken = RankToken(appComponents[5]);
+        return app;
     }
 }

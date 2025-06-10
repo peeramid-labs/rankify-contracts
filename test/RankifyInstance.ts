@@ -1,7 +1,7 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
+import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
 import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
 import { BigNumber, BigNumberish } from 'ethers';
@@ -22,6 +22,7 @@ import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { ProposalsIntegrity } from '../scripts/EnvironmentSimulator';
+import { parseInstantiated } from '../scripts/parseInstantiated';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
@@ -39,6 +40,7 @@ let votersAddresses: string[];
 let rankifyInstance: RankifyDiamondInstance;
 let rankToken: RankToken;
 let govtToken: DistributableGovernanceERC20;
+let governor: Governor;
 
 const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAccounts, ethers }, options) => {
   const setup = await setupTest();
@@ -53,11 +55,15 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   const oSigner = await ethers.getSigner(owner);
   console.log('oSigner', oSigner.address);
   const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
-    tokenSettings: {
+    govSettings: {
       tokenName: 'tokenName',
       tokenSymbol: 'tokenSymbol',
       preMintAmounts: [ethers.utils.parseEther('100')],
       preMintReceivers: [oSigner.address],
+      orgName: 'orgName',
+      votingDelay: 3600,
+      votingPeriod: 3600,
+      quorum: 51,
     },
     rankifySettings: {
       paymentToken: env.rankifyToken.address,
@@ -65,7 +71,6 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
       rankTokenURI: 'https://example.com/rank',
       principalCost: constantParams.PRINCIPAL_COST,
       principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
-      owner,
     },
   };
   const data = generateDistributorData(distributorArguments);
@@ -86,12 +91,12 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   const evts = await env.distributor.queryFilter(filter);
   rankifyInstance = (await ethers.getContractAt(
     'RankifyDiamondInstance',
-    evts[0].args.instances[2],
+    parseInstantiated(evts[0].args.instances).ACIDInstance,
   )) as RankifyDiamondInstance;
 
   govtToken = (await ethers.getContractAt(
     'DistributableGovernanceERC20',
-    evts[0].args.instances[0],
+    parseInstantiated(evts[0].args.instances).govToken,
   )) as DistributableGovernanceERC20;
 
   await env.rankifyToken.connect(adr.gameCreator1.wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
@@ -108,7 +113,10 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   await env.rankifyToken.connect(adr.players[8].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
   await env.rankifyToken.connect(adr.players[9].wallet).approve(rankifyInstance.address, ethers.constants.MaxUint256);
 
-  rankToken = (await ethers.getContractAt('RankToken', evts[0].args.instances[11])) as RankToken;
+  rankToken = (await ethers.getContractAt(
+    'RankToken',
+    parseInstantiated(evts[0].args.instances).rankToken,
+  )) as RankToken;
   const requirement: LibCoinVending.ConfigPositionStruct = {
     ethValues: {
       have: ethers.utils.parseEther('0.1'),
@@ -119,6 +127,8 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
     },
     contracts: [],
   };
+  governor = (await ethers.getContractAt('Governor', parseInstantiated(evts[0].args.instances).governor)) as Governor;
+  console.log('governor', governor.address);
   requirement.contracts = [];
   requirement.contracts.push({
     contractAddress: env.mockERC20.address,
@@ -159,7 +169,18 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   });
   const simulator = new EnvironmentSimulator(hre, env, adr, rankifyInstance, rankToken);
 
-  return { requirement, ethers, getNamedAccounts, adr, env, simulator, rankifyInstance, govtToken, rankToken };
+  return {
+    requirement,
+    ethers,
+    getNamedAccounts,
+    adr,
+    env,
+    simulator,
+    rankifyInstance,
+    govtToken,
+    governor,
+    rankToken,
+  };
 });
 const setupFirstRankTest = (simulator: EnvironmentSimulator) =>
   deployments.createFixture(async () => {
@@ -502,11 +523,10 @@ describe(scriptName, () => {
     eth = setup.ethers;
   });
   it('Has correct initial settings', async () => {
-    const { DAO } = await hre.getNamedAccounts();
     const state = await rankifyInstance.connect(adr.gameCreator1.wallet).getContractState();
     expect(state.commonParams.principalTimeConstant).to.be.equal(PRINCIPAL_TIME_CONSTANT);
     expect(state.commonParams.principalCost).to.be.equal(PRINCIPAL_COST);
-    expect(state.commonParams.beneficiary).to.be.equal(DAO);
+    expect(state.commonParams.beneficiary).to.be.equal(governor.address);
     expect(state.commonParams.rankTokenAddress).to.be.equal(rankToken.address);
   });
   it('Ownership is renounced', async () => {
@@ -724,11 +744,10 @@ describe(scriptName, () => {
           votePhaseDuration: RInstance_TIME_PER_TURN / 2,
           proposingPhaseDuration: RInstance_TIME_PER_TURN - RInstance_TIME_PER_TURN / 2,
         };
-        const { DAO } = await getNamedAccounts();
         const totalSupplyBefore = await env.rankifyToken.totalSupply();
         await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createGame(params)).changeTokenBalances(
           env.rankifyToken,
-          [adr.gameCreator1.wallet.address, DAO],
+          [adr.gameCreator1.wallet.address, governor.address],
           [expectedPrice.mul(-1), expectedPrice],
         );
         expect(await env.rankifyToken.totalSupply()).to.be.equal(totalSupplyBefore);
@@ -1212,7 +1231,7 @@ describe(scriptName, () => {
               gm: adr.gameMaster1,
               idlers: players.map((p, i) => i),
             });
-            expect(await rankifyInstance.getTurn(1)).to.be.equal(2);
+            expect(await rankifyInstance.getTurn(1)).to.be.equal(3);
             expect(await rankifyInstance.getPlayerVotedArray(1)).to.deep.equal([false, false, false]);
             const newestVotes = await simulator.mockValidVotes(
               players,
