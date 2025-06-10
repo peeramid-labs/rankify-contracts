@@ -539,6 +539,7 @@ library LibTBG {
         state.phaseStartedAt = block.timestamp;
         state.phase = 0;
         state.startedAt = block.timestamp;
+        state.leaderboard = new address[](state.players.length());
         _resetPlayerStates(state);
 
         // Initialize all players as active
@@ -547,6 +548,7 @@ library LibTBG {
         for (uint256 i = 0; i < playerCount; i++) {
             address player = state.players.at(i);
             state.isActive[player] = true;
+            state.leaderboard[i] = player;
         }
     }
 
@@ -978,6 +980,9 @@ library LibTBG {
      */
     function sortByScore(uint256 gameId) internal view returns (address[] memory, uint256[] memory) {
         (address[] memory players, uint256[] memory scores) = getScores(gameId);
+        if (players.length == 0) {
+            return (players, scores);
+        }
         _quickSort(players, scores, 0, int256(scores.length - 1));
         return (players, scores);
     }
