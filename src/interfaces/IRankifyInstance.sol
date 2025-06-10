@@ -24,9 +24,9 @@ interface IRankifyInstance {
     event PlayerJoined(uint256 indexed gameId, address indexed participant, bytes32 gmCommitment, string voterPubKey);
     event GameStarted(uint256 indexed gameId);
     event gameCreated(
-        uint256 gameId, 
-        address indexed gm, 
-        address indexed creator, 
+        uint256 gameId,
+        address indexed gm,
+        address indexed creator,
         uint256 indexed rank,
         uint256 proposingPhaseDuration,
         uint256 votePhaseDuration
@@ -36,7 +36,12 @@ interface IRankifyInstance {
     event RankTokenExited(address indexed player, uint256 rankId, uint256 amount, uint256 _toMint);
     event RequirementsConfigured(uint256 indexed gameId, LibCoinVending.ConfigPosition config);
     event StaleGameEnded(uint256 indexed gameId, address winner);
-    event ProposingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber, uint256 numProposals, string[] proposals);
+    event ProposingStageEnded(
+        uint256 indexed gameId,
+        uint256 indexed roundNumber,
+        uint256 numProposals,
+        string[] proposals
+    );
 
     struct NewGameParamsInput {
         uint256 gameRank;
