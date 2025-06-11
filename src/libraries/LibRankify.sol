@@ -39,7 +39,7 @@ library LibRankify {
      * @param principalTimeConstant Time constant used for game duration calculations
      * @param gamePaymentToken Address of the token used for game payments
      * @param rankTokenAddress Address of the rank token contract
-     * @param beneficiary Address that receives a portion of game fees
+     * @param beneficiary Address that receives game fees
      * @param minimumParticipantsInCircle Minimum number of participants required to join a game
      */
     struct CommonParams {
@@ -247,13 +247,8 @@ library LibRankify {
             "Min game time out of bounds"
         );
         require(commonParams.minimumParticipantsInCircle <= params.minPlayerCnt, "Min player count too low");
-        uint256 principalGamePrice = getGamePrice(params.minGameTime, commonParams);
-        uint256 burnAmount = Math.mulDiv(principalGamePrice, 9, 10);
-        uint256 daoAmount = principalGamePrice - burnAmount;
+        uint256 gamePrice = getGamePrice(params.minGameTime, commonParams);
         address beneficiary = commonParams.beneficiary;
-
-        Rankify(commonParams.gamePaymentToken).burnFrom(params.creator, burnAmount);
-        Rankify(commonParams.gamePaymentToken).transferFrom(params.creator, beneficiary, daoAmount);
 
         require(params.gameRank != 0, IRankifyInstance.RankNotSpecified());
 
@@ -262,6 +257,7 @@ library LibRankify {
         game.rank = params.gameRank;
         game.minGameTime = params.minGameTime;
 
+        Rankify(commonParams.gamePaymentToken).transferFrom(params.creator, beneficiary, gamePrice);
         IRankToken rankTokenContract = IRankToken(state.commonParams.rankTokenAddress);
         rankTokenContract.mint(address(this), 1, params.gameRank + 1, "");
     }

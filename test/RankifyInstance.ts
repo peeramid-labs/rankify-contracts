@@ -676,7 +676,6 @@ describe(scriptName, () => {
       const finalBeneficiaryBalance = await env.rankifyToken.balanceOf(
         await rankifyInstance.getContractState().then(s => s.commonParams.beneficiary),
       );
-      const finalTotalSupply = await env.rankifyToken.totalSupply();
 
       // Check creator's balance is reduced by game cost
       expect(finalCreatorBalance).to.equal(
@@ -685,15 +684,11 @@ describe(scriptName, () => {
       );
 
       // Check beneficiary receives 10% of game cost
-      const beneficiaryShare = gamePrice.mul(10).div(100);
-      expect(finalBeneficiaryBalance).to.equal(
-        initialBeneficiaryBalance.add(beneficiaryShare),
-        'Beneficiary should receive 10% of game cost',
-      );
 
-      // Check 90% of game cost is burned
-      const burnedAmount = gamePrice.mul(90).div(100);
-      expect(finalTotalSupply).to.equal(initialTotalSupply.sub(burnedAmount), '90% of game cost should be burned');
+      expect(finalBeneficiaryBalance).to.equal(
+        initialBeneficiaryBalance.add(gamePrice),
+        'Beneficiary should receive 100% of game cost',
+      );
     });
     it('can get game state', async () => {
       const state = await rankifyInstance.getGameState(1);
@@ -746,9 +741,9 @@ describe(scriptName, () => {
         await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createGame(params)).changeTokenBalances(
           env.rankifyToken,
           [adr.gameCreator1.wallet.address, governor.address],
-          [expectedPrice.mul(-1), expectedPrice.mul(10).div(100)],
+          [expectedPrice.mul(-1), expectedPrice],
         );
-        expect(await env.rankifyToken.totalSupply()).to.be.equal(totalSupplyBefore.sub(expectedPrice.mul(90).div(100)));
+        expect(await env.rankifyToken.totalSupply()).to.be.equal(totalSupplyBefore);
         // Get actual game price
         const actualPrice = await rankifyInstance.estimateGamePrice(testCase.minGameTime);
 
