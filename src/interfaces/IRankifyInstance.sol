@@ -23,7 +23,14 @@ interface IRankifyInstance {
     event RegistrationOpen(uint256 indexed gameId);
     event PlayerJoined(uint256 indexed gameId, address indexed participant, bytes32 gmCommitment, string voterPubKey);
     event GameStarted(uint256 indexed gameId);
-    event gameCreated(uint256 gameId, address indexed gm, address indexed creator, uint256 indexed rank);
+    event gameCreated(
+        uint256 gameId,
+        address indexed gm,
+        address indexed creator,
+        uint256 indexed rank,
+        uint256 proposingPhaseDuration,
+        uint256 votePhaseDuration
+    );
     event GameClosed(uint256 indexed gameId);
     event PlayerLeft(uint256 indexed gameId, address indexed player);
     event RankTokenExited(address indexed player, uint256 rankId, uint256 amount, uint256 _toMint);

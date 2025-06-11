@@ -68,7 +68,14 @@ contract RankifyInstanceMainFacet is
 
         LibRankify.newGame(params);
         LibCoinVending.configure(bytes32(params.gameId), requirements);
-        emit gameCreated(params.gameId, params.gameMaster, msg.sender, params.gameRank);
+        emit gameCreated(
+            params.gameId,
+            params.gameMaster,
+            msg.sender,
+            params.gameRank,
+            params.proposingPhaseDuration,
+            params.votePhaseDuration
+        );
         return params.gameId;
     }
 
