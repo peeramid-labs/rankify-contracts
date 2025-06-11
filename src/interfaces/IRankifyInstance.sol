@@ -72,5 +72,6 @@ interface IRankifyInstance {
         uint256 votePhaseDuration;
         uint256 proposingPhaseDuration;
         uint256 phaseStartedAt;
+        uint256 startedAt;
     }
 }
