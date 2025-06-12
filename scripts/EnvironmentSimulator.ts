@@ -584,6 +584,7 @@ class EnvironmentSimulator {
     players,
     distribution,
     idlers,
+    voteHimself,
   }: {
     gameId: BigNumberish;
     turn: BigNumberish;
@@ -592,6 +593,7 @@ class EnvironmentSimulator {
     players: SignerIdentity[];
     distribution: 'ftw' | 'semiUniform' | 'equal' | 'zeros';
     idlers?: number[];
+    voteHimself?: boolean[];
   }): Promise<MockVote[]> => {
     const chainId = await this.hre.getChainId();
     const eip712 = await verifier.inspectEIP712Hashes();
@@ -603,6 +605,9 @@ class EnvironmentSimulator {
       gm,
       size: players.length,
     });
+    if (voteHimself && voteHimself.length > 0 && distribution !== 'ftw') {
+      throw new Error('voteHimself is only supported for ftw distribution');
+    }
     const votes: MockVote[] = [];
     for (let k = 0; k < players.length; k++) {
       if (!idlers || !idlers.includes(k)) {
@@ -615,7 +620,7 @@ class EnvironmentSimulator {
           //   this is on smart contract -> votesSorted[proposer][permutation[candidate]] = votes[proposer][candidate];
           //   We need to prepare votes to be permuted so that sorting produces winner at minimal index k (skipping voting for himself)
           const votesToPermute = players.map((proposer, idx) => {
-            if (k !== idx) {
+            if (k !== idx || (voteHimself && voteHimself.length > idx && voteHimself[idx])) {
               const voteWeight = Math.floor(Math.sqrt(creditsLeft));
               creditsLeft -= voteWeight * voteWeight;
               return voteWeight;

@@ -1448,6 +1448,58 @@ describe(scriptName, () => {
                 ),
               ).to.be.emit(rankifyInstance, 'ProposingStageEnded');
             });
+            it('cannot vote for himself', async () => {
+              const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
+              await rankifyInstance.connect(adr.gameMaster1).endProposing(
+                1,
+                await simulator
+                  .getProposalsIntegrity({
+                    players: getPlayers(adr, playersCnt),
+                    gameId: 1,
+                    turn: 1,
+                    gm: adr.gameMaster1,
+                    proposalSubmissionData: proposals,
+                  })
+                  .then(r => r.newProposals),
+              );
+
+              const votes = await simulator.mockVotes({
+                gameId: 1,
+                turn: 1,
+                verifier: rankifyInstance,
+                players: getPlayers(adr, playersCnt),
+                gm: adr.gameMaster1,
+                distribution: 'ftw',
+                voteHimself: [true],
+              });
+              for (let i = 0; i < votes.length; i++) {
+                await rankifyInstance
+                  .connect(adr.gameMaster1)
+                  .submitVote(
+                    1,
+                    votes[i].ballotId,
+                    adr.players[i].wallet.address,
+                    votes[i].gmSignature,
+                    votes[i].voterSignature,
+                    votes[i].ballotHash,
+                  );
+              }
+              const integrity = await simulator.getProposalsIntegrity({
+                players: getPlayers(adr, playersCnt),
+                gameId: 1,
+                turn: 1,
+                gm: adr.gameMaster1,
+                proposalSubmissionData: proposals,
+              });
+              await expect(
+                rankifyInstance.connect(adr.gameMaster1).endVoting(
+                  1,
+                  votes.map(vote => vote.ballot.vote),
+                  integrity.permutation,
+                  integrity.nullifier,
+                ),
+              ).to.be.revertedWith('voted for himself');
+            });
             describe('When there is one vote missing', () => {
               let votesOneMissing: MockVote[];
 
