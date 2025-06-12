@@ -190,7 +190,7 @@ export const constantParams = {
   RInstance_VOTE_CREDITS: 5,
   RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
-  RInstance_MIN_GAME_TIME: 360,
+  RInstance_MIN_GAME_TIME: 10000,
   PRINCIPAL_COST: utils.parseUnits('1', 9),
 };
 class EnvironmentSimulator {

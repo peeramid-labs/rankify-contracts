@@ -8,6 +8,7 @@ import { BigNumber, BigNumberish } from 'ethers';
 import { assert } from 'console';
 import addDistribution from '../scripts/addDistribution';
 import hre from 'hardhat';
+
 const path = require('path');
 
 const scriptName = path.basename(__filename);
@@ -198,7 +199,7 @@ const setupFirstRankTest = (simulator: EnvironmentSimulator) =>
     // Get common params for price calculation
     const { commonParams } = await rankifyInstance.getContractState();
     const { principalTimeConstant } = commonParams;
-    const minGameTime = principalTimeConstant; // Using same value for simplicity
+    const minGameTime = constantParams.RInstance_MIN_GAME_TIME; // Using same value for simplicity
     gamePrice = commonParams.principalCost.mul(principalTimeConstant).div(minGameTime);
 
     // Create the game
@@ -693,7 +694,7 @@ describe(scriptName, () => {
     it('can get game state', async () => {
       const state = await rankifyInstance.getGameState(1);
       expect(state.rank).to.be.equal(1);
-      expect(state.minGameTime).to.be.equal(PRINCIPAL_TIME_CONSTANT);
+      expect(state.minGameTime).to.be.equal(constantParams.RInstance_MIN_GAME_TIME);
       expect(state.createdBy).to.be.equal(adr.gameCreator1.wallet.address);
       expect(state.numCommitments).to.be.equal(0);
       expect(state.numVotes).to.be.equal(0);
@@ -1057,6 +1058,47 @@ describe(scriptName, () => {
               //   expect(winner).to.be.equal(adr.players[1].wallet.address);
             });
           });
+          it('Proposing stage checks', async () => {
+            const canEnd = await rankifyInstance.canEndProposingStage(1);
+            expect(canEnd[0]).to.be.equal(false);
+            expect(canEnd[1]).to.be.equal(3); // PhaseConditionsNotMet
+            await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
+            const canEnd2 = await rankifyInstance.canEndProposingStage(1);
+            expect(canEnd2[0]).to.be.equal(false);
+            expect(canEnd2[1]).to.be.equal(1); // MinProposalsNotMetAndNotStale
+            await time.increase(Number(RInstance_MIN_GAME_TIME) + 2);
+            const canEnd3 = await rankifyInstance.canEndProposingStage(1);
+            expect(canEnd3[0]).to.be.equal(false);
+            expect(canEnd3[1]).to.be.equal(2); // GameIsStaleAndCanEnd
+            const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
+            const players = getPlayers(adr, playersCnt);
+            let proposals = await simulator.mockProposals({
+              players,
+              gameMaster: adr.gameMaster1,
+              gameId: 1,
+              submitNow: true,
+              idlers: [0],
+            });
+            const canEnd4 = await rankifyInstance.canEndProposingStage(1);
+            expect(canEnd4[0]).to.be.equal(true);
+            expect(canEnd4[1]).to.be.equal(0); // Success
+            await rankifyInstance.connect(adr.gameMaster1).endProposing(
+              1,
+              await simulator
+                .getProposalsIntegrity({
+                  players,
+                  gameId: 1,
+                  turn: 1,
+                  gm: adr.gameMaster1,
+                  idlers: [0],
+                  proposalSubmissionData: proposals,
+                })
+                .then(r => r.newProposals),
+            );
+            const canEnd5 = await rankifyInstance.canEndProposingStage(1);
+            expect(canEnd5[0]).to.be.equal(false);
+            expect(canEnd5[1]).to.be.equal(4); // NotInProposingStage
+          });
           it('Can finish turn early if previous turn participant did not made a move', async () => {
             const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
             const players = getPlayers(adr, playersCnt);
@@ -1304,7 +1346,9 @@ describe(scriptName, () => {
             await expect(simulator.endTurn({ gameId: 1, votes, proposals })).to.be.revertedWith(
               'Game duration less than minimum required time',
             );
-            await time.setNextBlockTimestamp((await time.latest()) + RInstance_MIN_GAME_TIME - 100);
+            await time.setNextBlockTimestamp(
+              (await time.latest()) + RInstance_MIN_GAME_TIME - RInstance_TIME_PER_TURN - 100,
+            );
             await expect(simulator.endTurn({ gameId: 1, votes, proposals })).to.be.revertedWith(
               'Game duration less than minimum required time',
             );

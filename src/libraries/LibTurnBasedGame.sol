@@ -371,17 +371,6 @@ library LibTBG {
         return activePlayersNotMoved == 0 || canTransitionPhase(gameId);
     }
 
-    /**
-     * @dev Modifier that requires the current turn in a game with the provided game ID to be able to end. `gameId` is the ID of the game.
-     *
-     * Requirements:
-     *
-     * - The current turn in the game with `gameId` must be able to end.
-     */
-    modifier onlyInTime(uint256 gameId) {
-        require(isTimeout(gameId) == false, "onlyInTime -> turn timeout");
-        _;
-    }
 
     modifier onlyWhenTurnCanEnd(uint256 gameId) {
         require(
@@ -687,7 +676,7 @@ library LibTBG {
      * - Sets the madeMove of `player` in the game with `gameId` to true.
      * - Increments the numPlayersMadeMove of the game with `gameId`.
      */
-    function playerMove(uint256 gameId, address player) internal onlyInTime(gameId) {
+    function playerMove(uint256 gameId, address player) internal {
         State storage state = _getState(gameId);
         enforceHasStarted(gameId);
         enforceIsNotOver(gameId);
