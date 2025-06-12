@@ -371,7 +371,6 @@ library LibTBG {
         return activePlayersNotMoved == 0 || canTransitionPhase(gameId);
     }
 
-
     modifier onlyWhenTurnCanEnd(uint256 gameId) {
         require(
             canTransitionPhase(gameId) == true,
