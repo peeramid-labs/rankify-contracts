@@ -68,7 +68,14 @@ contract RankifyInstanceMainFacet is
 
         LibRankify.newGame(params);
         LibCoinVending.configure(bytes32(params.gameId), requirements);
-        emit gameCreated(params.gameId, params.gameMaster, msg.sender, params.gameRank);
+        emit gameCreated(
+            params.gameId,
+            params.gameMaster,
+            msg.sender,
+            params.gameRank,
+            params.proposingPhaseDuration,
+            params.votePhaseDuration
+        );
         return params.gameId;
     }
 
@@ -330,8 +337,9 @@ contract RankifyInstanceMainFacet is
      * @param gameId The ID of the game.
      * @return bool Whether the proposing stage can end.
      */
-    function canEndProposingStage(uint256 gameId) public view returns (bool) {
-        return LibRankify.canEndProposing(gameId);
+    function canEndProposingStage(uint256 gameId) public view returns (bool, ProposingEndStatus) {
+        ProposingEndStatus status = LibRankify.canEndProposing(gameId);
+        return (status == ProposingEndStatus.Success, status);
     }
 
     /**
@@ -515,6 +523,11 @@ contract RankifyInstanceMainFacet is
 
     function isActive(uint256 gameId, address player) public view returns (bool) {
         return gameId.isActive(player);
+    }
+
+    function madeMove(uint256 gameId, address player) public view returns (bool) {
+        LibTBG.State storage turnState = LibTBG._getState(gameId);
+        return turnState.madeMove[player];
     }
 
     function exitRankToken(uint256 rankId, uint256 amount) external {

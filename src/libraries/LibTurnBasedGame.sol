@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
 // import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -372,18 +371,6 @@ library LibTBG {
         return activePlayersNotMoved == 0 || canTransitionPhase(gameId);
     }
 
-    /**
-     * @dev Modifier that requires the current turn in a game with the provided game ID to be able to end. `gameId` is the ID of the game.
-     *
-     * Requirements:
-     *
-     * - The current turn in the game with `gameId` must be able to end.
-     */
-    modifier onlyInTime(uint256 gameId) {
-        require(isTimeout(gameId) == false, "onlyInTime -> turn timeout");
-        _;
-    }
-
     modifier onlyWhenTurnCanEnd(uint256 gameId) {
         require(
             canTransitionPhase(gameId) == true,
@@ -540,6 +527,7 @@ library LibTBG {
         state.phaseStartedAt = block.timestamp;
         state.phase = 0;
         state.startedAt = block.timestamp;
+        state.leaderboard = new address[](state.players.length());
         _resetPlayerStates(state);
 
         // Initialize all players as active
@@ -548,6 +536,7 @@ library LibTBG {
         for (uint256 i = 0; i < playerCount; i++) {
             address player = state.players.at(i);
             state.isActive[player] = true;
+            state.leaderboard[i] = player;
         }
     }
 
@@ -686,7 +675,7 @@ library LibTBG {
      * - Sets the madeMove of `player` in the game with `gameId` to true.
      * - Increments the numPlayersMadeMove of the game with `gameId`.
      */
-    function playerMove(uint256 gameId, address player) internal onlyInTime(gameId) {
+    function playerMove(uint256 gameId, address player) internal {
         State storage state = _getState(gameId);
         enforceHasStarted(gameId);
         enforceIsNotOver(gameId);
@@ -695,8 +684,6 @@ library LibTBG {
         require(tbg.playerInGames[player].contains(gameId), "is not in the game");
         state.madeMove[player] = true;
         state.numPlayersMadeMove += 1;
-
-        // Set player as active when they make a move
         state.isActive[player] = true;
     }
 
@@ -981,6 +968,9 @@ library LibTBG {
      */
     function sortByScore(uint256 gameId) internal view returns (address[] memory, uint256[] memory) {
         (address[] memory players, uint256[] memory scores) = getScores(gameId);
+        if (players.length == 0) {
+            return (players, scores);
+        }
         _quickSort(players, scores, 0, int256(scores.length - 1));
         return (players, scores);
     }
