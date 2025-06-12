@@ -309,7 +309,7 @@ contract RankifyInstanceMainFacet is
      * @dev Returns the current state of the contract
      * @return LibRankify.InstanceState The current state of the contract
      */
-    function getContractState() public pure returns (LibRankify.InstanceState memory) {
+    function getContractState() public view returns (LibRankify.InstanceState memory) {
         LibRankify.InstanceState memory state = LibRankify.instanceState();
         return state;
     }
