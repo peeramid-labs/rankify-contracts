@@ -184,6 +184,21 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log('GovernanceToken already registered in CodeIndex');
   }
 
+  const governorDeployment = await deploy('Governor', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+  });
+
+  const governorDeploymentCode = await hre.ethers.provider.getCode(governorDeployment.address);
+  const governorDeploymentCodeId = ethers.utils.keccak256(governorDeploymentCode);
+  const governorDeploymentCodeIdAddress = await codeIndexContract.get(governorDeploymentCodeId);
+  if (governorDeploymentCodeIdAddress === ethers.constants.AddressZero) {
+    log('Registering Governor in CodeIndex...');
+    await (await codeIndexContract.register(governorDeployment.address)).wait(1);
+  } else {
+    log('Governor already registered in CodeIndex');
+  }
+
   const pc = poseidonContract;
   const ph5 = await deploy('Poseidon5', {
     from: deployer,
@@ -206,12 +221,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     from: deployer,
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
     args: [
-      _trustedForwarder,
       [proposalIntegrity18Groth16VerifierDeployment.address, ph5.address, ph6.address, ph2.address],
       rankTokenCodeId,
       arguableVotingTournamentCodeId,
       accessManagerId,
       govTokenDeploymentCodeId,
+      governorDeploymentCodeId,
       _distributionName, // These could be other, currently duplicates with dependency, good as long as not used
       _distributionVersion,
       constantParams.RInstance_MIN_PLAYERS,

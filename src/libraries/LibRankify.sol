@@ -5,7 +5,6 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import "../tokens/Rankify.sol";
 import {LibQuadraticVoting} from "./LibQuadraticVoting.sol";
-import "hardhat/console.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
@@ -40,7 +39,7 @@ library LibRankify {
      * @param principalTimeConstant Time constant used for game duration calculations
      * @param gamePaymentToken Address of the token used for game payments
      * @param rankTokenAddress Address of the rank token contract
-     * @param beneficiary Address that receives a portion of game fees
+     * @param beneficiary Address that receives game fees
      * @param minimumParticipantsInCircle Minimum number of participants required to join a game
      */
     struct CommonParams {
@@ -248,13 +247,8 @@ library LibRankify {
             "Min game time out of bounds"
         );
         require(commonParams.minimumParticipantsInCircle <= params.minPlayerCnt, "Min player count too low");
-        uint256 principalGamePrice = getGamePrice(params.minGameTime, commonParams);
-        uint256 burnAmount = Math.mulDiv(principalGamePrice, 9, 10);
-        uint256 daoAmount = principalGamePrice - burnAmount;
+        uint256 gamePrice = getGamePrice(params.minGameTime, commonParams);
         address beneficiary = commonParams.beneficiary;
-
-        Rankify(commonParams.gamePaymentToken).burnFrom(params.creator, burnAmount);
-        Rankify(commonParams.gamePaymentToken).transferFrom(params.creator, beneficiary, daoAmount);
 
         require(params.gameRank != 0, IRankifyInstance.RankNotSpecified());
 
@@ -263,6 +257,7 @@ library LibRankify {
         game.rank = params.gameRank;
         game.minGameTime = params.minGameTime;
 
+        Rankify(commonParams.gamePaymentToken).transferFrom(params.creator, beneficiary, gamePrice);
         IRankToken rankTokenContract = IRankToken(state.commonParams.rankTokenAddress);
         rankTokenContract.mint(address(this), 1, params.gameRank + 1, "");
     }
@@ -537,11 +532,48 @@ library LibRankify {
     /**
      * @dev Checks if the current proposing stage can end.
      * A proposing stage can end if it's a proposing stage and all players have made their move (committed proposals)
-     * or the time for the stage has run out.
+     * or the time for the stage has run out, subject to minimum proposal and stale game rules.
+     * Returns a status indicating whether and how the proposing stage can end.
      */
-    function canEndProposing(uint256 gameId) internal view returns (bool) {
+    function canEndProposing(uint256 gameId) internal view returns (IRankifyInstance.ProposingEndStatus) {
         enforceGameExists(gameId);
-        return isProposingStage(gameId) && gameId.canTransitionPhaseEarly();
+        if (!isProposingStage(gameId)) {
+            return IRankifyInstance.ProposingEndStatus.NotProposingStage;
+        }
+        LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
+        LibTBG.State storage tbgState = tbgInstanceState.state;
+        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
+        GameState storage game = getGameState(gameId);
+
+        bool canTransitionBasicTBG = gameId.canTransitionPhaseEarly();
+
+        if (canTransitionBasicTBG) {
+            // Check if transition is due to timeout or all players moved
+            bool allPlayersMoved = tbgState.numPlayersMadeMove == game.numCommitments;
+            bool phaseTimedOut = block.timestamp >= tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0]; // Proposing is phase 0
+
+            if (game.numCommitments >= game.voting.minQuadraticPositions) {
+                return IRankifyInstance.ProposingEndStatus.Success;
+            }
+            // If not enough proposals:
+            bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
+            if (minGameTimeReached) {
+                // Even if proposals are insufficient, if minGameTime is met and phase can end by TBG rules (timeout/all_moved),
+                // it's considered stale and can proceed (but facet will revert as it needs Success)
+                return IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd;
+            }
+            // If minGameTime not reached, and not enough proposals, and phase timed out (or all moved without enough proposals)
+            if (phaseTimedOut || allPlayersMoved) {
+                // All moved but not enough proposals is a specific type of not met
+                return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+            }
+            // This case should ideally be covered by PhaseConditionsNotMet if canTransitionBasicTBG was false initially
+            // or if canTransitionBasicTBG was true only because of allPlayersMoved but minProposals not met (and not stale)
+            // This logic path might need refinement to ensure all conditions map to an enum state clearly.
+            // For now, if it got here, it means minProposalsNotMet and not stale.
+            return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+        }
+        return IRankifyInstance.ProposingEndStatus.PhaseConditionsNotMet;
     }
 
     /**
@@ -570,18 +602,20 @@ library LibRankify {
         address[] memory players = gameId.getPlayers();
         uint256[] memory gameScores = new uint256[](players.length);
         bool[] memory playerVoted = new bool[](players.length);
+        bool[] memory playerProposed = new bool[](players.length);
         address winner = address(0);
         uint256 maxScore = 0;
         GameState storage game = getGameState(gameId);
         isActive = new bool[](players.length);
         // Convert mapping to array to pass it to libQuadratic
         for (uint256 i = 0; i < players.length; ++i) {
-            isActive[i] = gameId._getState().isActive[players[i]];
-            playerVoted[i] = isActive[i];
+            playerVoted[i] = game.playerVoted[players[i]];
+            playerProposed[i] = game.proposalCommitment[players[i]] != 0;
         }
         (uint256[] memory roundScores, uint256[][] memory finalizedVotingMatrix) = game.voting.tallyVotes(
             votesRevealed,
-            playerVoted
+            playerVoted,
+            playerProposed
         );
         for (uint256 playerIdx = 0; playerIdx < players.length; playerIdx++) {
             //for each player
@@ -608,5 +642,50 @@ library LibRankify {
 
     function isProposingStage(uint256 gameId) internal view returns (bool) {
         return LibTBG.getPhase(gameId) == 0;
+    }
+
+    /**
+     * @dev Checks if a game is in a state where it can be forcibly ended due to being stale.
+     * Conditions for being stale for forced end:
+     * 1. Game exists and is not already over.
+     * 2. Minimum game time has been reached.
+     * 3. Game is stuck in the proposing stage:
+     *    a. Proposing phase has timed out.
+     *    b. Not all active players have made their move (committed proposals).
+     *    c. The number of submitted proposals is less than minQuadraticPositions.
+     * @param gameId The ID of the game.
+     * @return bool True if the game is stale and can be forcibly ended, false otherwise.
+     */
+    function isGameStaleForForcedEnd(uint256 gameId) internal view returns (bool) {
+        enforceGameExists(gameId);
+        if (LibTBG.isGameOver(gameId)) {
+            return false; // Already over
+        }
+
+        LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
+        LibTBG.State storage tbgState = tbgInstanceState.state;
+        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
+        GameState storage game = getGameState(gameId);
+
+        bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
+        if (!minGameTimeReached) {
+            return false;
+        }
+
+        // Check if stuck in proposing stage
+        if (isProposingStage(gameId)) {
+            bool proposingPhaseTimedOut = block.timestamp >=
+                tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0];
+            bool notAllActivePlayersMoved = tbgState.numPlayersMadeMove < tbgState.numActivePlayers;
+            bool minProposalsNotMet = game.numCommitments < game.voting.minQuadraticPositions;
+
+            if (proposingPhaseTimedOut && notAllActivePlayersMoved && minProposalsNotMet) {
+                return true;
+            }
+        }
+
+        // Potentially add conditions for being stuck in voting if other scenarios arise in the future
+
+        return false;
     }
 }

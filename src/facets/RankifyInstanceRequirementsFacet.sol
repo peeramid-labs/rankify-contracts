@@ -76,7 +76,8 @@ contract RankifyInstanceRequirementsFacet {
             phase: tbgInstanceState.state.phase,
             proposingPhaseDuration: tbgInstanceState.settings.turnPhaseDurations[0],
             votePhaseDuration: tbgInstanceState.settings.turnPhaseDurations[1],
-            phaseStartedAt: tbgInstanceState.state.phaseStartedAt
+            phaseStartedAt: tbgInstanceState.state.phaseStartedAt,
+            startedAt: tbgInstanceState.state.startedAt
         });
     }
 }

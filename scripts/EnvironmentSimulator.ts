@@ -190,7 +190,7 @@ export const constantParams = {
   RInstance_VOTE_CREDITS: 5,
   RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
-  RInstance_MIN_GAME_TIME: 360,
+  RInstance_MIN_GAME_TIME: 10000,
   PRINCIPAL_COST: utils.parseUnits('1', 9),
 };
 class EnvironmentSimulator {
@@ -584,6 +584,7 @@ class EnvironmentSimulator {
     players,
     distribution,
     idlers,
+    voteHimself,
   }: {
     gameId: BigNumberish;
     turn: BigNumberish;
@@ -592,6 +593,7 @@ class EnvironmentSimulator {
     players: SignerIdentity[];
     distribution: 'ftw' | 'semiUniform' | 'equal' | 'zeros';
     idlers?: number[];
+    voteHimself?: boolean[];
   }): Promise<MockVote[]> => {
     const chainId = await this.hre.getChainId();
     const eip712 = await verifier.inspectEIP712Hashes();
@@ -603,6 +605,9 @@ class EnvironmentSimulator {
       gm,
       size: players.length,
     });
+    if (voteHimself && voteHimself.length > 0 && distribution !== 'ftw') {
+      throw new Error('voteHimself is only supported for ftw distribution');
+    }
     const votes: MockVote[] = [];
     for (let k = 0; k < players.length; k++) {
       if (!idlers || !idlers.includes(k)) {
@@ -615,7 +620,7 @@ class EnvironmentSimulator {
           //   this is on smart contract -> votesSorted[proposer][permutation[candidate]] = votes[proposer][candidate];
           //   We need to prepare votes to be permuted so that sorting produces winner at minimal index k (skipping voting for himself)
           const votesToPermute = players.map((proposer, idx) => {
-            if (k !== idx) {
+            if (k !== idx || (voteHimself && voteHimself.length > idx && voteHimself[idx])) {
               const voteWeight = Math.floor(Math.sqrt(creditsLeft));
               creditsLeft -= voteWeight * voteWeight;
               return voteWeight;
@@ -943,9 +948,9 @@ class EnvironmentSimulator {
     log(`Generated proposals integrity with commitment ${commitment}`, 2);
     return {
       newProposals: {
-        a,
-        b,
-        c,
+        a: a as [BigNumberish, BigNumberish],
+        b: b as [[BigNumberish, BigNumberish], [BigNumberish, BigNumberish]],
+        c: c as [BigNumberish, BigNumberish],
         proposals: permutedProposals,
         permutationCommitment: commitment,
       },
@@ -1015,6 +1020,7 @@ class EnvironmentSimulator {
     gameRank,
     openNow,
     metadata,
+    voteCredits = constantParams.RInstance_VOTE_CREDITS,
   }: {
     minGameTime: BigNumberish;
     signer: Wallet | SignerWithAddress;
@@ -1022,6 +1028,7 @@ class EnvironmentSimulator {
     gameRank: BigNumberish;
     openNow?: boolean;
     metadata?: string;
+    voteCredits?: BigNumberish;
   }) {
     log(`Creating game with rank ${gameRank} and minGameTime ${minGameTime}`, 2);
     await this.env.rankifyToken
@@ -1038,7 +1045,7 @@ class EnvironmentSimulator {
       timePerTurn: constantParams.RInstance_TIME_PER_TURN,
       timeToJoin: constantParams.RInstance_TIME_TO_JOIN,
       nTurns: constantParams.RInstance_MAX_TURNS,
-      voteCredits: constantParams.RInstance_VOTE_CREDITS,
+      voteCredits,
       minGameTime: minGameTime,
       proposingPhaseDuration: constantParams.RInstance_TIME_PER_TURN / 2,
       votePhaseDuration: constantParams.RInstance_TIME_PER_TURN - constantParams.RInstance_TIME_PER_TURN / 2,
@@ -1144,6 +1151,7 @@ class EnvironmentSimulator {
     votes,
     gm,
     idlers,
+    timeAfterProposing,
   }: {
     gameId: BigNumberish;
     players: [SignerIdentity, SignerIdentity, ...SignerIdentity[]];
@@ -1151,6 +1159,7 @@ class EnvironmentSimulator {
     votes: BigNumberish[][];
     gm: Wallet;
     idlers?: number[];
+    timeAfterProposing?: number;
   }) => {
     let turn = await this.rankifyInstance.getTurn(gameId);
     if (turn.eq(0) && process.env.NODE_ENV == 'TEST') {
@@ -1168,6 +1177,9 @@ class EnvironmentSimulator {
       .connect(gm)
       .endProposing(gameId, newProposals)
       .then(async r => {
+        if (timeAfterProposing) {
+          await time.increase(timeAfterProposing);
+        }
         const tx2 = this.rankifyInstance.connect(gm).endVoting(gameId, votes, permutation, nullifier);
         return Promise.all([r, tx2]);
       });
@@ -1421,8 +1433,8 @@ class EnvironmentSimulator {
     });
     if (submitNow) {
       this.votersAddresses = players.map(player => player.wallet.address);
+      const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
       for (let i = 0; i < players.length; i++) {
-        const voted = await this.rankifyInstance.getPlayerVotedArray(gameId);
         if (!idlers?.includes(i)) {
           if (!voted[i]) {
             log(`submitting vote for player ${players[i].wallet.address}`, 2);
