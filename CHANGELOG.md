@@ -1,5 +1,121 @@
 # rankify-contracts
 
+## 0.14.0
+
+### Minor Changes
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - Added Governor contract for derived organizations with the following interface changes:
+
+  - Added `Governor.sol` contract that implements OpenZeppelin's GovernorUpgradeable
+  - Modified `MAODistribution.sol` constructor to accept a new `DAOId` parameter
+  - Changed `TokenArguments` to `GovernanceArgs` with new fields:
+    - Added `orgName` - organization name for the Governor
+    - Added `votingDelay` - delay before voting can start
+    - Added `votingPeriod` - duration of voting period
+    - Added `quorum` - required participation threshold
+  - Updated `instantiate` function to create and initialize the Governor contract
+  - Removed `owner` parameter from `rankifySettings` (now using Governor address)
+  - Added `MAOApp` struct for easier reference to deployed contracts
+  - Modified return value order in `parseInstantiated` to include Governor address
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - _ **Enforced Minimum Proposal Participation:**
+  _ The `endProposing` function (in `RankifyInstanceGameMastersFacet.sol`) and related logic in `LibRankify.sol` now enforce that if a proposing phase ends primarily due to a timeout, it must also have a sufficient number of proposals (at least `minQuadraticPositions`).
+  _ If the timeout is reached but this minimum proposal count isn't met, the game generally won't proceed to the voting phase unless the overall `minGameTime` is also met (which could trigger stale game conditions).
+  _ A new `IRankifyInstance.ProposingEndStatus` enum (`Success`, `MinProposalsNotMetAndNotStale`, `GameIsStaleAndCanEnd`, `PhaseConditionsNotMet`, `NotProposingStage`) is now returned by `LibRankify.canEndProposing` to provide detailed outcomes. \* A corresponding `ErrorProposingStageEndFailed(uint256 gameId, IRankifyInstance.ProposingEndStatus status)` error has been introduced to clearly communicate reasons for proposing stage failures.
+
+  - **Stale Game Resolution:**
+    - A new function, `forceEndStaleGame`, has been added to the `RankifyInstanceGameMastersFacet.sol`. This allows to forcibly end a game that is stuck.
+    - Conditions for using `forceEndStaleGame`:
+      1.  The minimum game duration (`minGameTime`) must have passed.
+      2.  The game must currently be in the proposing stage.
+      3.  The proposing phase duration must have timed out.
+      4.  The number of submitted proposals must be less than `minQuadraticPositions`.
+    - The library function `LibRankify.isGameStaleForForcedEnd` was added to encapsulate these specific conditions.
+    - A new `StaleGameEnded(uint256 indexed gameId, address indexed winner)` event is emitted when a game is ended this way.
+    - A new `ErrorCannotForceEndGame(uint256 gameId)` error is returned if `forceEndStaleGame` is called inappropriately.
+    - Note: The `prevrandao`-based tie-breaking mechanism for stale/tied games mentioned in the original issue is **not** part of this specific changeset. Winner determination in stale scenarios currently relies on the existing scoring logic. Tie cases are handled by picking the first player in the leaderboard.
+  - **Interface and Library Updates:**
+    - `IRankifyInstance.sol`: Added the `ProposingEndStatus` enum, the `StaleGameEnded` event, and the new error types (`ErrorProposingStageEndFailed`, `ErrorCannotForceEndGame`).
+    - `LibRankify.sol`: The `canEndProposing` function was significantly updated to return the new `ProposingEndStatus`. The helper `isGameStaleForForcedEnd` was introduced.
+    - `LibTurnBasedGame.sol`: A guard for empty player arrays was added to the `sortByScore` function to prevent errors with no players.
+  - **Testing Enhancements (`test/RankifyInstance.ts`):**
+    - Comprehensive new tests were added to cover various scenarios for the `endProposing` function's behavior, especially when proposal participation is insufficient (both before and after `minGameTime` is met). These tests verify the correct `ProposingEndStatus` outcomes (e.g., `MinProposalsNotMetAndNotStale`, `GameIsStaleAndCanEnd`).
+    - Detailed tests for the new `forceEndStaleGame` function were implemented, including conditions for successful execution and expected reverts (e.g., if `minGameTime` is not met, if the game is not in the proposing stage, or if the game is already over).
+    - Edge cases, such as games with zero or only one proposer, are also covered in the new tests.
+  - **Minor Refinements:**
+    - The function selector for `forceEndStaleGame` was correctly added to the facet cut in `ArguableVotingTournament.sol`.
+    - Minor type casting improvements were made in the `EnvironmentSimulator.ts` test helper script.
+
+- [#180](https://github.com/peeramid-labs/rankify-contracts/pull/180) [`b2c6d861808e8d4c0898ceed2f836613a701507c`](https://github.com/peeramid-labs/rankify-contracts/commit/b2c6d861808e8d4c0898ceed2f836613a701507c) Thanks [@peersky](https://github.com/peersky)! - Major architectural and functional changes:
+
+  - **Two-Phase Turn System**: Transitioned from a single `endTurn` function/concept to a two-phase system with distinct `endProposing` and `endVoting` stages. This was a core change impacting many areas:
+    - **Solidity Contracts**:
+      - `RankifyInstanceGameMastersFacet`: `endTurn` replaced by `endVoting`; new `endProposing` function added. Event logic updated (`ProposingStageEnded`, `VotingStageResults` added). Vote/proposal submission logic now phase-aware.
+      - `RankifyInstanceMainFacet`: Added new phase-specific view functions: `isProposingStage(uint256 gameId)`, `isVotingStage(uint256 gameId)`, `canEndProposingStage(uint256 gameId)`, `canEndVotingStage(uint256 gameId)`. Removed `canEndTurn`. `startGame` no longer takes `permutationCommitment`.
+      - `LibRankify`: Major rework to support phases. `GameState` and `NewGameParams` updated. `tryPlayerMove` became phase-aware. Added `canEndProposing`, `canEndVoting`, `isVotingStage`, `isProposingStage`. `calculateScores` now returns round winner.
+      - `LibTBG`: Core turn logic refactored. `State` now includes `phase` and `phaseStartedAt` (renamed from `turnStartedAt`). `Settings` includes `turnPhaseDurations`. `nextTurn` became `next` (phase transition). Timeout and early end logic became phase-aware (`isTimeout`, `canTransitionPhaseEarly`).
+      - Interfaces (`IRankifyInstance`) and event/struct definitions updated accordingly across facets.
+      - Minimal required number of turns is now `>0` instead of `>1` to properly reflect new phase-awareness of the game;
+      - `canEndProposing` now returns a tuple of `(bool, ProposingEndStatus)`.
+      - `onlyInTime` modifier removed from `LibTurnBasedGame`, this mean that `playerMove` is not time-aware anymore and can be called at any time as long as player is in the game and did not make a move in the current turn. This means that even turn can be ended due to timeout, players still can make last call moves until someone hits the `endProposing` or `endVoting` functions.
+    - **Environment Simulator (`scripts/EnvironmentSimulator.ts`)**:
+      - `endTurn` and `endWithIntegrity` refactored to call `endProposing` and `endVoting` separately.
+      - `makeTurn` logic updated to reflect the two-phase process.
+      - `mockValidVotes` and `mockProposals` adjusted for new timing and phase context.
+      - `startGame` and `fillParty` calls to contract's `startGame` updated (no longer pass `permutationCommitment`).
+      - Game creation parameters (`getCreateGameParams`) now include `proposingPhaseDuration` and `votePhaseDuration`.
+      - Minimum game time increased to ensure proper phase timing and reliable testing of the `canEndProposing` conditions.
+    - **Proof Generation (`scripts/proofs.ts`)**:
+      - `generateDeterministicPermutation` calls in `getPlayerVoteSalt`, `mockVotes`, and `generateEndTurnIntegrity` now consistently use `turn: Number(turn)` (removed `- 1` offset).
+  - **Minor contract improvements & bug fixes**:
+    - Enhanced RankifyInstanceGameMastersFacet and LibQuadraticVoting to include additional voting data
+    - Modified `LibQuadraticVoting` to return the `finalizedVotingMatrix` alongside scores, improving the tracking of voting outcomes.
+    - Updated `RankifyInstanceGameMastersFacet` to emit new parameters `isActive` and `finalizedVotingMatrix` in the `VotingStageResults` event.
+    - Adjusted `LibRankify` to initialize the `isActive` array for players, ensuring accurate game state representation.
+    - `LibQuadraticVoting.precomputeValues` in `createGame` now takes correctly `params.minPlayerCnt` as argument to minimum expected vote items;
+    - Fixed bug that allowed game master to submit non-zero votes for players that did not vote;
+  - **Deployment and Build Process Updates (specific to this branch/PR)**:
+    - `deploy/02_deployRankify.ts`: Initial token minting wrapped in try-catch.
+    - `deploy/mao.ts`: `skipIfAlreadyDeployed` for many contracts now conditional via `FORCE_REDEPLOY` env var.
+    - `hardhat.config.ts`: `viaIR: true` enabled. `contractSizer` run is conditional. Build tasks for ABI generation and super interface updated (includes removal of excessive console logs during compilation tasks).
+    - `package.json`: Test and build scripts modified (e.g., `rm -rf abi/super-interface.json`).
+  - **Testing (`test/RankifyInstance.ts`)**:
+    - Extensive updates to align with the new two-phase turn system (event names, function calls, state expectations, usage of new view functions like `isProposingStage`).
+    - Addressed numerous test failures by ensuring consistent `simulatorInstance` and `rankTokenInstance` usage, especially in `beforeEach` and shared fixture contexts.
+    - Investigated and attempted fixes for `insufficient` token errors and `startGame->Not enough players` errors in complex multi-game scenarios, highlighting potential remaining issues in state management across tests or in the simulation of token rewards/locking in `runToTheEnd`.
+    - Many tests are now passing, but the `Multiple games were played` suite still had failing tests related to `RankToken` state at the time of this changeset, despite efforts to ensure instance consistency.
+    - Added comprehensive proposing stage validation tests to verify the `canEndProposing` functionality across various game states and conditions.
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - all game price tokens are now transferred to benefeciary account
+
+### Patch Changes
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - MAO-v1.3 added to distributor
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - added tests for cases when players are inactive
+
+- [#180](https://github.com/peeramid-labs/rankify-contracts/pull/180) [`b2c6d861808e8d4c0898ceed2f836613a701507c`](https://github.com/peeramid-labs/rankify-contracts/commit/b2c6d861808e8d4c0898ceed2f836613a701507c) Thanks [@peersky](https://github.com/peersky)! - - Changed LibRankify functions from `internal` to `public` to counter contract size limit
+
+  - Modified player game tracking to support multiple games:
+    - Changed `playerInGame` from mapping to single uint256 to EnumerableSet.UintSet
+    - Renamed `getPlayersGame` to `getPlayersGames` returning array of game IDs
+    - Added `isPlayerInGame` function to check if player is in specific game
+  - Updated deployment script to deploy LibRankify separately and link to facets
+  - Fixed tests to reflect new multi-game capability
+
+- [`79965567f162094e159221b6d7915633b3e43cd0`](https://github.com/peeramid-labs/rankify-contracts/commit/79965567f162094e159221b6d7915633b3e43cd0) Thanks [@peersky](https://github.com/peersky)! - updated distr artifacts
+
+- [#180](https://github.com/peeramid-labs/rankify-contracts/pull/180) [`b2c6d861808e8d4c0898ceed2f836613a701507c`](https://github.com/peeramid-labs/rankify-contracts/commit/b2c6d861808e8d4c0898ceed2f836613a701507c) Thanks [@peersky](https://github.com/peersky)! - Removed specific time-related divisibility checks from `LibRankify.newGame` function:
+
+  - Removed `require(commonParams.principalTimeConstant % params.nTurns == 0)`
+  - Removed `require(params.minGameTime % params.nTurns == 0)`
+
+  These checks were likely removed to optimize gas or simplify game creation logic by no longer strictly enforcing that `principalTimeConstant` and `minGameTime` are exact multiples of `nTurns`.
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - Added ProposingStageEnded event and updated gameCreated event defintion in IRankifyInstance
+
+- [#163](https://github.com/peeramid-labs/rankify-contracts/pull/163) [`9a42714b18e710f8f05c3bc18444dfa781c95c38`](https://github.com/peeramid-labs/rankify-contracts/commit/9a42714b18e710f8f05c3bc18444dfa781c95c38) Thanks [@peersky](https://github.com/peersky)! - fixed bug that caused incorrect score tallying under cases when there was partially overlapping proposer/voter sets
+
 ## 0.13.1
 
 ### Patch Changes
