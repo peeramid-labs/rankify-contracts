@@ -1,5 +1,11 @@
 # rankify-contracts
 
+## 0.14.2
+
+### Patch Changes
+
+- [#201](https://github.com/peeramid-labs/rankify-contracts/pull/201) [`643871036f0f3588147ce3fb850deceb88c133e7`](https://github.com/peeramid-labs/rankify-contracts/commit/643871036f0f3588147ce3fb850deceb88c133e7) Thanks [@theKosmoss](https://github.com/theKosmoss)! - Update DAODistributor.json with new contract address
+
 ## 0.14.1
 
 ### Patch Changes
