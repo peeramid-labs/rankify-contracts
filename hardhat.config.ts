@@ -127,12 +127,13 @@ export default {
     exclude: ['mocks', 'initializers', 'vendor', 'modifiers', 'fixtures'],
   },
   gasReporter: {
-    currency: 'EUR',
-    gasPrice: 21,
-    token: 'MATIC',
-    gasPriceApi: 'https://api.polygonscan.com/api?module=proxy&action=eth_gasPrice',
-    enabled: false,
+    currency: 'USD',
+    gasPrice: 0.081,
+    token: 'ETH',
+    gasPriceApi: 'https://api.arbiscan.io/api?module=proxy&action=eth_gasPrice',
+    enabled: process.env.GAS_REPORT === 'true' ? true : false,
     coinmarketcap: process.env.COINMARKETCAP_KEY,
+    etherscan: process.env.ARB_SEPOLIA_ETHERSCAN_API_KEY,
   },
   namedAccounts: {
     deployer: {
@@ -179,7 +180,7 @@ export default {
       url: process.env.BUILDBEAR_RPC_URL ?? '',
     },
     hardhat: {
-    //   allowUnlimitedContractSize: true,
+      //   allowUnlimitedContractSize: true,
       name: 'hardhat',
       accounts: {
         mnemonic: 'casual vacant letter raw trend tool vacant opera buzz jaguar bridge myself',

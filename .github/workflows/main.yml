@@ -1,10 +1,13 @@
 name: CI
 on:
   pull_request:
-    branches: [main,dev]
+    branches: [main, dev]
     types: [opened, reopened, labeled, synchronize]
 env:
-    NODE_ENV: 'TEST'
+  NODE_ENV: 'TEST'
+  GAS_REPORT: 'true'
+  ARB_SEPOLIA_ETHERSCAN_API_KEY: ${{ secrets.ARB_SEPOLIA_ETHERSCAN_API_KEY }}
+  COINMARKETCAP_KEY: ${{ secrets.COINMARKETCAP_KEY }}
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -24,4 +27,3 @@ jobs:
 
       - name: Running tests
         run: pnpm test:parallel
-
