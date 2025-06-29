@@ -92,7 +92,9 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
      * @return distributionVersion: uint256 encoded distribution version. Can be parsed to eip712 signature with EDS LibSemver
      * @dev   // instances: 0 - diamond; 1 - DiamondLoupeFacet; 2 - EIP712InspectorFacet; 3 - RankifyInstanceMainFacet; 4 - RankifyInstanceRequirementsFacet; 5 - RankifyInstanceGameMastersFacet // 6 - OwnershipFacet
      */
-    function instantiate(bytes memory ownerEncoded) external override returns (address[] memory instances, bytes32, uint256) {
+    function instantiate(
+        bytes memory ownerEncoded
+    ) external override returns (address[] memory instances, bytes32, uint256) {
         address owner = abi.decode(ownerEncoded, (address));
         (address[] memory _instances, , ) = super._instantiate();
         address diamond = _instances[0];
