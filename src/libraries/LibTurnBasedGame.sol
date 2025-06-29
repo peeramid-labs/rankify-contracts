@@ -749,7 +749,7 @@ library LibTBG {
      * - A boolean indicating whether the game is a tie.
      * - A boolean indicating whether the game is over.
      */
-    function next(uint256 gameId) internal returns (bool, bool, bool) {
+    function next(uint256 gameId) internal returns (bool, bool, bool, bool) {
         require(canTransitionPhaseEarly(gameId), "nextTurn->CanEndEarly");
         Instance storage instance = _getInstance(gameId);
         State storage state = instance.state;
@@ -788,7 +788,7 @@ library LibTBG {
             (state.leaderboard, ) = sortByScore(gameId);
         }
 
-        return (_isLastTurn, state.isOvertime, state.hasEnded);
+        return (_isLastTurn, wasLastTurn, state.isOvertime, state.hasEnded);
     }
 
     /**
