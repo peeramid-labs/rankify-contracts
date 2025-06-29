@@ -1838,8 +1838,8 @@ describe(scriptName, () => {
         // Now submit votes after proposing phase has ended
         const votes = await simulator.mockValidVotes(getPlayers(adr, playerCnt), 1, adr.gameMaster1, true, 'equal');
 
-        expect(
-          await rankifyInstance.connect(adr.gameMaster1).endVoting(
+        await expect(
+          rankifyInstance.connect(adr.gameMaster1).endVoting(
             1,
             votes.map(vote => vote.vote),
             integrity.permutation,

@@ -8,6 +8,7 @@ import {DistributableGovernanceERC20, MintSettings} from "../tokens/Distributabl
 import {IERC7746} from "@peeramid-labs/eds/src/interfaces/IERC7746.sol";
 import {SimpleAccessManager} from "@peeramid-labs/eds/src/managers/SimpleAccessManager.sol";
 import {IDistributor} from "@peeramid-labs/eds/src/interfaces/IDistributor.sol";
+import {DAODistributor} from "../DAODistributor.sol";
 import {RankToken} from "../tokens/RankToken.sol";
 import "../initializers/RankifyInstanceInit.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
@@ -233,7 +234,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
             address[] memory RankifyDistrAddresses,
             bytes32 RankifyDistributionName,
             uint256 RankifyDistributionVersion
-        ) = _RankifyDistributionBase.instantiate("");
+        ) = _RankifyDistributionBase.instantiate(abi.encode(DAODistributor(msg.sender).owner()));
 
         RankifyInstanceInit.contractInitializer memory RankifyInit = RankifyInstanceInit.contractInitializer({
             rewardToken: rankToken,

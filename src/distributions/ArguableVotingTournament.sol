@@ -92,7 +92,8 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
      * @return distributionVersion: uint256 encoded distribution version. Can be parsed to eip712 signature with EDS LibSemver
      * @dev   // instances: 0 - diamond; 1 - DiamondLoupeFacet; 2 - EIP712InspectorFacet; 3 - RankifyInstanceMainFacet; 4 - RankifyInstanceRequirementsFacet; 5 - RankifyInstanceGameMastersFacet // 6 - OwnershipFacet
      */
-    function instantiate(bytes memory) external override returns (address[] memory instances, bytes32, uint256) {
+    function instantiate(bytes memory ownerEncoded) external override returns (address[] memory instances, bytes32, uint256) {
+        address owner = abi.decode(ownerEncoded, (address));
         (address[] memory _instances, , ) = super._instantiate();
         address diamond = _instances[0];
         IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](7);
@@ -216,7 +217,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         returnValue[6] = facetCuts[5].facetAddress;
         returnValue[7] = facetCuts[6].facetAddress;
         //renouncing ownership
-        OwnershipFacet(diamond).transferOwnership(address(0));
+        OwnershipFacet(diamond).transferOwnership(owner);
 
         return (returnValue, ShortString.unwrap(distributionName), distributionVersion);
     }
