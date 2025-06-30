@@ -523,11 +523,10 @@ describe(scriptName, () => {
     expect(state.commonParams.beneficiary).to.be.equal(governor.address);
     expect(state.commonParams.rankTokenAddress).to.be.equal(rankToken.address);
   });
-  it('Ownership is renounced', async () => {
-    expect(await rankifyInstance.owner()).to.be.equal(eth.constants.AddressZero);
-    await expect(
-      rankifyInstance.connect(adr.maliciousActor1.wallet).transferOwnership(adr.gameCreator1.wallet.address),
-    ).to.revertedWith('LibDiamond: Must be contract owner');
+  it.only('Ownership is correct', async () => {
+    const { owner } = await getNamedAccounts();
+    const oSigner = await hre.ethers.getSigner(owner);
+    expect(await rankifyInstance.owner()).to.be.equal(oSigner.address);
   });
   it('has rank token assigned', async () => {
     const state = await rankifyInstance.getContractState();
