@@ -523,7 +523,7 @@ describe(scriptName, () => {
     expect(state.commonParams.beneficiary).to.be.equal(governor.address);
     expect(state.commonParams.rankTokenAddress).to.be.equal(rankToken.address);
   });
-  it.only('Ownership is correct', async () => {
+  it('Ownership is correct', async () => {
     const { owner } = await getNamedAccounts();
     const oSigner = await hre.ethers.getSigner(owner);
     expect(await rankifyInstance.owner()).to.be.equal(oSigner.address);
