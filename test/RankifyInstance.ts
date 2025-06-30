@@ -553,6 +553,13 @@ describe(scriptName, () => {
       'ERC20InsufficientBalance',
     );
   });
+  it('Can create game and open registration', async () => {
+    await env.rankifyToken.connect(adr.gameCreator1.wallet).approve(rankifyInstance.address, eth.constants.MaxUint256);
+    const params: IRankifyInstance.NewGameParamsInputStruct = simulator.getCreateGameParams(1);
+    await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createAndOpenGame(params, requirement))
+      .to.emit(rankifyInstance, 'RegistrationOpen')
+      .to.emit(rankifyInstance, 'RequirementsConfigured');
+  });
 
   it('Cannot perform actions on games that do not exist', async () => {
     const s1 = await simulator.signJoiningGame({
