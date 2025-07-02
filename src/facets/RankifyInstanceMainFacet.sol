@@ -138,6 +138,7 @@ contract RankifyInstanceMainFacet is
         uint256 gameId = createGame(newGameParams, requirements);
         gameId.openRegistration();
         emit RequirementsConfigured(gameId, requirements);
+        emit RegistrationOpen(gameId);
     }
 
     /**
