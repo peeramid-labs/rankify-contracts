@@ -1,5 +1,31 @@
 # rankify-contracts
 
+## 0.14.3
+
+### Patch Changes
+
+- [#202](https://github.com/peeramid-labs/rankify-contracts/pull/202) [`c22561ce66c61c6da5aeb7509c38000e6c7d7a2b`](https://github.com/peeramid-labs/rankify-contracts/commit/c22561ce66c61c6da5aeb7509c38000e6c7d7a2b) Thanks [@peersky](https://github.com/peersky)! - added overtime emitted unit test
+
+- [#202](https://github.com/peeramid-labs/rankify-contracts/pull/202) [`c22561ce66c61c6da5aeb7509c38000e6c7d7a2b`](https://github.com/peeramid-labs/rankify-contracts/commit/c22561ce66c61c6da5aeb7509c38000e6c7d7a2b) Thanks [@peersky](https://github.com/peersky)! - createAndOpenGame added RegistraionOpen Test
+
+- [#202](https://github.com/peeramid-labs/rankify-contracts/pull/202) [`c22561ce66c61c6da5aeb7509c38000e6c7d7a2b`](https://github.com/peeramid-labs/rankify-contracts/commit/c22561ce66c61c6da5aeb7509c38000e6c7d7a2b) Thanks [@peersky](https://github.com/peersky)! - chore: update Solidity version to 0.8.28 and refactor ArguableVotingTournament to correctly handle ownership transfer and game state transitions
+
+- [#202](https://github.com/peeramid-labs/rankify-contracts/pull/202) [`c22561ce66c61c6da5aeb7509c38000e6c7d7a2b`](https://github.com/peeramid-labs/rankify-contracts/commit/c22561ce66c61c6da5aeb7509c38000e6c7d7a2b) Thanks [@peersky](https://github.com/peersky)! - added permutation info to voting stage results event:
+
+  VotingStageResults signature now is:
+
+      event VotingStageResults(
+          uint256 indexed gameId,
+          uint256 indexed roundNumber,
+          address indexed winner,
+          address[] players,
+          uint256[] scores,
+          uint256[][] votesSorted,
+          bool[] isActive,
+          uint256[][] finalizedVotingMatrix,
+          uint256[] permutation
+      );
+
 ## 0.14.2
 
 ### Patch Changes
