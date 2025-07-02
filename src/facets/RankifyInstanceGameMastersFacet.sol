@@ -83,7 +83,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         uint256[] scores,
         uint256[][] votesSorted,
         bool[] isActive,
-        uint256[][] finalizedVotingMatrix
+        uint256[][] finalizedVotingMatrix,
+        uint256[] permutation
     );
 
     /**
@@ -436,7 +437,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                 roundScores,
                 votesSorted,
                 isActive,
-                finalizedVotingMatrix
+                finalizedVotingMatrix,
+                permutation
             );
         }
         {
