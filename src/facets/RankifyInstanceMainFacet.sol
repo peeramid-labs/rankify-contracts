@@ -261,7 +261,7 @@ contract RankifyInstanceMainFacet is
      *         - Calls the `startGameEarly` function.
      *         - Emits a _GameStarted_ event.
      */
-    function startGame(uint256 gameId) public {
+    function startGame(uint256 gameId) public nonReentrant{
         gameId.enforceGameExists();
         gameId.startGameEarly();
         emit GameStarted(gameId);
