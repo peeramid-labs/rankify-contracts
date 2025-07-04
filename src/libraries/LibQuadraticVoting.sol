@@ -66,6 +66,7 @@ library LibQuadraticVoting {
         bool[] memory hasVoted,
         bool[] memory hasProposed
     ) internal pure returns (uint256[] memory, uint256[][] memory) {
+        assert(hasVoted.length == hasProposed.length); // This shall be by design
         uint256 notVotedGivesEveryone = q.maxQuadraticPoints;
         uint256[] memory scores = new uint256[](tally.length);
         uint256[] memory creditsUsed = new uint256[](tally.length);
@@ -73,6 +74,7 @@ library LibQuadraticVoting {
 
         for (uint256 participant = 0; participant < tally.length; participant++) {
             finalizedVotingMatrix[participant] = new uint256[](tally.length);
+            assert(tally[participant].length == tally.length); // This shall be by design
             //For each proposal
             // console.log("New tally iter");
             uint256[] memory votedFor = tally[participant];

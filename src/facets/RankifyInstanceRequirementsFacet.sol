@@ -5,6 +5,7 @@ import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /**
  * @title RankifyInstanceRequirementsFacet
  * @notice Facet handling game requirements and conditions for Rankify instances
@@ -12,7 +13,7 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
  *      utilizing the LibCoinVending library for configuration management
  * @author Peeramid Labs, 2024
  */
-contract RankifyInstanceRequirementsFacet {
+contract RankifyInstanceRequirementsFacet is ReentrancyGuard {
     using LibTBG for uint256;
     using LibRankify for uint256;
     using LibTBG for LibTBG.State;
@@ -79,5 +80,13 @@ contract RankifyInstanceRequirementsFacet {
             phaseStartedAt: tbgInstanceState.state.phaseStartedAt,
             startedAt: tbgInstanceState.state.startedAt
         });
+    }
+
+    function getBankBalance(address player) public view returns (uint256) {
+        return LibCoinVending.bankBalance(player);
+    }
+
+    function withdrawFromBank(address player, uint256 amount) public nonReentrant {
+        LibCoinVending.withdrawFromBank(player, amount);
     }
 }
