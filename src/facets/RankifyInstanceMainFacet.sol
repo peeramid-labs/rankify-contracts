@@ -88,7 +88,7 @@ contract RankifyInstanceMainFacet is
      *         - Creates a new game with specified settings
      * @custom:security nonReentrant
      */
-    function createGame(IRankifyInstance.NewGameParamsInput memory params) public returns (uint256) {
+    function createGame(IRankifyInstance.NewGameParamsInput memory params) public nonReentrant returns (uint256) {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
@@ -115,7 +115,7 @@ contract RankifyInstanceMainFacet is
     function createAndOpenGame(
         IRankifyInstance.NewGameParamsInput memory params,
         LibCoinVending.ConfigPosition memory requirements
-    ) public {
+    ) public nonReentrant {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
@@ -149,7 +149,7 @@ contract RankifyInstanceMainFacet is
      * @param gameId The ID of the game.
      * @param config The configuration position for the join requirements.
      */
-    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public {
+    function setJoinRequirements(uint256 gameId, LibCoinVending.ConfigPosition memory config) public nonReentrant {
         gameId.enforceIsGameCreator(msg.sender);
         gameId.enforceIsPreRegistrationStage();
         LibCoinVending.configure(bytes32(gameId), config);
