@@ -24,7 +24,7 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpg
     bytes32 constant RANK_TOKEN_STORAGE_POSITION = keccak256("rank.token.storage.position");
 
     function getStorage() private pure returns (Storage storage s) {
-        bytes32 position = LOCKABLE_TOKEN_STORAGE_POSITION;
+        bytes32 position = RANK_TOKEN_STORAGE_POSITION;
         assembly {
             s.slot := position
         }

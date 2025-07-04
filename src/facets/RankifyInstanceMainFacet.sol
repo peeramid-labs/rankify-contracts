@@ -17,6 +17,7 @@ import "hardhat/console.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 /**
  * @title RankifyInstanceMainFacet
  * @notice Main facet for the Rankify protocol that handles game creation and management
@@ -33,6 +34,7 @@ contract RankifyInstanceMainFacet is
 {
     using LibTBG for LibTBG.Instance;
     using LibTBG for uint256;
+    using Math for uint256;
     using LibTBG for LibTBG.Settings;
     using LibRankify for uint256;
 
@@ -531,13 +533,17 @@ contract RankifyInstanceMainFacet is
         return turnState.madeMove[player];
     }
 
-    function exitRankToken(uint256 rankId, uint256 amount) external {
+    function exitRankToken(uint256 rankId, uint256 amount) external nonReentrant {
         require(amount != 0, "cannot specify zero exit amount");
         LibRankify.InstanceState storage state = LibRankify.instanceState();
         LibRankify.CommonParams storage commons = state.commonParams;
         IRankToken rankContract = IRankToken(commons.rankTokenAddress);
         DistributableGovernanceERC20 tokenContract = DistributableGovernanceERC20(commons.derivedToken);
-        uint256 _toMint = amount * (commons.principalCost * (commons.minimumParticipantsInCircle ** rankId));
+        uint256 _toMint = amount *
+            rankId.mulDiv(
+                ((commons.minimumParticipantsInCircle / 2) ** rankId) - 1,
+                commons.minimumParticipantsInCircle - 1
+            );
         rankContract.burn(msg.sender, rankId, amount);
         tokenContract.mint(msg.sender, _toMint);
         emit RankTokenExited(msg.sender, rankId, amount, _toMint);

@@ -3,9 +3,14 @@
 
 pragma solidity ^0.8.20;
 
-import {MockERC20} from "../mocks/MockERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC1155Burnable} from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+
+interface IERC20Burnable is IERC20 {
+    function burn(uint256 amount) external;
+}
 
 /**
  * @dev This library is used to simulate the vending machine coin acceptor state machine that:
@@ -55,6 +60,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
  *
  */
 library LibCoinVending {
+    using Address for address payable;
     struct Condition {
         mapping(ContractTypes => mapping(address => mapping(uint256 => ContractCondition))) contracts;
         NumericCondition ethValues;
@@ -126,6 +132,7 @@ library LibCoinVending {
     struct LibCoinVendingStorage {
         mapping(bytes32 => Condition) positions;
         address beneficiary;
+        mapping(address => uint256) bankPosition;
     }
 
     enum ContractTypes {
@@ -161,20 +168,24 @@ library LibCoinVending {
      * - The token balances of the `from` and `to` addresses, or the total supply of tokens if `to` is the zero address.
      */
     function transferFromAny(address erc20Addr, address from, address to, uint256 value) private {
-        MockERC20 token = MockERC20(erc20Addr);
+        IERC20 token = IERC20(erc20Addr);
         if (value != 0) {
             if (from == address(this)) {
                 if (to != address(0)) {
                     token.transfer(to, value);
                 } else {
-                    token.burn(value);
+                    try IERC20Burnable(erc20Addr).burn(value) {} catch {
+                        revert("Burn failed");
+                    }
                 }
             } else {
                 if (to != address(0)) {
                     token.transferFrom(from, to, value);
                 } else {
                     token.transferFrom(from, address(this), value);
-                    token.burn(value);
+                    try IERC20Burnable(erc20Addr).burn(value) {} catch {
+                        revert("Burn failed");
+                    }
                 }
             }
         }
@@ -205,7 +216,7 @@ library LibCoinVending {
         transferFromAny(erc20Addr, from, burnAddress, tokenReq.burn.amount);
         transferFromAny(erc20Addr, from, payee, tokenReq.pay.amount);
         transferFromAny(erc20Addr, from, beneficiary, tokenReq.bet.amount);
-        MockERC20 token = MockERC20(erc20Addr);
+        IERC20 token = IERC20(erc20Addr);
         uint256 value = tokenReq.have.amount;
         if (value != 0 && from != address(this)) {
             require(token.balanceOf(from) >= value, "Not enough erc20 tokens");
@@ -303,12 +314,31 @@ library LibCoinVending {
         }
     }
 
+    function putToBank(address to, uint256 amount) private {
+        LibCoinVendingStorage storage _coinVendingStorage = coinVendingStorage();
+        _coinVendingStorage.bankPosition[to] += amount;
+    }
+
+    function withdrawFromBank(address to, uint256 amount) internal {
+        LibCoinVendingStorage storage _coinVendingStorage = coinVendingStorage();
+        uint256 balance = _coinVendingStorage.bankPosition[to];
+        require(balance >= amount, "Insufficient balance");
+        _coinVendingStorage.bankPosition[to] -= amount;
+        payable(to).sendValue(amount);
+    }
+
+    function bankBalance(address to) internal view returns (uint256) {
+        LibCoinVendingStorage storage _coinVendingStorage = coinVendingStorage();
+        return _coinVendingStorage.bankPosition[to];
+    }
+
     /**
      * @dev Fulfills the conditions of a position.
      *
      * Requirements:
      *
      * - If `from` is not this contract, the sent value must be greater than or equal to the sum of the locked, paid, bet, and burned values.
+     * - If the transfer fails, the amount is added to the bank.
      *
      * Modifies:
      *
@@ -321,19 +351,32 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
+
     ) private {
         if (from == address(this)) {
             if (position.ethValues.lock != 0) {
-                payable(lockAddress).transfer(position.ethValues.lock);
+                bool success = payable(lockAddress).send(position.ethValues.lock);
+                if (!success) {
+                    putToBank(lockAddress, position.ethValues.lock);
+                }
             }
             if (position.ethValues.pay != 0) {
-                payable(payee).transfer(position.ethValues.pay);
+                bool success = payable(payee).send(position.ethValues.pay);
+                if (!success) {
+                    putToBank(payee, position.ethValues.pay);
+                }
             }
             if (position.ethValues.bet != 0) {
-                payable(beneficiary).transfer(position.ethValues.bet);
+                bool success = payable(beneficiary).send(position.ethValues.bet);
+                if (!success) {
+                    putToBank(beneficiary, position.ethValues.bet);
+                }
             }
             if (position.ethValues.burn != 0) {
-                payable(burnAddress).transfer(position.ethValues.burn);
+                bool success = payable(burnAddress).send(position.ethValues.burn);
+                if (!success) {
+                    putToBank(burnAddress, position.ethValues.burn);
+                }
             }
         } else {
             uint256 VLReq = position.ethValues.lock +
@@ -341,6 +384,9 @@ library LibCoinVending {
                 position.ethValues.bet +
                 position.ethValues.burn;
             require(msg.value >= VLReq, "msg.value too low");
+            if (msg.value > VLReq) {
+                putToBank(from, msg.value - VLReq);
+            }
         }
         for (uint256 i = 0; i < position.contractAddresses.length; ++i) {
             address contractAddress = position.contractAddresses[i];
