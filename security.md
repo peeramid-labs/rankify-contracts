@@ -1,4 +1,4 @@
-# Peeramid Protocol: Security Considerations & Architectural Overview
+**# Peeramid Protocol: Security Considerations & Architectural Overview
 
 This document provides a security-focused overview of the Peeramid protocol. It is intended to serve as an onboarding guide for security auditors, highlighting the system's architecture, key components, and areas that warrant particular attention.
 
@@ -61,10 +61,9 @@ The following sections highlight specific areas and known risks that auditors sh
 
 **Points of Interest:**
 
-- **Distributor Ownership & Whitelisting**: `DAODistributor` uses `onlyRole(DEFAULT_ADMIN_ROLE)` with a time delay, which is a robust pattern for protecting administrative functions. Crucially, the distributor owner is responsible for whitelisting which Distributions can be instantiated. Because these Distributions are immutable and trusted by the owner at the time of whitelisting, the risk of a malicious Distribution being added to the system is mitigated. The security of the entire system fundamentally relies on the security of this admin key.
-- **`MAODistribution` Trust**: The `MAODistribution.instantiate` function and its internal helpers (`createOrg`, `createRankify`) assume they are being called by a trusted `IDistributor` (`msg.sender`). This is because the Distributor is responsible for setting up the access managers for the newly created tokens and passing itself as the trusted middleware. If this contract could be called directly by an untrusted party, they could potentially configure the access managers incorrectly.
+- **Distributor Ownership & Whitelisting**: `DAODistributor` uses `onlyRole(DEFAULT_ADMIN_ROLE)` with a time delay, which is a robust pattern for protecting administrative functions. Crucially, the distributor owner is responsible for whitelisting which Distributions can be instantiated. Because these Distributions are immutable and trusted by the owner at the time of whitelisting, the risk of a malicious Distribution being added to the system is mitigated.
+- **`MAODistribution` Trust**: The `MAODistribution.instantiate` function and its internal helpers (`createOrg`, `createRankify`) assume they are being called by a trusted `IDistributor` (`msg.sender`). This is because the Distributor is responsible for setting up the access managers for the newly created tokens and passing itself as the trusted middleware. If this contract cou ald be called directly by an untrusted party, they could potentially configure the access managers incorrectly.
 - **`exitRankToken` Function**: This function is intended to be the primary mechanism for players to convert their winnings (Rank Tokens) into governance power in the associated DAO. The function is `external` and is expected to be called by players who wish to burn their rank token in exchange for governance tokens.
-- **`deleteGame` Function:** The `deleteGame` function in `LibTurnBasedGame.sol` is `internal` but it is not protected by any access control. It is called by `cancelGame` in `LibRankify.sol`, which is also not protected.
 
 ### 2.3. Voting & Game Logic Integrity
 
@@ -134,8 +133,6 @@ This section details specific points of interest that the Peeramid team believes
     -   The `exitRankToken` function is the gateway for converting game winnings into governance power. The primary security assumption is economic: the cost and time required to win Rank Tokens should make a Sybil attack on the resulting DAO prohibitively expensive.
     -   However, the function's implementation lacks explicit checks to ensure `msg.sender` is the actual owner of the tokens being burned. While the underlying ERC1155 `burn` function requires the caller to have a sufficient balance, auditors should confirm that there are no scenarios where a user could cause another user's tokens to be burned or where the token exchange logic could be manipulated. Verifying that this function is robust is a high priority.
 
-
-
 -   **`LibQuadraticVoting` Vulnerabilities**:
     -   A `require` statement in the `precomputeValues` function, intended to prevent a potential denial-of-service via an infinite loop, is currently commented out. The team requests that auditors validate the necessity of this check and confirm its correctness before it is re-enabled.
     -   Auditors should also check the `tallyVotes` function for potential integer overflows and recommend explicit checks if a plausible risk exists given the system's constraints.
@@ -157,3 +154,4 @@ Key areas for deep-dive analysis should include:
 4.  **Game State Machine Logic**: Scrutinize the game logic within `LibRankify` and the facets, particularly edge cases related to player actions, timeouts (`forceEndStaleGame`), and scoring.
 5.  **Trust Assumptions**: Confirm that all assumptions about trusted callers (e.g., `msg.sender` being the `IDistributor`) hold true under all possible execution paths.
 6.  **Library Vulnerabilities**: Pay close attention to the potential vulnerabilities identified in the libraries, especially the infinite loop in `LibQuadraticVoting.sol` and the lack of access control on the `deleteGame` function in `LibTurnBasedGame.sol`.
+**
