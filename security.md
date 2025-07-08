@@ -38,7 +38,7 @@ The following sections highlight specific areas and known risks that auditors sh
 
 - **Guarded vs. Unguarded Functions:** The following table provides a summary of the functions in the `RankifyInstanceMainFacet` and `RankifyInstanceGameMastersFacet` that are guarded and unguarded by the `nonReentrant` modifier. The team has applied guards to most functions involving external calls or state changes that could be sensitive to re-entrancy.
 
-| Facet                             | Function               | `nonReentrant` | Notes                                                                                                                                                 |
+| Contract                             | Function               | `nonReentrant` | Notes                                                                                                                                                 |
 | --------------------------------- | ---------------------- | :------------: | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RankifyInstanceMainFacet`        | `createGame` (private) |      Yes       | This is the internal function that creates a new game. It is correctly guarded.                                                                       |
 | `RankifyInstanceMainFacet`        | `createGame` (public)  |      Yes       | This is the public-facing function that creates a new game. It is also correctly guarded.                                                             |
@@ -54,6 +54,8 @@ The following sections highlight specific areas and known risks that auditors sh
 | `RankifyInstanceGameMastersFacet` | `endVoting`            |      Yes       | This function is correctly guarded. It makes an external call to `onPlayersGameEnd`, which calls `LibCoinVending.release`, so the guard is necessary. |
 | `RankifyInstanceGameMastersFacet` | `endProposing`         |      Yes       | This function is correctly guarded.                                                                                                                   |
 | `RankifyInstanceGameMastersFacet` | `forceEndStaleGame`    |      Yes       | This function is correctly guarded. It makes an external call to `onPlayersGameEnd`, which calls `LibCoinVending.release`, so the guard is necessary. |
+| `RankifyInstanceRequirementsFacet`| `pullEth`              |      Yes       | This function is guarded to prevent re-entrancy when withdrawing ETH from the bank.                                                                   |
+| `DAODistributor`                  | `instantiate`          |      Yes       | Assumed to be guarded in the parent `TokenizedDistributor` contract.                                                                                    |                                                                                  |
 
 ### 2.2. Access Control & Trust Assumptions
 
