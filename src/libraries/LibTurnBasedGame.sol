@@ -560,13 +560,6 @@ library LibTBG {
     function startGameEarly(uint256 gameId) internal {
         State storage state = _getState(gameId);
         TBGStorageStruct storage tbg = TBGStorage();
-
-        require(
-            (state.players.length() == tbg.instances[gameId].settings.maxPlayerCnt) ||
-                (block.timestamp > state.registrationOpenAt + tbg.instances[gameId].settings.timeToJoin),
-            "startGame->Not enough players"
-        );
-
         _performGameStart(gameId, state, tbg);
     }
 

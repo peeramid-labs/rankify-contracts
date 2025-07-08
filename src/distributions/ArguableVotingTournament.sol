@@ -164,13 +164,15 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: RankifyInstanceMainFacetSelectors
         });
 
-        bytes4[] memory RankifyInstanceRequirementsFacetSelectors = new bytes4[](4);
+        bytes4[] memory RankifyInstanceRequirementsFacetSelectors = new bytes4[](6);
         RankifyInstanceRequirementsFacetSelectors[0] = RankifyInstanceRequirementsFacet.getJoinRequirements.selector;
         RankifyInstanceRequirementsFacetSelectors[1] = RankifyInstanceRequirementsFacet
             .getJoinRequirementsByToken
             .selector;
         RankifyInstanceRequirementsFacetSelectors[2] = RankifyInstanceRequirementsFacet.getGameState.selector;
         RankifyInstanceRequirementsFacetSelectors[3] = RankifyInstanceRequirementsFacet.getCommonParams.selector;
+        RankifyInstanceRequirementsFacetSelectors[4] = RankifyInstanceRequirementsFacet.getPullableEth.selector;
+        RankifyInstanceRequirementsFacetSelectors[5] = RankifyInstanceRequirementsFacet.pullEth.selector;
 
         facetCuts[3] = IDiamondCut.FacetCut({
             facetAddress: address(_RankifyReqsFacet),
