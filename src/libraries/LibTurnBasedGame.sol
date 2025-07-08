@@ -566,13 +566,6 @@ library LibTBG {
     function startGameEarly(uint256 gameId) internal {
         State storage state = _getState(gameId);
         TBGStorageStruct storage tbg = TBGStorage();
-
-        require(
-            (state.players.length() == tbg.instances[gameId].settings.maxPlayerCnt) ||
-                (block.timestamp > state.registrationOpenAt + tbg.instances[gameId].settings.timeToJoin),
-            "startGame->Not enough players"
-        );
-
         _performGameStart(gameId, state, tbg);
     }
 
@@ -755,7 +748,7 @@ library LibTBG {
      * - A boolean indicating whether the game is a tie.
      * - A boolean indicating whether the game is over.
      */
-    function next(uint256 gameId) internal returns (bool, bool, bool) {
+    function next(uint256 gameId) internal returns (bool, bool, bool, bool) {
         require(canTransitionPhaseEarly(gameId), "nextTurn->CanEndEarly");
         Instance storage instance = _getInstance(gameId);
         State storage state = instance.state;
@@ -794,7 +787,7 @@ library LibTBG {
             (state.leaderboard, ) = sortByScore(gameId);
         }
 
-        return (_isLastTurn, state.isOvertime, state.hasEnded);
+        return (_isLastTurn, wasLastTurn, state.isOvertime, state.hasEnded);
     }
 
     /**

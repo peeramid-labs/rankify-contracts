@@ -300,4 +300,74 @@ describe('LibCoinVending Test', async function () {
       expect(await mockERC1155.balanceOf(mockCoinVending.address, '1')).to.be.equal('0');
     });
   });
+  describe('Bank functionality', () => {
+    beforeEach(async () => {
+      const _req: LibCoinVending.ConfigPositionStruct = {
+        ethValues: {
+          have: valueToHave,
+          lock: valueToLock,
+          burn: valueToBurn,
+          bet: valueToAward,
+          pay: valueToAccept,
+        },
+        contracts: [],
+      };
+      await mockCoinVending.createPosition(ethers.utils.formatBytes32String('bank test'), _req);
+    });
+
+    it('Excess ETH from funding should go to the funders bank and be withdrawable', async () => {
+      const requiredEth = valueToLock.add(valueToBurn).add(valueToAward).add(valueToAccept);
+      const excessEth = ethers.utils.parseEther('1');
+      const initialFunderBalance = await ethers.provider.getBalance(signer.address);
+
+      // Fund with excess value
+      const fundTx = await mockCoinVending.fund(ethers.utils.formatBytes32String('bank test'), {
+        value: requiredEth.add(excessEth),
+      });
+      const fundTxReceipt = await fundTx.wait();
+      const fundGas = fundTxReceipt.gasUsed.mul(fundTxReceipt.effectiveGasPrice);
+
+      // Check bank has excess ETH
+      expect(await mockCoinVending.getPullableEth(signer.address)).to.be.equal(excessEth);
+
+      const afterFundBalance = await ethers.provider.getBalance(signer.address);
+      expect(initialFunderBalance).to.be.equal(afterFundBalance.add(fundGas).add(requiredEth).add(excessEth));
+
+      // Pull ETH from bank
+      const pullTx = await mockCoinVending.pullEth(signer.address, excessEth);
+      const pullTxReceipt = await pullTx.wait();
+      const pullGas = pullTxReceipt.gasUsed.mul(pullTxReceipt.effectiveGasPrice);
+
+      // Check final balance and that bank is empty
+      const finalFunderBalance = await ethers.provider.getBalance(signer.address);
+      expect(afterFundBalance.add(excessEth)).to.be.equal(finalFunderBalance.add(pullGas));
+      expect(await mockCoinVending.getPullableEth(signer.address)).to.be.equal(0);
+    });
+
+    it("Failed ETH transfer on release should go to recipient's bank", async () => {
+      const requiredEth = valueToLock.add(valueToBurn).add(valueToAward).add(valueToAccept);
+
+      // Fund position
+      await mockCoinVending.fund(ethers.utils.formatBytes32String('bank test'), { value: requiredEth });
+      const initialPayeeBalance = await ethers.provider.getBalance(mockERC20.address);
+
+      // Release to a contract that cannot receive ETH
+      await mockCoinVending.release(
+        ethers.utils.formatBytes32String('bank test'),
+        mockERC20.address, // payee
+        beneficiary.address,
+      );
+
+      // Check that payee's bank has the funds
+      expect(await mockCoinVending.getPullableEth(mockERC20.address)).to.be.equal(valueToAccept);
+
+      // Check that payee's ETH balance has not changed
+      const finalPayeeBalance = await ethers.provider.getBalance(mockERC20.address);
+      expect(initialPayeeBalance).to.be.equal(finalPayeeBalance);
+
+      // Check other recipients' banks are empty
+      expect(await mockCoinVending.getPullableEth(beneficiary.address)).to.be.equal(0);
+      expect(await mockCoinVending.getPullableEth(signer.address)).to.be.equal(0);
+    });
+  });
 });

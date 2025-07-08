@@ -92,7 +92,10 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
      * @return distributionVersion: uint256 encoded distribution version. Can be parsed to eip712 signature with EDS LibSemver
      * @dev   // instances: 0 - diamond; 1 - DiamondLoupeFacet; 2 - EIP712InspectorFacet; 3 - RankifyInstanceMainFacet; 4 - RankifyInstanceRequirementsFacet; 5 - RankifyInstanceGameMastersFacet // 6 - OwnershipFacet
      */
-    function instantiate(bytes memory) external override returns (address[] memory instances, bytes32, uint256) {
+    function instantiate(
+        bytes memory ownerEncoded
+    ) external override returns (address[] memory instances, bytes32, uint256) {
+        address owner = abi.decode(ownerEncoded, (address));
         (address[] memory _instances, , ) = super._instantiate();
         address diamond = _instances[0];
         IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](7);
@@ -161,13 +164,15 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: RankifyInstanceMainFacetSelectors
         });
 
-        bytes4[] memory RankifyInstanceRequirementsFacetSelectors = new bytes4[](4);
+        bytes4[] memory RankifyInstanceRequirementsFacetSelectors = new bytes4[](6);
         RankifyInstanceRequirementsFacetSelectors[0] = RankifyInstanceRequirementsFacet.getJoinRequirements.selector;
         RankifyInstanceRequirementsFacetSelectors[1] = RankifyInstanceRequirementsFacet
             .getJoinRequirementsByToken
             .selector;
         RankifyInstanceRequirementsFacetSelectors[2] = RankifyInstanceRequirementsFacet.getGameState.selector;
         RankifyInstanceRequirementsFacetSelectors[3] = RankifyInstanceRequirementsFacet.getCommonParams.selector;
+        RankifyInstanceRequirementsFacetSelectors[4] = RankifyInstanceRequirementsFacet.getPullableEth.selector;
+        RankifyInstanceRequirementsFacetSelectors[5] = RankifyInstanceRequirementsFacet.pullEth.selector;
 
         facetCuts[3] = IDiamondCut.FacetCut({
             facetAddress: address(_RankifyReqsFacet),
@@ -216,7 +221,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         returnValue[6] = facetCuts[5].facetAddress;
         returnValue[7] = facetCuts[6].facetAddress;
         //renouncing ownership
-        OwnershipFacet(diamond).transferOwnership(address(0));
+        OwnershipFacet(diamond).transferOwnership(owner);
 
         return (returnValue, ShortString.unwrap(distributionName), distributionVersion);
     }

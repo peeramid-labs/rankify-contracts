@@ -83,7 +83,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         uint256[] scores,
         uint256[][] votesSorted,
         bool[] isActive,
-        uint256[][] finalizedVotingMatrix
+        uint256[][] finalizedVotingMatrix,
+        uint256[] permutation
     );
 
     /**
@@ -328,8 +329,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
      * emits a _GameOver_ event if the game is over.
      */
     function _nextTurn(uint256 gameId) private {
-        (bool _isLastTurn, bool _isOvertime, bool _isGameOver) = gameId.next();
-        if (_isLastTurn && _isOvertime) {
+        (bool _isLastTurn, bool _wasLastTurn, bool _isOvertime, bool _isGameOver) = gameId.next();
+        if (_wasLastTurn && _isOvertime) {
             emit OverTime(gameId);
         }
         if (_isLastTurn) {
@@ -438,7 +439,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                 roundScores,
                 votesSorted,
                 isActive,
-                finalizedVotingMatrix
+                finalizedVotingMatrix,
+                permutation
             );
         }
         {

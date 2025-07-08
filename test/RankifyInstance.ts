@@ -523,11 +523,10 @@ describe(scriptName, () => {
     expect(state.commonParams.beneficiary).to.be.equal(governor.address);
     expect(state.commonParams.rankTokenAddress).to.be.equal(rankToken.address);
   });
-  it('Ownership is renounced', async () => {
-    expect(await rankifyInstance.owner()).to.be.equal(eth.constants.AddressZero);
-    await expect(
-      rankifyInstance.connect(adr.maliciousActor1.wallet).transferOwnership(adr.gameCreator1.wallet.address),
-    ).to.revertedWith('LibDiamond: Must be contract owner');
+  it('Ownership is correct', async () => {
+    const { owner } = await getNamedAccounts();
+    const oSigner = await hre.ethers.getSigner(owner);
+    expect(await rankifyInstance.owner()).to.be.equal(oSigner.address);
   });
   it('has rank token assigned', async () => {
     const state = await rankifyInstance.getContractState();
@@ -553,6 +552,13 @@ describe(scriptName, () => {
       env.rankifyToken,
       'ERC20InsufficientBalance',
     );
+  });
+  it('Can create game and open registration', async () => {
+    await env.rankifyToken.connect(adr.gameCreator1.wallet).approve(rankifyInstance.address, eth.constants.MaxUint256);
+    const params: IRankifyInstance.NewGameParamsInputStruct = simulator.getCreateGameParams(1);
+    await expect(rankifyInstance.connect(adr.gameCreator1.wallet).createAndOpenGame(params, requirement))
+      .to.emit(rankifyInstance, 'RegistrationOpen')
+      .to.emit(rankifyInstance, 'RequirementsConfigured');
   });
 
   it('Cannot perform actions on games that do not exist', async () => {
@@ -1838,12 +1844,14 @@ describe(scriptName, () => {
         // Now submit votes after proposing phase has ended
         const votes = await simulator.mockValidVotes(getPlayers(adr, playerCnt), 1, adr.gameMaster1, true, 'equal');
 
-        await rankifyInstance.connect(adr.gameMaster1).endVoting(
-          1,
-          votes.map(vote => vote.vote),
-          integrity.permutation,
-          integrity.nullifier,
-        );
+        await expect(
+          rankifyInstance.connect(adr.gameMaster1).endVoting(
+            1,
+            votes.map(vote => vote.vote),
+            integrity.permutation,
+            integrity.nullifier,
+          ),
+        ).to.emit(rankifyInstance, 'OverTime');
 
         expect(await rankifyInstance.isOvertime(1)).to.be.true;
       });
