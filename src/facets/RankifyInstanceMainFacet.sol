@@ -17,6 +17,7 @@ import "hardhat/console.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 /**
  * @title RankifyInstanceMainFacet
  * @notice Main facet for the Rankify protocol that handles game creation and management
@@ -33,6 +34,7 @@ contract RankifyInstanceMainFacet is
 {
     using LibTBG for LibTBG.Instance;
     using LibTBG for uint256;
+    using Math for uint256;
     using LibTBG for LibTBG.Settings;
     using LibRankify for uint256;
 
@@ -86,9 +88,9 @@ contract RankifyInstanceMainFacet is
      *         - Validates the contract is initialized
      *         - Processes input parameters
      *         - Creates a new game with specified settings
-     * @custom:security nonReentrant
+     * @custom:security inherits nonReentrant
      */
-    function createGame(IRankifyInstance.NewGameParamsInput memory params) public nonReentrant returns (uint256) {
+    function createGame(IRankifyInstance.NewGameParamsInput memory params) public returns (uint256) {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
@@ -112,10 +114,16 @@ contract RankifyInstanceMainFacet is
         return createGame(newGameParams, emptyConfig);
     }
 
+    /**
+     * @dev Creates a new game and opens registration for it.
+     * @param params The parameters for the new game.
+     * @param requirements The requirements for the game.
+     * @custom:security nonReentrant is inherited from createGame
+     */
     function createAndOpenGame(
         IRankifyInstance.NewGameParamsInput memory params,
         LibCoinVending.ConfigPosition memory requirements
-    ) public nonReentrant {
+    ) public {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
@@ -259,9 +267,14 @@ contract RankifyInstanceMainFacet is
      *         - Calls the `startGameEarly` function.
      *         - Emits a _GameStarted_ event.
      */
-    function startGame(uint256 gameId) public {
+    function startGame(uint256 gameId) public nonReentrant {
         gameId.enforceGameExists();
-        gameId.startGameEarly();
+        address createdBy = gameId.getGameState().createdBy;
+        if (msg.sender == createdBy) {
+            gameId.startGameEarly();
+        } else {
+            gameId.startGame();
+        }
         emit GameStarted(gameId);
     }
 
@@ -478,7 +491,7 @@ contract RankifyInstanceMainFacet is
      * @return bool Whether the game can be started early
      */
     function canStartGame(uint256 gameId) public view returns (bool) {
-        return gameId.canStartEarly();
+        return gameId.canStartByFull();
     }
 
     /**
@@ -531,14 +544,35 @@ contract RankifyInstanceMainFacet is
         return turnState.madeMove[player];
     }
 
-    function exitRankToken(uint256 rankId, uint256 amount) external {
+    /**
+     * @dev Exits a rank token from the game.
+     * @param rankId The ID of the rank token.
+     * @param amount The amount of rank tokens to exit.
+     * @notice this function will overflow at high ranks, we have temporary hard limit set on rank 10
+     */
+    function exitRankToken(uint256 rankId, uint256 amount) external nonReentrant {
         require(amount != 0, "cannot specify zero exit amount");
         LibRankify.InstanceState storage state = LibRankify.instanceState();
         LibRankify.CommonParams storage commons = state.commonParams;
         IRankToken rankContract = IRankToken(commons.rankTokenAddress);
-        DistributableGovernanceERC20 tokenContract = DistributableGovernanceERC20(commons.derivedToken);
-        uint256 _toMint = amount * (commons.principalCost * (commons.minimumParticipantsInCircle ** rankId));
         rankContract.burn(msg.sender, rankId, amount);
+        DistributableGovernanceERC20 tokenContract = DistributableGovernanceERC20(commons.derivedToken);
+        uint256 minParticipants = commons.minimumParticipantsInCircle;
+
+        uint256 _toMint = 0;
+        uint256 linearFromRank = 10;
+        if (rankId < linearFromRank) {
+            _toMint =
+                commons.principalCost *
+                minParticipants *
+                amount.mulDiv((minParticipants ** rankId) - 1, minParticipants - 1);
+        } else {
+            _toMint =
+                commons.principalCost *
+                minParticipants *
+                amount.mulDiv((minParticipants ** linearFromRank) - 1, minParticipants - 1);
+            _toMint += linearFromRank - rankId * _toMint;
+        }
         tokenContract.mint(msg.sender, _toMint);
         emit RankTokenExited(msg.sender, rankId, amount, _toMint);
     }

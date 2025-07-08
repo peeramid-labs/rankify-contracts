@@ -2,4 +2,4 @@
 'rankify-contracts': patch
 ---
 
-added SECURITY.md
+added overtime emitted unit test

@@ -5,6 +5,7 @@ import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /**
  * @title RankifyInstanceRequirementsFacet
  * @notice Facet handling game requirements and conditions for Rankify instances
@@ -12,7 +13,7 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
  *      utilizing the LibCoinVending library for configuration management
  * @author Peeramid Labs, 2024
  */
-contract RankifyInstanceRequirementsFacet {
+contract RankifyInstanceRequirementsFacet is ReentrancyGuard {
     using LibTBG for uint256;
     using LibRankify for uint256;
     using LibTBG for LibTBG.State;
@@ -79,5 +80,24 @@ contract RankifyInstanceRequirementsFacet {
             phaseStartedAt: tbgInstanceState.state.phaseStartedAt,
             startedAt: tbgInstanceState.state.startedAt
         });
+    }
+
+    /**
+     * @dev Retrieves the amount of ETH that can be pulled from the bank for a specific player.
+     * @param player The address of the player.
+     * @return The amount of ETH that can be pulled from the bank.
+     */
+    function getPullableEth(address player) public view returns (uint256) {
+        return LibCoinVending.bankBalance(player);
+    }
+
+    /**
+     * @dev Pulls ETH from the bank for a specific player.
+     * @param player The address of the player.
+     * @param amount The amount of ETH to pull from the bank.
+     * @notice This function allows ANYONE to pull ETH from the bank to the account; This means someone can pay tx gas for someone else to pull ETH from the bank to their account; It is not security vulnerability since vending already tries to release these funds at all times;
+     */
+    function pullEth(address player, uint256 amount) public nonReentrant {
+        LibCoinVending.withdrawFromBank(player, amount);
     }
 }
