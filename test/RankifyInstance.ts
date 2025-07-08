@@ -1054,6 +1054,132 @@ describe(scriptName, () => {
           beforeEach(async () => {
             await startedGameTest(simulator)();
           });
+          describe('When joining mid-game', () => {
+            const gameId = 1;
+            let newPlayer: SignerIdentity;
+            let playersInGameBeforeJoin: SignerIdentity[];
+
+            beforeEach(async () => {
+              const playersInGameAddresses = (await rankifyInstance.getPlayers(gameId)).map(a => a.toLowerCase());
+              playersInGameBeforeJoin = adr.players.filter(p =>
+                playersInGameAddresses.includes(p.wallet.address.toLowerCase()),
+              );
+
+              // Find a player that is not in the game yet
+              const foundPlayer = adr.players.find(
+                p => !playersInGameAddresses.includes(p.wallet.address.toLowerCase()),
+              );
+              expect(
+                foundPlayer,
+                'Could not find a player to join mid-game. Increase the number of players in the test setup.',
+              ).to.not.be.undefined;
+              newPlayer = foundPlayer!;
+
+              await env.rankifyToken
+                .connect(newPlayer.wallet)
+                .approve(rankifyInstance.address, eth.constants.MaxUint256);
+            });
+
+            it('should allow a player to join if registration is opened mid-game', async () => {
+              const playersCountBefore = (await rankifyInstance.getPlayers(gameId)).length;
+              const maxPlayers = RInstance_MAX_PLAYERS;
+              expect(playersCountBefore).to.be.lessThan(maxPlayers);
+
+              let gameState = await rankifyInstance.getGameState(gameId);
+              // Re-open registration if it was closed by starting the game.
+              if (gameState.registrationOpenAt.eq(0)) {
+                await rankifyInstance.connect(adr.gameCreator1.wallet).openRegistration(gameId);
+              }
+
+              const s1 = await simulator.signJoiningGame({
+                gameId,
+                participant: newPlayer.wallet,
+                signer: adr.gameMaster1,
+              });
+
+              await expect(
+                rankifyInstance
+                  .connect(newPlayer.wallet)
+                  .joinGame(gameId, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey),
+              ).to.emit(rankifyInstance, 'PlayerJoined');
+
+              const playersAfter = await rankifyInstance.getPlayers(gameId);
+              expect(playersAfter.length).to.equal(playersCountBefore + 1);
+              expect(playersAfter.map(p => p.toLowerCase())).to.include(newPlayer.wallet.address.toLowerCase());
+            });
+
+            it('a new player who joins can participate in the current turn', async () => {
+              // Re-open registration
+              await rankifyInstance.connect(adr.gameCreator1.wallet).openRegistration(gameId);
+
+              // New player joins during proposing phase of turn 1
+              const s1 = await simulator.signJoiningGame({
+                gameId,
+                participant: newPlayer.wallet,
+                signer: adr.gameMaster1,
+              });
+              await rankifyInstance
+                .connect(newPlayer.wallet)
+                .joinGame(gameId, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey);
+
+              const allPlayers = playersInGameBeforeJoin.concat(newPlayer);
+
+              // --- The rest of Turn 1 is played with the new player ---
+
+              // 1. All players propose
+              const proposals = await simulator.mockProposals({
+                players: allPlayers,
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: true,
+                turn: 1,
+              });
+
+              // 2. End Proposing
+              const integrity = await simulator.getProposalsIntegrity({
+                players: allPlayers,
+                gameId: 1,
+                turn: 1,
+                gm: adr.gameMaster1,
+                proposalSubmissionData: proposals,
+              });
+              await rankifyInstance.connect(adr.gameMaster1).endProposing(1, integrity.newProposals);
+
+              // 3. All players vote
+              const votes = await simulator.mockValidVotes(allPlayers, 1, adr.gameMaster1, true);
+
+              // 4. End Voting
+              await rankifyInstance.connect(adr.gameMaster1).endVoting(
+                1,
+                votes.map(v => v.vote),
+                integrity.permutation,
+                integrity.nullifier,
+              );
+
+              expect(await rankifyInstance.getTurn(gameId)).to.be.equal(2);
+
+              // --- Check Turn 2 ---
+              expect(await rankifyInstance.isActive(gameId, newPlayer.wallet.address)).to.be.true;
+
+              const proposalsT2 = await simulator.mockProposals({
+                players: allPlayers,
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: false,
+                turn: 2,
+              });
+
+              const newPlayerProposal = proposalsT2.find(
+                p => p.params.proposer.toLowerCase() === newPlayer.wallet.address.toLowerCase(),
+              );
+              expect(newPlayerProposal, "New player's proposal not found in mocked proposals for turn 2.").to.not.be
+                .undefined;
+              await expect(rankifyInstance.connect(adr.gameMaster1).submitProposal(newPlayerProposal!.params)).to.emit(
+                rankifyInstance,
+                'ProposalSubmitted',
+              );
+            });
+          });
           describe('Game End and Tie-Breaking Logic', () => {
             it('should correctly close stale game', async () => {
               await simulator.runToLastTurn(1, adr.gameMaster1, 'equal');
