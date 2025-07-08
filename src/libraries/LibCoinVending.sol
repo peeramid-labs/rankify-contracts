@@ -351,7 +351,6 @@ library LibCoinVending {
         address beneficiary,
         address burnAddress,
         address lockAddress
-
     ) private {
         if (from == address(this)) {
             if (position.ethValues.lock != 0) {
