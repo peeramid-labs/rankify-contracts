@@ -114,10 +114,16 @@ contract RankifyInstanceMainFacet is
         return createGame(newGameParams, emptyConfig);
     }
 
+    /**
+     * @dev Creates a new game and opens registration for it.
+     * @param params The parameters for the new game.
+     * @param requirements The requirements for the game.
+     * @custom:security nonReentrant is inherited from createGame
+     */
     function createAndOpenGame(
         IRankifyInstance.NewGameParamsInput memory params,
         LibCoinVending.ConfigPosition memory requirements
-    ) public nonReentrant {
+    ) public {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
