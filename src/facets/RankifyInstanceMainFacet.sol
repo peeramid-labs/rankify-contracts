@@ -269,7 +269,12 @@ contract RankifyInstanceMainFacet is
      */
     function startGame(uint256 gameId) public nonReentrant {
         gameId.enforceGameExists();
-        gameId.startGameEarly();
+        address createdBy = gameId.getGameState().createdBy;
+        if (msg.sender == createdBy) {
+            gameId.startGameEarly();
+        } else {
+            gameId.startGame();
+        }
         emit GameStarted(gameId);
     }
 
@@ -486,7 +491,7 @@ contract RankifyInstanceMainFacet is
      * @return bool Whether the game can be started early
      */
     function canStartGame(uint256 gameId) public view returns (bool) {
-        return gameId.canStartEarly();
+        return gameId.canStartByFull();
     }
 
     /**
@@ -552,11 +557,10 @@ contract RankifyInstanceMainFacet is
         IRankToken rankContract = IRankToken(commons.rankTokenAddress);
         rankContract.burn(msg.sender, rankId, amount);
         DistributableGovernanceERC20 tokenContract = DistributableGovernanceERC20(commons.derivedToken);
-        uint256 _toMint = amount *
-            rankId.mulDiv(
-                ((commons.minimumParticipantsInCircle / 2) ** rankId) - 1,
-                commons.minimumParticipantsInCircle - 1
-            );
+        uint256 minParticipants = commons.minimumParticipantsInCircle;
+        uint256 _toMint = commons.principalCost *
+            minParticipants *
+            amount.mulDiv((minParticipants ** rankId) - 1, minParticipants - 1);
         tokenContract.mint(msg.sender, _toMint);
         emit RankTokenExited(msg.sender, rankId, amount, _toMint);
     }

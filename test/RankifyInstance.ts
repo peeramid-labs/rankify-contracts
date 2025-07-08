@@ -877,8 +877,8 @@ describe(scriptName, () => {
         await rankifyInstance
           .connect(adr.players[0].wallet)
           .joinGame(1, s1.signature, s1.gmCommitment, s1.deadline, s1.participantPubKey);
-        await expect(rankifyInstance.connect(adr.players[0].wallet).startGame(1)).to.be.revertedWith(
-          'startGame->Not enough players',
+        await expect(rankifyInstance.connect(adr.players[1].wallet).startGame(1)).to.be.revertedWith(
+          'startGame->Still Can Join',
         );
         const s2 = await signJoiningGame({ gameId: 1, participant: adr.players[1].wallet, signer: adr.gameMaster1 });
         await rankifyInstance
@@ -983,16 +983,22 @@ describe(scriptName, () => {
       it('Cannot be started if not enough players', async () => {
         await simulator.mineBlocks(RInstance_TIME_TO_JOIN + 1);
         await expect(rankifyInstance.connect(adr.gameMaster1).startGame(1)).to.be.revertedWith(
-          'startGame->Not enough players',
+          'startGame->Still Can Join',
         );
       });
       describe('When there is minimal number and below maximum players in game', () => {
         beforeEach(async () => {
           await filledPartyTest(simulator)();
         });
+        it('creator can start game', async () => {
+          await expect(rankifyInstance.connect(adr.gameCreator1.wallet).startGame(1)).to.be.emit(
+            rankifyInstance,
+            'GameStarted',
+          );
+        });
         it('Can start game after joining period is over', async () => {
           await expect(rankifyInstance.connect(adr.gameMaster1).startGame(1)).to.be.revertedWith(
-            'startGame->Not enough players',
+            'startGame->Still Can Join',
           );
           const currentT = await time.latest();
           await time.setNextBlockTimestamp(currentT + Number(RInstance_TIME_TO_JOIN) + 1);
@@ -2015,9 +2021,7 @@ describe(scriptName, () => {
 
           // Calculate expected derived tokens
           const commonParams = await rankifyInstance.getCommonParams();
-          const expectedDerivedTokens: BigNumber = commonParams.principalCost
-            .mul(commonParams.minimumParticipantsInCircle.pow(rankId))
-            .mul(amount);
+          const expectedDerivedTokens: BigNumber = commonParams.principalCost.mul(12);
 
           // Exit rank token
           await rankifyInstance.connect(player.wallet).exitRankToken(rankId, amount);
