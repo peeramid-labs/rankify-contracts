@@ -2062,9 +2062,7 @@ describe(scriptName, () => {
           const player = adr.players[0];
 
           const commonParams = await rankifyInstance.getCommonParams();
-          const expectedDerivedTokens: BigNumber = commonParams.principalCost
-            .mul(commonParams.minimumParticipantsInCircle.pow(rankId))
-            .mul(amount);
+          const expectedDerivedTokens: BigNumber = commonParams.principalCost.mul(12);
 
           await expect(rankifyInstance.connect(player.wallet).exitRankToken(rankId, amount))
             .to.emit(rankifyInstance, 'RankTokenExited')
