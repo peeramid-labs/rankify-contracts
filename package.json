@@ -1,6 +1,6 @@
 {
   "name": "rankify-contracts",
-  "version": "0.14.3",
+  "version": "0.15.0",
   "files": [
     "abi",
     "deployments",
