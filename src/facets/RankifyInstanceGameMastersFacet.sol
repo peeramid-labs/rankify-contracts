@@ -340,6 +340,8 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             (address[] memory players, uint256[] memory finalScores) = gameId.closeGame(onPlayersGameEnd);
             emit GameOver(gameId, players, finalScores);
         }
+        address[] memory promotedPlayers = LibRankify._flushWaitlistAndPrepareNextRound(gameId);
+        emit IRankifyInstance.WaitlistFlushed(gameId, promotedPlayers);
     }
 
     /**

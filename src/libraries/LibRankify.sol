@@ -21,6 +21,17 @@ library LibRankify {
     using LibTBG for LibTBG.State;
     using LibQuadraticVoting for LibQuadraticVoting.qVotingStruct;
 
+    enum JoinStatus {
+        JoinedDirectly,
+        AddedToWaitlist,
+        AlreadyInGame,
+        AlreadyWaitlisted,
+        GameNotJoinable, // Covers game over, or registration not open and game not started
+        GameFull,
+        // InvalidSignature // Signature validation will be handled by the facet before calling internal logic
+        RankRequirementsNotMet // Placeholder if fulfillRankRq could fail and we want a specific status
+    }
+
     /**
      * @dev Main state structure for a Rankify instance
      * @param numGames Total number of games created in this instance
@@ -65,6 +76,8 @@ library LibRankify {
      * @param numVotes Number of votes cast in the current voting stage
      * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
      * @param voting Quadratic voting state for this game
+     * @param waitlist Array of addresses representing the waitlist for the game
+     * @param isWaitlisted Mapping of addresses to booleans indicating whether a player is waitlisted
      */
     struct GameState {
         uint256 rank;
@@ -82,6 +95,9 @@ library LibRankify {
         mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
         mapping(address => bool) playerVoted; // Has player voted in the current voting stage
         address winner;
+        // --- Waitlist Data ---
+        address[] waitlist;
+        mapping(address => bool) isWaitlisted;
     }
 
     /**
@@ -535,7 +551,7 @@ library LibRankify {
      * or the time for the stage has run out, subject to minimum proposal and stale game rules.
      * Returns a status indicating whether and how the proposing stage can end.
      */
-    function canEndProposing(uint256 gameId) internal view returns (IRankifyInstance.ProposingEndStatus) {
+    function canEndProposing(uint256 gameId) public view returns (IRankifyInstance.ProposingEndStatus) {
         enforceGameExists(gameId);
         if (!isProposingStage(gameId)) {
             return IRankifyInstance.ProposingEndStatus.NotProposingStage;
@@ -582,7 +598,7 @@ library LibRankify {
      * or the time for the stage has run out.
      * If there are not enough proposals to vote on, this stage effectively ends when LibTBG.canEndTurnEarly() becomes true (likely due to timeout).
      */
-    function canEndVoting(uint256 gameId) internal view returns (bool) {
+    function canEndVoting(uint256 gameId) public view returns (bool) {
         enforceGameExists(gameId);
         return isVotingStage(gameId) && gameId.canTransitionPhaseEarly();
     }
@@ -636,11 +652,11 @@ library LibRankify {
         return (gameScores, roundScores, winner, isActive, finalizedVotingMatrix);
     }
 
-    function isVotingStage(uint256 gameId) internal view returns (bool) {
+    function isVotingStage(uint256 gameId) public view returns (bool) {
         return LibTBG.getPhase(gameId) == 1;
     }
 
-    function isProposingStage(uint256 gameId) internal view returns (bool) {
+    function isProposingStage(uint256 gameId) public view returns (bool) {
         return LibTBG.getPhase(gameId) == 0;
     }
 
@@ -687,5 +703,150 @@ library LibRankify {
         // Potentially add conditions for being stuck in voting if other scenarios arise in the future
 
         return false;
+    }
+
+    /**
+     * @dev Returns true if the player is currently on the waitlist for the given game.
+     * @param gameId The ID of the game.
+     * @param player The address of the player.
+     * @return True if the player is waitlisted, false otherwise.
+     */
+    function isPlayerWaitlisted(uint256 gameId, address player) public view returns (bool) {
+        enforceGameExists(gameId);
+        GameState storage game = getGameState(gameId);
+        return game.isWaitlisted[player];
+    }
+
+    /**
+     * @dev Returns the list of players currently on the waitlist for the given game.
+     * @param gameId The ID of the game.
+     * @return Array of addresses of waitlisted players.
+     */
+    function getWaitlistedPlayers(uint256 gameId) public view returns (address[] memory) {
+        enforceGameExists(gameId);
+        GameState storage game = getGameState(gameId);
+        return game.waitlist;
+    }
+
+    /**
+     * @dev Internal function to handle a player's request to join a game.
+     *      Determines if the player can join directly, be added to a waitlist, or if the request is invalid.
+     *      Signature validation is assumed to be done by the calling facet.
+     * @param gameId The ID of the game.
+     * @param player The address of the player requesting to join.
+     * @return JoinStatus Indicating the outcome of the join request.
+     */
+    function _handleJoinRequest(uint256 gameId, address player /* bytes memory gameMasterSignature, bytes32 digest */) external returns (JoinStatus) {
+        enforceGameExists(gameId);
+
+        GameState storage game = getGameState(gameId);
+        LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
+        LibTBG.State storage tbgState = tbgInstanceState.state;
+        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
+
+        if (LibTBG.isPlayerInGame(gameId, player)) {
+            return JoinStatus.AlreadyInGame;
+        }
+        if (game.isWaitlisted[player]) {
+            return JoinStatus.AlreadyWaitlisted;
+        }
+
+        // Check total potential players (active + waitlisted + current request) against maxPlayerCnt
+        if (tbgState.numActivePlayers + game.waitlist.length >= tbgSettings.maxPlayerCnt) {
+            return JoinStatus.GameFull;
+        }
+
+        fulfillRankRq(gameId, player); // If this could fail and need specific status, adjust JoinStatus enum
+
+        if (LibTBG.isRegistrationOpen(gameId) && !LibTBG.isLastTurn(gameId)) { // Game not started or in specific join window
+            gameId.addPlayer(player); // LibTBG pre-game addPlayer; should also check maxPlayerCnt
+            return JoinStatus.JoinedDirectly;
+        } else if (tbgState.hasStarted && (!LibTBG.isGameOver(gameId) || LibTBG.isLastTurn(gameId))) { // Game ongoing, add to waitlist
+            game.waitlist.push(player);
+            game.isWaitlisted[player] = true;
+            return JoinStatus.AddedToWaitlist;
+        } else { // Game not joinable (e.g., ended, or not started and registration closed)
+            return JoinStatus.GameNotJoinable;
+        }
+    }
+
+    /**
+     * @dev Internal function to process the waitlist, add players to the game,
+     *      and prepare for the next round. Assumes this is called at a safe point,
+     *      typically after a round's scoring and before the next proposing phase.
+     *      Relies on placeholder functions in LibTBG and LibQuadraticVoting for core changes.
+     * @param gameId The ID of the game.
+     */
+    function _flushWaitlistAndPrepareNextRound(uint256 gameId) public returns (address[] memory) {
+        enforceGameExists(gameId);
+        GameState storage game = getGameState(gameId);
+        address[] storage localWaitlist = game.waitlist;
+
+        if (localWaitlist.length == 0) {
+            _resetRoundState(gameId);
+            return new address[](0);
+        }
+
+        address[] memory promotedPlayers = new address[](localWaitlist.length);
+
+        for (uint i = 0; i < localWaitlist.length; i++) {
+            address playerToAdd = localWaitlist[i];
+
+            // --- CRITICAL ASSUMPTION: LibTBG Modification ---
+            // LibTBG.addPlayerToActiveGame(gameId, playerToAdd);
+            // This function MUST exist in LibTBG and correctly add the player
+            // to all its internal structures for an ongoing game.
+            // It should also verify that adding this player doesn't exceed maxPlayerCnt if not already guaranteed.
+            // --- END CRITICAL ASSUMPTION ---
+
+            promotedPlayers[i] = playerToAdd;
+            game.isWaitlisted[playerToAdd] = false; // Clear waitlist status
+            // No payment logic here as it's handled upfront by the facet.
+        }
+
+        // Emit event with the players actually promoted (which is the content of localWaitlist before clearing)
+        // Important: Emit *before* deleting, to capture the list of players who were processed.
+        emit IRankifyInstance.WaitlistFlushed(gameId, localWaitlist);
+
+        delete game.waitlist; // Clear the waitlist array
+
+        // --- CRITICAL ASSUMPTION: LibQuadraticVoting Modification ---
+        // LibQuadraticVoting.updatePrecomputedValues(game.voting, gameId.getPlayers().length);
+        // --- END CRITICAL ASSUMPTION ---
+
+        _resetRoundState(gameId);
+        return promotedPlayers;
+    }
+
+    /**
+     * @dev Resets the game state specific to a round of proposals and voting.
+     * Called when a new round starts, potentially after new players are added.
+     * @param gameId The ID of the game.
+     */
+    function _resetRoundState(uint256 gameId) public {
+        GameState storage game = getGameState(gameId);
+        // Reset player-specific states for the new round for ALL players (existing and newly added)
+        address[] memory players = gameId.getPlayers(); // Assumes LibTBG updated this list if players were added
+        for (uint i = 0; i < players.length; i++) {
+            delete game.proposalCommitment[players[i]];
+            delete game.ballotHashes[players[i]];
+            game.playerVoted[players[i]] = false;
+        }
+        // Reset general round state
+        game.numCommitments = 0;
+        game.numVotes = 0;
+        delete game.permutationCommitment;
+        // Clear ongoing proposals from the previous round
+        // This requires knowing how ongoingProposals are indexed or if they are cleared differently.
+        // Assuming they are indexed 0 to N-1 based on numCommitments of *previous* round.
+        // If they are mapped by address, then the loop above for players might be enough
+        // or a more specific clearing mechanism for `game.ongoingProposals` is needed.
+        // For now, let's assume `LibTBG.startNextPhase()` or `LibTBG.startTurn()` handles
+        // LibTBG's concept of turns/phases, and we handle application-specific state here.
+        // Example if ongoingProposals were an array indexed 0..numCommitments-1:
+        // for (uint i = 0; i < oldNumCommitments; i++) { delete game.ongoingProposals[i]; }
+
+        // Note: LibTBG's own state for player moves in phase (`numPlayersMadeMove`)
+        // should be reset by LibTBG when it advances to the new proposing phase.
     }
 }
