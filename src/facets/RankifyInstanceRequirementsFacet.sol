@@ -82,11 +82,22 @@ contract RankifyInstanceRequirementsFacet is ReentrancyGuard {
         });
     }
 
-    function getBankBalance(address player) public view returns (uint256) {
+    /**
+     * @dev Retrieves the amount of ETH that can be pulled from the bank for a specific player.
+     * @param player The address of the player.
+     * @return The amount of ETH that can be pulled from the bank.
+     */
+    function getPullableEth(address player) public view returns (uint256) {
         return LibCoinVending.bankBalance(player);
     }
 
-    function withdrawFromBank(address player, uint256 amount) public nonReentrant {
+    /**
+     * @dev Pulls ETH from the bank for a specific player.
+     * @param player The address of the player.
+     * @param amount The amount of ETH to pull from the bank.
+     * @notice This function allows ANYONE to pull ETH from the bank to the account; This means someone can pay tx gas for someone else to pull ETH from the bank to their account; It is not security vulnerability since vending already tries to release these funds at all times;
+     */
+    function pullEth(address player, uint256 amount) public nonReentrant {
         LibCoinVending.withdrawFromBank(player, amount);
     }
 }

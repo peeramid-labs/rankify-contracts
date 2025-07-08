@@ -533,18 +533,24 @@ contract RankifyInstanceMainFacet is
         return turnState.madeMove[player];
     }
 
+    /**
+     * @dev Exits a rank token from the game.
+     * @param rankId The ID of the rank token.
+     * @param amount The amount of rank tokens to exit.
+     * @notice this function will overflow at high ranks, we are aware of that and will fix this later;
+     */
     function exitRankToken(uint256 rankId, uint256 amount) external nonReentrant {
         require(amount != 0, "cannot specify zero exit amount");
         LibRankify.InstanceState storage state = LibRankify.instanceState();
         LibRankify.CommonParams storage commons = state.commonParams;
         IRankToken rankContract = IRankToken(commons.rankTokenAddress);
+        rankContract.burn(msg.sender, rankId, amount);
         DistributableGovernanceERC20 tokenContract = DistributableGovernanceERC20(commons.derivedToken);
         uint256 _toMint = amount *
             rankId.mulDiv(
                 ((commons.minimumParticipantsInCircle / 2) ** rankId) - 1,
                 commons.minimumParticipantsInCircle - 1
             );
-        rankContract.burn(msg.sender, rankId, amount);
         tokenContract.mint(msg.sender, _toMint);
         emit RankTokenExited(msg.sender, rankId, amount, _toMint);
     }
