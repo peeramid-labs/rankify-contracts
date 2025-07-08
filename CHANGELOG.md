@@ -1,5 +1,49 @@
 # rankify-contracts
 
+## 0.15.0
+
+### Minor Changes
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - added permutation info to voting stage results event:
+
+  VotingStageResults signature now is:
+
+      event VotingStageResults(
+          uint256 indexed gameId,
+          uint256 indexed roundNumber,
+          address indexed winner,
+          address[] players,
+          uint256[] scores,
+          uint256[][] votesSorted,
+          bool[] isActive,
+          uint256[][] finalizedVotingMatrix,
+          uint256[] permutation
+      );
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - Enhance RankifyInstance facets with reentrancy guards and new math utilities.
+
+  Added `nonReentrant` modifier to `exitRankToken` function and implemented bank balance management in `LibCoinVending`.
+
+  Updated `RankifyInstanceRequirementsFacet` to include new withdrawal functions and improved error handling in token transfers.
+
+  Refactored `RankToken` storage position.
+
+### Patch Changes
+
+- [#208](https://github.com/peeramid-labs/rankify-contracts/pull/208) [`f957b79280efd3a2b515ef618db12673856a6008`](https://github.com/peeramid-labs/rankify-contracts/commit/f957b79280efd3a2b515ef618db12673856a6008) Thanks [@peersky](https://github.com/peersky)! - added SECURITY.md
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - deployment artifacts updated for arbitrum sepolia
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - added pulling from contract eth if it stuck
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - added overtime emitted unit test
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - createAndOpenGame added RegistrationOpen Test
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - chore: update Solidity version to 0.8.28 and refactor ArguableVotingTournament to correctly handle ownership transfer and game state transitions
+
+- [#206](https://github.com/peeramid-labs/rankify-contracts/pull/206) [`04b7dc741e259724f3925dbcb69fc48b0f83d4a8`](https://github.com/peeramid-labs/rankify-contracts/commit/04b7dc741e259724f3925dbcb69fc48b0f83d4a8) Thanks [@peersky](https://github.com/peersky)! - Refactor RankifyInstanceMainFacet and LibTurnBasedGame for clarity and functionality. Updated `startGame` function to improve formatting and removed redundant lines in `LibCoinVending`. Streamlined game start logic by removing unnecessary player count checks in `startGameEarly` method.
+
 ## 0.14.3
 
 ### Patch Changes
