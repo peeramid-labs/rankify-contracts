@@ -90,7 +90,7 @@ contract RankifyInstanceMainFacet is
      *         - Creates a new game with specified settings
      * @custom:security inherits nonReentrant
      */
-    function createGame(IRankifyInstance.NewGameParamsInput memory params) public returns (uint256) {
+    function createGame(IRankifyInstance.NewGameParamsInput memory params) public nonReentrant returns (uint256) {
         LibRankify.enforceIsInitialized();
         LibRankify.InstanceState storage settings = LibRankify.instanceState();
         LibRankify.NewGameParams memory newGameParams = LibRankify.NewGameParams({
