@@ -2,4 +2,4 @@
 'rankify-contracts': patch
 ---
 
-security docs
+added SECURITY.md

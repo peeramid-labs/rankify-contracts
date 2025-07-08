@@ -1,5 +1,5 @@
 ---
-'rankify-contracts': patch
+'rankify-contracts': minor
 ---
 
 added permutation info to voting stage results event:

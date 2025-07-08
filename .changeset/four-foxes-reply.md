@@ -2,4 +2,4 @@
 'rankify-contracts': patch
 ---
 
-createAndOpenGame added RegistraionOpen Test
+createAndOpenGame added RegistrationOpen Test

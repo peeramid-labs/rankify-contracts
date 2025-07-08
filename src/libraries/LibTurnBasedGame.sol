@@ -499,6 +499,10 @@ library LibTBG {
         return true;
     }
 
+    function canStartByFull(uint256 gameId) internal view returns (bool) {
+        return canStart(gameId) || isFull(gameId);
+    }
+
     /**
      * @dev Checks if a game with the provided game ID can start early. `gameId` is the ID of the game.
      * By "early" it is assumed that time to join has not yet passed, but it's already cap players limit reached.
@@ -507,11 +511,11 @@ library LibTBG {
      *
      * - A boolean indicating whether the game can start early.
      */
-    function canStartEarly(uint256 gameId) internal view returns (bool) {
+    function isFull(uint256 gameId) internal view returns (bool) {
         State storage state = _getState(gameId);
         TBGStorageStruct storage tbg = TBGStorage();
 
-        if ((state.players.length() == tbg.instances[gameId].settings.maxPlayerCnt) || canStart(gameId)) return true;
+        if ((state.players.length() == tbg.instances[gameId].settings.maxPlayerCnt)) return true;
         return false;
     }
 
@@ -548,7 +552,7 @@ library LibTBG {
 
     /**
      * @dev Starts a game with the provided game ID early. `gameId` is the ID of the game.
-     * By "early" it is assumed that time to join has not yet passed, but it's already cap players limit reached.
+     * By "early" it is assumed that time to join has not yet passed, but it's already minimum players limit reached.
      *
      * Requirements:
      *
@@ -588,10 +592,7 @@ library LibTBG {
         State storage state = _getState(gameId);
         TBGStorageStruct storage tbg = TBGStorage();
 
-        require(
-            block.timestamp > state.registrationOpenAt + tbg.instances[gameId].settings.timeToJoin,
-            "startGame->Still Can Join"
-        );
+        require(canStartByFull(gameId), "startGame->Still Can Join");
 
         _performGameStart(gameId, state, tbg);
     }
