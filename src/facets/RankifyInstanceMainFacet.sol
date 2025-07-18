@@ -76,7 +76,8 @@ contract RankifyInstanceMainFacet is
             msg.sender,
             params.gameRank,
             params.proposingPhaseDuration,
-            params.votePhaseDuration
+            params.votePhaseDuration,
+            params.nTurns
         );
         return params.gameId;
     }
