@@ -29,7 +29,8 @@ interface IRankifyInstance {
         address indexed creator,
         uint256 indexed rank,
         uint256 proposingPhaseDuration,
-        uint256 votePhaseDuration
+        uint256 votePhaseDuration,
+        uint256 turns
     );
     event GameClosed(uint256 indexed gameId);
     event PlayerLeft(uint256 indexed gameId, address indexed player);
