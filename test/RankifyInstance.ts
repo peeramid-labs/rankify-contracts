@@ -1062,7 +1062,7 @@ describe(scriptName, () => {
               ),
           ).to.be.revertedWith('Game has not yet started');
         });
-        describe.only('When game has started', () => {
+        describe('When game has started', () => {
           beforeEach(async () => {
             await startedGameTest(simulator)();
           });

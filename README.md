@@ -137,6 +137,14 @@ We provide this packaged within our sdk: [`@peeramid-labs/sdk`](https://github.c
 
 You can get all of the function signatures to debug your application from `./all-signatures.json`
 
+
+## Verifying contracts
+
+```
+pnpm hardhat --network arbsepolia etherscan-verify --api-url https://api.etherscan.io/v2/api --api-key $ETHERSCAN_V2_KEY
+```
+NB: As of the date of writing, requires this hack applied to work with dynamic libraries: https://github.com/wighawag/hardhat-deploy/issues/253#issuecomment-2353070545
+
 ## Project Structure
 
 ```
