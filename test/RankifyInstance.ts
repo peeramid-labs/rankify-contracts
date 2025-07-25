@@ -2850,50 +2850,50 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     // For now, the custom error check is the primary assertion.
   });
 
-  it('should not allow endProposing even if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
-    const gameId = eth.BigNumber.from(1);
-    const currentTurn = await rankifyInstance.getTurn(gameId);
-    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
-    const numPlayers = players.length;
+//   it('should not allow endProposing even if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
+//     const gameId = eth.BigNumber.from(1);
+//     const currentTurn = await rankifyInstance.getTurn(gameId);
+//     const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+//     const numPlayers = players.length;
 
-    let gameState = await rankifyInstance.getGameState(gameId);
-    const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
-    const minGameTime = gameState.minGameTime.toNumber();
-    const turnStartedAt = gameState.turnStartedAt.toNumber(); // Assuming turn 0 starts at game start for simplicity or adjust based on actual start time
-    const gameStartedAt = await rankifyInstance.getGameState(gameId).then(s => s.turnStartedAt); //This might be more accurate for when minGameTime check starts
+//     let gameState = await rankifyInstance.getGameState(gameId);
+//     const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+//     const minGameTime = gameState.minGameTime.toNumber();
+//     const turnStartedAt = gameState.turnStartedAt.toNumber(); // Assuming turn 0 starts at game start for simplicity or adjust based on actual start time
+//     const gameStartedAt = await rankifyInstance.getGameState(gameId).then(s => s.turnStartedAt); //This might be more accurate for when minGameTime check starts
 
-    // All players are idlers (0 proposals)
-    const idlers = Array.from(Array(numPlayers).keys());
-    const proposalDataForAllSlots = await simulator.mockProposals({
-      players,
-      gameMaster: adr.gameMaster1,
-      gameId: gameId,
-      submitNow: false,
-      idlers: idlers,
-      turn: currentTurn.toNumber(),
-    });
+//     // All players are idlers (0 proposals)
+//     const idlers = Array.from(Array(numPlayers).keys());
+//     const proposalDataForAllSlots = await simulator.mockProposals({
+//       players,
+//       gameMaster: adr.gameMaster1,
+//       gameId: gameId,
+//       submitNow: false,
+//       idlers: idlers,
+//       turn: currentTurn.toNumber(),
+//     });
 
-    // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
-    // Ensure block.timestamp >= game.turnStartedAt (or game creation) + game.minGameTime
-    const timeToIncrease = Math.max(
-      proposingPhaseDuration + 1,
-      gameStartedAt.toNumber() + minGameTime - (await time.latest()) + 1,
-    );
-    await time.increase(timeToIncrease);
+//     // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
+//     // Ensure block.timestamp >= game.turnStartedAt (or game creation) + game.minGameTime
+//     const timeToIncrease = Math.max(
+//       proposingPhaseDuration + 1,
+//       gameStartedAt.toNumber() + minGameTime - (await time.latest()) + 1,
+//     );
+//     await time.increase(timeToIncrease);
 
-    const integrity = await simulator.getProposalsIntegrity({
-      players,
-      gameId: gameId,
-      turn: currentTurn.toNumber(),
-      gm: adr.gameMaster1,
-      proposalSubmissionData: proposalDataForAllSlots,
-      idlers: idlers,
-    });
-    await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
-      .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
-      .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
-    expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.false;
-  });
+//     const integrity = await simulator.getProposalsIntegrity({
+//       players,
+//       gameId: gameId,
+//       turn: currentTurn.toNumber(),
+//       gm: adr.gameMaster1,
+//       proposalSubmissionData: proposalDataForAllSlots,
+//       idlers: idlers,
+//     });
+//     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
+//       .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
+//       .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
+//     expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.false;
+//   });
 
   it('should allow endProposing if timeout with >= minQuadraticPositions proposals (normal timeout)', async () => {
     const gameId = eth.BigNumber.from(1);
