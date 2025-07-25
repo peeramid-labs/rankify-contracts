@@ -1,10 +1,10 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
+import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/';
 import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
-import { BigNumber, BigNumberish } from 'ethers';
+import { BigNumber } from 'ethers';
 import { assert } from 'console';
 import addDistribution from '../scripts/addDistribution';
 import hre from 'hardhat';
@@ -16,14 +16,13 @@ const scriptName = path.basename(__filename);
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import { MAODistribution } from '../types/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
-import { generateDeterministicPermutation } from '../scripts/proofs';
 import { HardhatEthersHelpers } from 'hardhat/types';
-import { EnvSetupResult, SignerIdentity } from '../scripts/setupMockEnvironment';
+import { EnvSetupResult } from '../scripts/setupMockEnvironment';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
-import { ProposalsIntegrity } from '../scripts/EnvironmentSimulator';
 import { parseInstantiated } from '../scripts/parseInstantiated';
+import { RankToken } from '../types/src/tokens/RankToken';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
