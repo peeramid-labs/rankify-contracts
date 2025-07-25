@@ -485,9 +485,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         gameId.enforceIsNotOver();
         require(gameId.isProposingStage(), "Not in proposing stage");
         LibRankify.GameState storage game = gameId.getGameState();
-        IRankifyInstance.ProposingEndStatus status = gameId.canEndProposing();
+        (bool canEnd, IRankifyInstance.ProposingEndStatus status) = gameId.canEndProposing();
         require(
-            status == IRankifyInstance.ProposingEndStatus.Success,
+            canEnd,
             IRankifyInstance.ErrorProposingStageEndFailed(gameId, status)
         );
         address[] memory players = gameId.getPlayers();

@@ -352,8 +352,8 @@ contract RankifyInstanceMainFacet is
      * @return bool Whether the proposing stage can end.
      */
     function canEndProposingStage(uint256 gameId) public view returns (bool, ProposingEndStatus) {
-        ProposingEndStatus status = LibRankify.canEndProposing(gameId);
-        return (status == ProposingEndStatus.Success, status);
+        (bool canEnd, ProposingEndStatus status) = LibRankify.canEndProposing(gameId);
+        return (canEnd, status);
     }
 
     /**
