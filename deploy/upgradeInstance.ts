@@ -29,7 +29,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   });
   const rankifyInstanceGameMastersFacetDeployment = await deploy('RankifyInstanceGameMastersFacet', {
     from: deployer,
-    skipIfAlreadyDeployed: false,
+    skipIfAlreadyDeployed: true,
     libraries: {
       LibRankify: libRankifyDeployment.address,
     },
@@ -71,7 +71,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       },
     ],
   });
-  console.log(tx.transactionHash);
 };
 export default func;
 func.tags = ['upgradeInstance'];
