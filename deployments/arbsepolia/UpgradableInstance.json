@@ -3163,7 +3163,7 @@
       "type": "function"
     }
   ],
-  "numDeployments": 2,
+  "numDeployments": 3,
   "facets": [
     {
       "facetAddress": "0xD72A98EeF2B6a9c58fe2822d41f1666A90e6Ef21",
@@ -3173,7 +3173,7 @@
       ]
     },
     {
-      "facetAddress": "0xf977d0052FbC10a6aC6C0199059dA79c3B206eC1",
+      "facetAddress": "0x6Fb4003eFc29ab0b86C595eb41b84E261b809127",
       "functionSelectors": [
         "0x4f7a0a2b",
         "0x376a6130",
@@ -3215,7 +3215,7 @@
       ]
     },
     {
-      "facetAddress": "0xDAD547811F1d5959C4Db3CB5d786E834c4f25f36",
+      "facetAddress": "0xaB3932e861CA614Bf3aBE13Ed0Faa3de5B869628",
       "functionSelectors": [
         "0x02700326",
         "0xffde0c74",
@@ -3226,7 +3226,7 @@
       ]
     },
     {
-      "facetAddress": "0x083be9bEC425ABa8a55Cf672694e8d8c96E585b9",
+      "facetAddress": "0x207Af726456f4113dAc7B4F48Bf9301cD7e7fB8F",
       "functionSelectors": [
         "0x11a615e0",
         "0x4fd042bf",
