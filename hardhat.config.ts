@@ -270,6 +270,7 @@ export default {
     },
   ],
   typechain: {
+    externalArtifacts: ['abi/hardhat-diamond-abi/HardhatDiamondABI.sol/RankifyDiamondInstance.json'],
     outDir: 'types',
     target: 'ethers-v5',
     alwaysGenerateOverloads: true, // should overloads with full signatures like deposit(uint256) be generated always, even if there are no overloads?

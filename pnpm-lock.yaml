@@ -145,8 +145,8 @@ importers:
         specifier: ^2.10.0
         version: 2.10.0(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))
       hardhat-deploy:
-        specifier: ^0.12.2
-        version: 0.12.4
+        specifier: ^1.0.4
+        version: 1.0.4
       hardhat-diamond-abi:
         specifier: ^3.0.0
         version: 3.0.1(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))
@@ -2276,8 +2276,8 @@ packages:
     peerDependencies:
       hardhat: ^2.0.0
 
-  hardhat-deploy@0.12.4:
-    resolution: {integrity: sha512-bYO8DIyeGxZWlhnMoCBon9HNZb6ji0jQn7ngP1t5UmGhC8rQYhji7B73qETMOFhzt5ECZPr+U52duj3nubsqdQ==}
+  hardhat-deploy@1.0.4:
+    resolution: {integrity: sha512-vl6vYQHDtZmILerAIRERI2AjghLH5gJIcQjNrSldn2SjQdY5Y47umXVll4/ywPzBRlsqdpJfL92PhnQ+1xB+Sg==}
 
   hardhat-diamond-abi@3.0.1:
     resolution: {integrity: sha512-t+skBGX8lK3qH/YQB8L/QJVIINyuji/2r4q9JcZQ0rX9oEZzgfJMka2ttZ4gyuNcYRT95KyfDSuCCwSQX1cVDA==}
@@ -2995,6 +2995,9 @@ packages:
 
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
+
+  neoqs@6.13.0:
+    resolution: {integrity: sha512-IysBpjrEG9qiUb/IT6XrXSz2ASzBxLebp4s8/GBm7STYC315vMNqH0aWdRR+f7KvXK4aRlLcf5r2Z6dOTxQSrQ==}
 
   node-addon-api@2.0.2:
     resolution: {integrity: sha512-Ntyt4AIXyaLIuMHF6IOoTakB3K+RWxwtsHNRxllEoA6vPwP9o4866g6YWDLUdnucilZhmkxiHwHr11gAENw+QA==}
@@ -7049,7 +7052,7 @@ snapshots:
       hardhat: 2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3)
       strip-ansi: 6.0.1
 
-  hardhat-deploy@0.12.4:
+  hardhat-deploy@1.0.4:
     dependencies:
       '@ethersproject/abi': 5.7.0
       '@ethersproject/abstract-signer': 5.7.0
@@ -7062,7 +7065,6 @@ snapshots:
       '@ethersproject/solidity': 5.7.0
       '@ethersproject/transactions': 5.7.0
       '@ethersproject/wallet': 5.7.0
-      '@types/qs': 6.9.18
       axios: 0.21.4(debug@4.4.0)
       chalk: 4.1.2
       chokidar: 3.6.0
@@ -7073,7 +7075,7 @@ snapshots:
       fs-extra: 10.1.0
       match-all: 1.2.6
       murmur-128: 0.2.1
-      qs: 6.14.0
+      neoqs: 6.13.0
       zksync-ethers: 5.10.0(ethers@5.7.2)
     transitivePeerDependencies:
       - bufferutil
@@ -7888,6 +7890,8 @@ snapshots:
   natural-compare@1.4.0: {}
 
   neo-async@2.6.2: {}
+
+  neoqs@6.13.0: {}
 
   node-addon-api@2.0.2: {}
 

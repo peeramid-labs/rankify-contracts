@@ -61,7 +61,7 @@
     "hardhat": "^2.22.16",
     "hardhat-abi-exporter": "^2.9.0",
     "hardhat-contract-sizer": "^2.10.0",
-    "hardhat-deploy": "^0.12.2",
+    "hardhat-deploy": "^1.0.4",
     "hardhat-diamond-abi": "^3.0.0",
     "hardhat-tracer": "^3.1.0",
     "keccak": "^3.0.1",

@@ -535,10 +535,10 @@ library LibRankify {
      * or the time for the stage has run out, subject to minimum proposal and stale game rules.
      * Returns a status indicating whether and how the proposing stage can end.
      */
-    function canEndProposing(uint256 gameId) internal view returns (IRankifyInstance.ProposingEndStatus) {
+    function canEndProposing(uint256 gameId) internal view returns (bool, IRankifyInstance.ProposingEndStatus) {
         enforceGameExists(gameId);
         if (!isProposingStage(gameId)) {
-            return IRankifyInstance.ProposingEndStatus.NotProposingStage;
+            return (false, IRankifyInstance.ProposingEndStatus.NotProposingStage);
         }
         LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
         LibTBG.State storage tbgState = tbgInstanceState.state;
@@ -553,27 +553,27 @@ library LibRankify {
             bool phaseTimedOut = block.timestamp >= tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0]; // Proposing is phase 0
 
             if (game.numCommitments >= game.voting.minQuadraticPositions) {
-                return IRankifyInstance.ProposingEndStatus.Success;
+                return (true, IRankifyInstance.ProposingEndStatus.Success);
             }
             // If not enough proposals:
             bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
             if (minGameTimeReached) {
                 // Even if proposals are insufficient, if minGameTime is met and phase can end by TBG rules (timeout/all_moved),
                 // it's considered stale and can proceed (but facet will revert as it needs Success)
-                return IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd;
+                return (true, IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd);
             }
             // If minGameTime not reached, and not enough proposals, and phase timed out (or all moved without enough proposals)
             if (phaseTimedOut || allPlayersMoved) {
                 // All moved but not enough proposals is a specific type of not met
-                return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+                return (false, IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale);
             }
             // This case should ideally be covered by PhaseConditionsNotMet if canTransitionBasicTBG was false initially
             // or if canTransitionBasicTBG was true only because of allPlayersMoved but minProposals not met (and not stale)
             // This logic path might need refinement to ensure all conditions map to an enum state clearly.
             // For now, if it got here, it means minProposalsNotMet and not stale.
-            return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+            return (false, IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale);
         }
-        return IRankifyInstance.ProposingEndStatus.PhaseConditionsNotMet;
+        return (false, IRankifyInstance.ProposingEndStatus.PhaseConditionsNotMet);
     }
 
     /**
