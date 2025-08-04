@@ -1,5 +1,5 @@
 ---
-'@peeramid/contracts': patch
+'rankify-contracts': patch
 ---
 
 This update introduces several major features, architectural improvements, and bug fixes to the Rankify protocol.
