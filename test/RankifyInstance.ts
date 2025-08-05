@@ -1970,7 +1970,8 @@ describe(scriptName, () => {
 
                       expect(returnedHashes).to.be.an('array');
                       expect(scores).to.be.an('array');
-                      // Should return empty arrays for non-existent turn
+                      expect(returnedHashes).to.have.lengthOf(0);
+                      expect(scores).to.have.lengthOf(0);
                     });
                   });
 
