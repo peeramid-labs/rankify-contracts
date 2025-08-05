@@ -6,10 +6,10 @@ import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 /**
- * @title RankifyInstanceRequirementsFacet
- * @notice Facet handling game requirements and conditions for Rankify instances
- * @dev Implements functionality for setting and checking join requirements for games,
- *      utilizing the LibCoinVending library for configuration management
+ * @title ScoreGetterFacet
+ * @notice Facet for querying proposal scores and existence across games, turns, and instances
+ * @dev Implements functionality for retrieving proposal scores, checking proposal existence,
+ *      and getting proposer information for the Rankify gaming system
  * @author Peeramid Labs, 2024
  */
 contract ScoreGetterFacet {
@@ -34,6 +34,7 @@ contract ScoreGetterFacet {
      * @param turn The turn number
      * @param proposalHash The hash of the proposal
      * @return score The score of the proposal
+     * @return proposedBy Array of addresses who proposed this proposal
      */
     function getProposalTurnScore(
         uint256 gameId,
@@ -50,6 +51,7 @@ contract ScoreGetterFacet {
      * @param turn The turn number
      * @return proposalHashes The hashes of the proposals
      * @return scores The scores of the proposals
+     * @return proposedBy Array of proposer addresses for each proposal
      * @dev Returned arrays size is capped at max size 15 due to number of participants in the game limit
      */
     function getProposalsTurnScores(
@@ -77,8 +79,8 @@ contract ScoreGetterFacet {
      * @param turn The turn number
      * @param proposalHash The hash of the proposal
      * @return exists True if the proposal exists in the turn, false otherwise
-     * @return proposedBy The address of the player who proposed the proposal
-     * @dev Returns address(0) if in proposing stage
+     * @return proposedBy Array of addresses who proposed this proposal
+     * @dev Returns empty array for proposedBy if proposal doesn't exist or no proposer recorded
      */
     function proposalExistsInTurn(uint256 gameId, uint256 turn, bytes32 proposalHash) public view returns (bool exists, address[] memory proposedBy) {
         LibRankify.InstanceState storage instance = LibRankify.instanceState();
