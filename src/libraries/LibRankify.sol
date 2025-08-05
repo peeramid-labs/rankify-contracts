@@ -96,6 +96,7 @@ library LibRankify {
         uint256 numVotes; // Number of votes cast in the current voting stage
         uint256 permutationCommitment; // Commitment related to the permutation of ongoing proposals, set at end of proposing stage
         LibQuadraticVoting.qVotingStruct voting;
+        mapping(uint256 => string) ongoingProposals; // ToDo: This is kept to avoid breaking data structure on existing instances, we can remove it later
         mapping(address => uint256) proposalCommitment; // Player's commitment to their proposal
         mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
         mapping(address => bool) playerVoted; // Has player voted in the current voting stage
