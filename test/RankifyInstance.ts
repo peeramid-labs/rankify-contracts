@@ -53,7 +53,6 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   });
   const { owner } = await getNamedAccounts();
   const oSigner = await ethers.getSigner(owner);
-  console.log('oSigner', oSigner.address);
   const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
     govSettings: {
       tokenName: 'tokenName',
@@ -1959,11 +1958,7 @@ describe(scriptName, () => {
                       expect(scores).to.be.an('array');
                       expect(returnedHashes.length).to.equal(scores.length);
                       expect(returnedHashes.length).to.be.greaterThan(0);
-                      console.log(returnedHashes.length, scores.length);
-                      // All scores should be BigNumbers and non-negative
                       scores.forEach((score: BigNumber, i: number) => {
-                        console.log(returnedHashes[i].toString(), expectedScores[returnedHashes[i].toString()]);
-                        console.log(score.toString(), expectedScores[returnedHashes[i].toString()]);
                         expect(score).to.equal(expectedScores[returnedHashes[i].toString()]);
                       });
                     });
