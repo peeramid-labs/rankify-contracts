@@ -64,6 +64,9 @@ contract ScoreGetterFacet {
         scores = new uint256[](players.length);
         proposedBy = new address[][](players.length);
         proposalHashes = new bytes32[](players.length);
+        if (turn > gameId.getTurn()) {
+            return (new bytes32[](0), new uint256[](0), new address[][](0));
+        }
         uint256 i = 0;
         while (i < players.length) {
             proposalHashes[i] = keccak256(abi.encodePacked(game.proposals[turn][i]));
