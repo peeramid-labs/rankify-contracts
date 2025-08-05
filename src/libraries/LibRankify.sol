@@ -31,6 +31,7 @@ library LibRankify {
         uint256 numGames;
         bool contractInitialized;
         CommonParams commonParams;
+        mapping(bytes32 => ProposalScore) proposalScore;
     }
 
     /**
@@ -56,6 +57,24 @@ library LibRankify {
         address poseidon2;
     }
 
+    struct TurnProposalScore {
+        uint256 score;
+        bool exists;
+        address[] proposedBy;
+    }
+
+    struct GameProposalScore {
+        uint256 score;
+        bool exists;
+    }
+
+    struct ProposalScore {
+        bool exists;
+        uint256 totalScore;
+        mapping(uint256 => GameProposalScore) game;
+        mapping(uint256 => mapping(uint256 => TurnProposalScore)) turn;
+    }
+
     /**
      * @dev Comprehensive state structure for an individual game
      * @param rank Required rank level for participation
@@ -63,7 +82,7 @@ library LibRankify {
      * @param createdBy Address of the game creator
      * @param numCommitments Number of players who have committed a proposal in the current proposing stage
      * @param numVotes Number of votes cast in the current voting stage
-     * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
+     * @param permutationCommitment Commitment related to the permutation of ongoing proposals, set at end of proposing stage
      * @param voting Quadratic voting state for this game
      */
     struct GameState {
@@ -75,13 +94,15 @@ library LibRankify {
         address createdBy;
         uint256 numCommitments; // Number of players who have committed a proposal in the current proposing stage
         uint256 numVotes; // Number of votes cast in the current voting stage
-        uint256 permutationCommitment; // Commitment related to the permutation of ongoingProposals, set at end of proposing stage
+        uint256 permutationCommitment; // Commitment related to the permutation of ongoing proposals, set at end of proposing stage
         LibQuadraticVoting.qVotingStruct voting;
-        mapping(uint256 => string) ongoingProposals; // Proposals for the current round (submitted in proposing stage, voted on in voting stage)
         mapping(address => uint256) proposalCommitment; // Player's commitment to their proposal
         mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
         mapping(address => bool) playerVoted; // Has player voted in the current voting stage
         address winner;
+        mapping(uint256 => mapping(uint256 => string)) proposals; // Turn -> playerIdx -> Proposal
+        mapping(uint256 => uint256) numProposals; // Turn -> number of proposals submitted by players
+
     }
 
     /**

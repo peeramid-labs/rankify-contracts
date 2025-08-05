@@ -179,7 +179,7 @@ export default {
       url: process.env.BUILDBEAR_RPC_URL ?? '',
     },
     hardhat: {
-    //   allowUnlimitedContractSize: true,
+      //   allowUnlimitedContractSize: true,
       name: 'hardhat',
       accounts: {
         mnemonic: 'casual vacant letter raw trend tool vacant opera buzz jaguar bridge myself',
@@ -261,6 +261,7 @@ export default {
         'RankifyInstanceMainFacet',
         'RankifyInstanceRequirementsFacet',
         'RankifyInstanceGameMastersFacet',
+        'ScoreGetterFacet',
       ],
       strict: false,
       filter(abiElement: unknown, index: number, abi: unknown[], fullyQualifiedName: string) {
