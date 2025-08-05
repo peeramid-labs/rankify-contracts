@@ -2,7 +2,6 @@ import { task, subtask } from 'hardhat/config';
 import { TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS } from 'hardhat/builtin-tasks/task-names';
 import { join } from 'path';
 import { writeFile, mkdir, readFile } from 'fs/promises';
-import { inspect } from 'util';
 import '@solarity/hardhat-zkit';
 import '@solarity/chai-zkit';
 import '@nomicfoundation/hardhat-chai-matchers';
@@ -33,7 +32,7 @@ subtask(TASK_COMPILE_SOLIDITY_EMIT_ARTIFACTS).setAction(async (args, env, next) 
     const file = join(dirPath, `${contractName}.ts`);
     const { abi } = Object.values(contract as ContractMap)[0];
     if (JSON.stringify(abi).length > 2) {
-      const data = `export const abi = ${inspect(abi, false, null)} as const; export default abi;`;
+      const data = `export const abi = ${JSON.stringify(abi, null, 2)} as const; export default abi;`;
       await writeFile(file, data);
     }
   });
@@ -51,7 +50,7 @@ task('diamond-abi-viem-export', 'Generates the rankify diamond viem abi file').s
     const diamondAbiContent = await readFile(diamondAbiPath, 'utf-8');
     const abi = JSON.parse(diamondAbiContent);
     if (abi) {
-      const data = `export const abi = ${inspect(abi, false, null)} as const; export default abi;`;
+      const data = `export const abi = ${JSON.stringify(abi, null, 2)} as const; export default abi;`;
       await writeFile(join(diamondDirpath, 'RankifyDiamondInstance.ts'), data);
     }
   } catch (error) {
