@@ -13,7 +13,7 @@ Added comprehensive proposal score tracking and getter functionality:
 
 - **Storage Layout Changes**: Internal data structures modified for game state
   - **InstanceState**: Added `mapping(bytes32 => ProposalScore) proposalScore`
-  - **GameState**: Removed `mapping(uint256 => string) ongoingProposals`, added persistent proposal storage for each **turn**
+  - **GameState**: Deprecated `mapping(uint256 => string) ongoingProposals`, added persistent proposal storage for each **turn**; Structure is still there to avoid breaking existing games, we will remove it in future releases
   - **Impact**: Contract upgrades require data migration, affects internal proposal access patterns
   - **Solution**: Migration can be done by manually disabling new game creation (game master api) and then using indexed data to get the scores for each turn and manually writing that data to a migration script and then executing it. 
 
