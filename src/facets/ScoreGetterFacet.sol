@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {LibRankify} from "../libraries/LibRankify.sol";
+import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
 /**
  * @title ScoreGetterFacet
  * @notice Facet for querying proposal scores and existence across games, turns, and instances
@@ -11,6 +12,7 @@ import {LibRankify} from "../libraries/LibRankify.sol";
  */
 contract ScoreGetterFacet {
     using LibRankify for uint256;
+    using LibTBG for uint256;
 
     /**
      * @notice Get the score of a proposal in the game
