@@ -2090,7 +2090,7 @@ describe(scriptName, () => {
                       const existsInInstance = await rankifyInstance.proposalExists(proposalHash.proposal);
 
                       // If proposal exists in turn, it should exist in game and instance
-                      if (existsInTurn) {
+                      if (existsInTurn.exists) {
                         expect(existsInGame).to.be.true;
                         expect(existsInInstance).to.be.true;
                       }
