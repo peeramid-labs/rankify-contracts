@@ -103,7 +103,6 @@ library LibRankify {
         address winner;
         mapping(uint256 => mapping(uint256 => string)) proposals; // Turn -> playerIdx -> Proposal
         mapping(uint256 => uint256) numProposals; // Turn -> number of proposals submitted by players
-
     }
 
     /**

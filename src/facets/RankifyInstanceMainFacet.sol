@@ -325,7 +325,11 @@ contract RankifyInstanceMainFacet is
      * @return contractInitialized Whether the contract is initialized
      * @return commonParams The common parameters of the instance
      */
-    function getContractState() public view returns (uint256 numGames, bool contractInitialized, LibRankify.CommonParams memory commonParams) {
+    function getContractState()
+        public
+        view
+        returns (uint256 numGames, bool contractInitialized, LibRankify.CommonParams memory commonParams)
+    {
         LibRankify.InstanceState storage state = LibRankify.instanceState();
         return (state.numGames, state.contractInitialized, state.commonParams);
     }

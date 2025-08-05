@@ -39,7 +39,10 @@ contract ScoreGetterFacet {
         bytes32 proposalHash
     ) public view returns (uint256 score, address[] memory proposedBy) {
         LibRankify.InstanceState storage instance = LibRankify.instanceState();
-        return (instance.proposalScore[proposalHash].turn[gameId][turn].score, instance.proposalScore[proposalHash].turn[gameId][turn].proposedBy);
+        return (
+            instance.proposalScore[proposalHash].turn[gameId][turn].score,
+            instance.proposalScore[proposalHash].turn[gameId][turn].proposedBy
+        );
     }
 
     /**
@@ -79,9 +82,16 @@ contract ScoreGetterFacet {
      * @return proposedBy Array of addresses who proposed this proposal
      * @dev Returns empty array for proposedBy if proposal doesn't exist or no proposer recorded
      */
-    function proposalExistsInTurn(uint256 gameId, uint256 turn, bytes32 proposalHash) public view returns (bool exists, address[] memory proposedBy) {
+    function proposalExistsInTurn(
+        uint256 gameId,
+        uint256 turn,
+        bytes32 proposalHash
+    ) public view returns (bool exists, address[] memory proposedBy) {
         LibRankify.InstanceState storage instance = LibRankify.instanceState();
-        return (instance.proposalScore[proposalHash].turn[gameId][turn].exists, instance.proposalScore[proposalHash].turn[gameId][turn].proposedBy);
+        return (
+            instance.proposalScore[proposalHash].turn[gameId][turn].exists,
+            instance.proposalScore[proposalHash].turn[gameId][turn].proposedBy
+        );
     }
 
     /**
@@ -114,5 +124,4 @@ contract ScoreGetterFacet {
         LibRankify.InstanceState storage instance = LibRankify.instanceState();
         return instance.proposalScore[proposalHash].totalScore;
     }
-
 }
