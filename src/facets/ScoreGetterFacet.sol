@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
-import {LibCoinVending} from "../libraries/LibCoinVending.sol";
 import {LibRankify} from "../libraries/LibRankify.sol";
-import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
 /**
  * @title ScoreGetterFacet
  * @notice Facet for querying proposal scores and existence across games, turns, and instances
@@ -13,9 +10,7 @@ import {IRankifyInstance} from "../interfaces/IRankifyInstance.sol";
  * @author Peeramid Labs, 2024
  */
 contract ScoreGetterFacet {
-    using LibTBG for uint256;
     using LibRankify for uint256;
-    using LibTBG for LibTBG.State;
 
     /**
      * @notice Get the score of a proposal in the game
