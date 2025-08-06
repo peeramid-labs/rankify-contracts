@@ -4,7 +4,7 @@ import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/';
 import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
-import { BigNumber } from 'ethers';
+import { BigNumber, BigNumberish } from 'ethers';
 import { assert } from 'console';
 import addDistribution from '../scripts/addDistribution';
 import hre from 'hardhat';
@@ -53,7 +53,6 @@ const setupMainTest = deployments.createFixture(async ({ deployments, getNamedAc
   });
   const { owner } = await getNamedAccounts();
   const oSigner = await ethers.getSigner(owner);
-  console.log('oSigner', oSigner.address);
   const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
     govSettings: {
       tokenName: 'tokenName',
@@ -1840,6 +1839,264 @@ describe(scriptName, () => {
                     expect(evts.length).to.be.greaterThan(0);
                   });
                 });
+                describe('ScoreGetterFacet tests', () => {
+                  let proposals: ProposalSubmission[] = [];
+                  let proposalHashes: { proposal: string; proposer: string }[] = [];
+                  let gameId: number;
+                  let turn: BigNumber;
+                  let expectedScores: { [key: string]: BigNumber } = {};
+
+                  beforeEach(async () => {
+                    gameId = 1;
+                    turn = await rankifyInstance.getTurn(gameId);
+                    expectedScores = {};
+
+                    // Get the proposals from the previous setup
+                    const setupResult = await allPlayersProposedTest(simulator)();
+                    proposals = setupResult.proposals;
+
+                    // Calculate proposal hashes
+                    proposalHashes = proposals.map(proposal => {
+                      return {
+                        proposal: ethersDirect.utils.keccak256(ethersDirect.utils.toUtf8Bytes(proposal.proposal)),
+                        proposer: proposal.params.proposer,
+                      };
+                    });
+
+                    // Complete a turn to have scores to test
+                    const playersCnt = await rankifyInstance.getPlayers(gameId).then(players => players.length);
+                    const players = getPlayers(adr, playersCnt);
+
+                    const integrity = await simulator.getProposalsIntegrity({
+                      players,
+                      gameId,
+                      turn,
+                      gm: adr.gameMaster1,
+                      proposalSubmissionData: proposals,
+                    });
+
+                    await rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals);
+
+                    // Create and submit votes
+                    const votes = await simulator.mockValidVotes(players, gameId, adr.gameMaster1, true);
+                    for (let i = 0; i < votes.length; i++) {
+                      for (let j = 0; j < votes[i].vote.length; j++) {
+                        const proposalHash = ethersDirect.utils.keccak256(
+                          ethersDirect.utils.toUtf8Bytes(integrity.newProposals.proposals[j]),
+                        );
+                        const score = votes[i].vote[j];
+                        if (!expectedScores[proposalHash]) {
+                          expectedScores[proposalHash] = BigNumber.from(0);
+                        }
+                        expectedScores[proposalHash] = expectedScores[proposalHash].add(score);
+                      }
+                    }
+
+                    await rankifyInstance.connect(adr.gameMaster1).endVoting(
+                      gameId,
+                      votes.map(vote => vote.vote),
+                      integrity.permutation,
+                      integrity.nullifier,
+                    );
+                  });
+
+                  describe('getProposalGameScore', () => {
+                    it('should return correct game score for existing proposal', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const score = await rankifyInstance.getProposalGameScore(gameId, proposalHash.proposal);
+                      expect(score).to.equal(expectedScores[proposalHash.proposal]);
+                    });
+
+                    it('should return 0 for non-existent proposal', async () => {
+                      const nonExistentHash = ethersDirect.utils.keccak256(
+                        ethersDirect.utils.toUtf8Bytes('non-existent-proposal'),
+                      );
+                      const score = await rankifyInstance.getProposalGameScore(gameId, nonExistentHash);
+                      expect(score).to.equal(0);
+                    });
+                  });
+
+                  describe('getProposalTurnScore', () => {
+                    it('should return correct turn score for existing proposal', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const { score, proposedBy } = await rankifyInstance.getProposalTurnScore(
+                        gameId,
+                        turn,
+                        proposalHash.proposal,
+                      );
+                      expect(score).to.equal(expectedScores[proposalHash.proposal]);
+                      expect(proposedBy).to.deep.equal([proposalHash.proposer]);
+                    });
+
+                    it('should return 0 for non-existent proposal in turn', async () => {
+                      const nonExistentHash = ethersDirect.utils.keccak256(
+                        ethersDirect.utils.toUtf8Bytes('non-existent-proposal'),
+                      );
+                      const { score } = await rankifyInstance.getProposalTurnScore(gameId, turn, nonExistentHash);
+                      expect(score).to.equal(0);
+                    });
+
+                    it('should return 0 for existing proposal in non-existent turn', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const nonExistentTurn = turn.add(100);
+                      const { score, proposedBy } = await rankifyInstance.getProposalTurnScore(
+                        gameId,
+                        nonExistentTurn,
+                        proposalHash.proposal,
+                      );
+                      expect(score).to.equal(0);
+                      expect(proposedBy).to.deep.equal([]);
+                    });
+                  });
+
+                  describe('getProposalsTurnScores', () => {
+                    it('should return all proposal hashes and scores for a turn', async () => {
+                      const result = await rankifyInstance.getProposalsTurnScores(gameId, turn);
+                      const [returnedHashes, scores] = result;
+
+                      expect(returnedHashes).to.be.an('array');
+                      expect(scores).to.be.an('array');
+                      expect(returnedHashes.length).to.equal(scores.length);
+                      expect(returnedHashes.length).to.be.greaterThan(0);
+                      scores.forEach((score: BigNumber, i: number) => {
+                        expect(score).to.equal(expectedScores[returnedHashes[i].toString()]);
+                      });
+                    });
+
+                    it('should return empty arrays for non-existent turn', async () => {
+                      const nonExistentTurn = turn.add(100);
+                      const result = await rankifyInstance.getProposalsTurnScores(gameId, nonExistentTurn);
+                      const [returnedHashes, scores] = result;
+
+                      expect(returnedHashes).to.be.an('array');
+                      expect(scores).to.be.an('array');
+                      expect(returnedHashes).to.have.lengthOf(0);
+                      expect(scores).to.have.lengthOf(0);
+                    });
+                  });
+
+                  describe('proposalExistsInTurn', () => {
+                    it('should return true for existing proposal in turn', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const { exists } = await rankifyInstance.proposalExistsInTurn(
+                        gameId,
+                        turn,
+                        proposalHash.proposal,
+                      );
+                      expect(exists).to.be.true;
+                    });
+
+                    it('should return false for non-existent proposal in turn', async () => {
+                      const nonExistentHash = ethersDirect.utils.keccak256(
+                        ethersDirect.utils.toUtf8Bytes('non-existent-proposal'),
+                      );
+                      const { exists } = await rankifyInstance.proposalExistsInTurn(gameId, turn, nonExistentHash);
+                      expect(exists).to.be.false;
+                    });
+
+                    it('should return false for existing proposal in non-existent turn', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const nonExistentTurn = turn.add(100);
+                      const { exists } = await rankifyInstance.proposalExistsInTurn(
+                        gameId,
+                        nonExistentTurn,
+                        proposalHash.proposal,
+                      );
+                      expect(exists).to.be.false;
+                    });
+                  });
+
+                  describe('proposalExistsInGame', () => {
+                    it('should return true for existing proposal in game', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const exists = await rankifyInstance.proposalExistsInGame(gameId, proposalHash.proposal);
+                      expect(exists).to.be.true;
+                    });
+
+                    it('should return false for non-existent proposal in game', async () => {
+                      const nonExistentHash = ethersDirect.utils.keccak256(
+                        ethersDirect.utils.toUtf8Bytes('non-existent-proposal'),
+                      );
+                      const exists = await rankifyInstance.proposalExistsInGame(gameId, nonExistentHash);
+                      expect(exists).to.be.false;
+                    });
+                  });
+
+                  describe('proposalExistsInInstance', () => {
+                    it('should return true for existing proposal in instance', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const exists = await rankifyInstance.proposalExists(proposalHash.proposal);
+                      expect(exists).to.be.true;
+                    });
+
+                    it('should return false for non-existent proposal in instance', async () => {
+                      const nonExistentHash = ethersDirect.utils.keccak256(
+                        ethersDirect.utils.toUtf8Bytes('non-existent-proposal'),
+                      );
+                      const exists = await rankifyInstance.proposalExists(nonExistentHash);
+                      expect(exists).to.be.false;
+                    });
+                  });
+
+                  describe('getProposalAggregateScore', () => {
+                    it('should return correct aggregate score for existing proposal', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const score = await rankifyInstance.getProposalTotalScore(proposalHash.proposal);
+                      expect(score).to.equal(expectedScores[proposalHash.proposal]);
+                    });
+
+                    it('should return 0 for non-existent proposal', async () => {
+                      const nonExistentHash = ethersDirect.utils.keccak256(
+                        ethersDirect.utils.toUtf8Bytes('non-existent-proposal'),
+                      );
+                      const score = await rankifyInstance.getProposalTotalScore(nonExistentHash);
+                      expect(score).to.equal(0);
+                    });
+                  });
+
+                  describe('Score consistency tests', () => {
+                    it('should have game score equal to sum of turn scores for single-turn game', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const gameScore = await rankifyInstance.getProposalGameScore(gameId, proposalHash.proposal);
+                      const { score, proposedBy } = await rankifyInstance.getProposalTurnScore(
+                        gameId,
+                        turn,
+                        proposalHash.proposal,
+                      );
+
+                      // For a single completed turn, game score should equal turn score
+                      expect(gameScore).to.equal(score);
+                      expect(proposedBy).to.deep.equal([proposalHash.proposer]);
+                    });
+
+                    it('should have aggregate score greater than or equal to game score', async () => {
+                      const proposalHash = proposalHashes[0];
+                      const aggregateScore = await rankifyInstance.getProposalTotalScore(proposalHash.proposal);
+                      const gameScore = await rankifyInstance.getProposalGameScore(gameId, proposalHash.proposal);
+
+                      // Aggregate score should be at least as high as individual game score
+                      expect(aggregateScore.gte(gameScore)).to.be.true;
+                    });
+
+                    it('should have consistent proposal existence across different getters', async () => {
+                      const proposalHash = proposalHashes[0];
+
+                      const existsInTurn = await rankifyInstance.proposalExistsInTurn(
+                        gameId,
+                        turn,
+                        proposalHash.proposal,
+                      );
+                      const existsInGame = await rankifyInstance.proposalExistsInGame(gameId, proposalHash.proposal);
+                      const existsInInstance = await rankifyInstance.proposalExists(proposalHash.proposal);
+
+                      // If proposal exists in turn, it should exist in game and instance
+                      if (existsInTurn.exists) {
+                        expect(existsInGame).to.be.true;
+                        expect(existsInInstance).to.be.true;
+                      }
+                    });
+                  });
+                });
               });
             });
           });
@@ -2850,50 +3107,50 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     // For now, the custom error check is the primary assertion.
   });
 
-//   it('should not allow endProposing even if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
-//     const gameId = eth.BigNumber.from(1);
-//     const currentTurn = await rankifyInstance.getTurn(gameId);
-//     const players = getPlayers(adr, RInstance_MIN_PLAYERS);
-//     const numPlayers = players.length;
+  //   it('should not allow endProposing even if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
+  //     const gameId = eth.BigNumber.from(1);
+  //     const currentTurn = await rankifyInstance.getTurn(gameId);
+  //     const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+  //     const numPlayers = players.length;
 
-//     let gameState = await rankifyInstance.getGameState(gameId);
-//     const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
-//     const minGameTime = gameState.minGameTime.toNumber();
-//     const turnStartedAt = gameState.turnStartedAt.toNumber(); // Assuming turn 0 starts at game start for simplicity or adjust based on actual start time
-//     const gameStartedAt = await rankifyInstance.getGameState(gameId).then(s => s.turnStartedAt); //This might be more accurate for when minGameTime check starts
+  //     let gameState = await rankifyInstance.getGameState(gameId);
+  //     const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+  //     const minGameTime = gameState.minGameTime.toNumber();
+  //     const turnStartedAt = gameState.turnStartedAt.toNumber(); // Assuming turn 0 starts at game start for simplicity or adjust based on actual start time
+  //     const gameStartedAt = await rankifyInstance.getGameState(gameId).then(s => s.turnStartedAt); //This might be more accurate for when minGameTime check starts
 
-//     // All players are idlers (0 proposals)
-//     const idlers = Array.from(Array(numPlayers).keys());
-//     const proposalDataForAllSlots = await simulator.mockProposals({
-//       players,
-//       gameMaster: adr.gameMaster1,
-//       gameId: gameId,
-//       submitNow: false,
-//       idlers: idlers,
-//       turn: currentTurn.toNumber(),
-//     });
+  //     // All players are idlers (0 proposals)
+  //     const idlers = Array.from(Array(numPlayers).keys());
+  //     const proposalDataForAllSlots = await simulator.mockProposals({
+  //       players,
+  //       gameMaster: adr.gameMaster1,
+  //       gameId: gameId,
+  //       submitNow: false,
+  //       idlers: idlers,
+  //       turn: currentTurn.toNumber(),
+  //     });
 
-//     // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
-//     // Ensure block.timestamp >= game.turnStartedAt (or game creation) + game.minGameTime
-//     const timeToIncrease = Math.max(
-//       proposingPhaseDuration + 1,
-//       gameStartedAt.toNumber() + minGameTime - (await time.latest()) + 1,
-//     );
-//     await time.increase(timeToIncrease);
+  //     // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
+  //     // Ensure block.timestamp >= game.turnStartedAt (or game creation) + game.minGameTime
+  //     const timeToIncrease = Math.max(
+  //       proposingPhaseDuration + 1,
+  //       gameStartedAt.toNumber() + minGameTime - (await time.latest()) + 1,
+  //     );
+  //     await time.increase(timeToIncrease);
 
-//     const integrity = await simulator.getProposalsIntegrity({
-//       players,
-//       gameId: gameId,
-//       turn: currentTurn.toNumber(),
-//       gm: adr.gameMaster1,
-//       proposalSubmissionData: proposalDataForAllSlots,
-//       idlers: idlers,
-//     });
-//     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
-//       .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
-//       .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
-//     expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.false;
-//   });
+  //     const integrity = await simulator.getProposalsIntegrity({
+  //       players,
+  //       gameId: gameId,
+  //       turn: currentTurn.toNumber(),
+  //       gm: adr.gameMaster1,
+  //       proposalSubmissionData: proposalDataForAllSlots,
+  //       idlers: idlers,
+  //     });
+  //     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
+  //       .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
+  //       .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
+  //     expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.false;
+  //   });
 
   it('should allow endProposing if timeout with >= minQuadraticPositions proposals (normal timeout)', async () => {
     const gameId = eth.BigNumber.from(1);
