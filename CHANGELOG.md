@@ -1,5 +1,16 @@
 # rankify-contracts
 
+## 0.15.1
+
+### Patch Changes
+
+- [#212](https://github.com/peeramid-labs/rankify-contracts/pull/212) [`8e44cda4bfe88ccf9550f426c8f1bf368f2ae227`](https://github.com/peeramid-labs/rankify-contracts/commit/8e44cda4bfe88ccf9550f426c8f1bf368f2ae227) Thanks [@peersky](https://github.com/peersky)! - This update introduces several major features, architectural improvements, and bug fixes to the Rankify protocol.
+
+  ### ✨ Bug Fixes & improvements
+
+  - **Diamond Upgradability**: Diamond instances are now upgradeable. A new deployment script (`deploy/upgradeInstance.ts`) facilitates the upgrade process for existing instances.
+  - **CanEnd Turn bug fix**: Previously can end turn would not correctly return the stale game end ability, new fix correctly handles this both in view method and in ending voting phase execution
+
 ## 0.15.0
 
 ### Minor Changes
