@@ -46,39 +46,26 @@ jobs:
   deploy_and_publish_contracts_preview:
     runs-on: ubuntu-latest
     outputs:
-      rpc_url: ${{ steps.buildbear.outputs.rpc_url }}
+      # rpc_url: ${{ steps.buildbear.outputs.rpc_url }}
       deployment_details: ${{ steps.export_addresses.outputs.deployment_details }}
       contracts_package_version: ${{ steps.versioning.outputs.package_version }}
     steps:
       - name: 'Checkout Code'
         uses: actions/checkout@v4
-
-      - name: 'Setup Node.js & PNPM'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'pnpm'
-          registry-url: 'https://npm.pkg.github.com'
-
-      - name: 'Install Dependencies'
-        run: pnpm install --frozen-lockfile
-
+      - uses: './.github/setup'
       - name: 'Build Contracts'
         run: pnpm build
-
       - name: 'Deploy to BuildBear'
         id: buildbear
         uses: BuildBearLabs/buildbear_x_action@v1.7.0
         with:
           buildbear-api-key: '${{ secrets.CICD_BUILDBEAR_TOKEN }}'
           deploy-command: 'rm -rf ./deployments/buildbear && pnpm hardhat deploy --network buildbear --tags MAO'
-
       - name: 'Export Contract Addresses'
         id: export_addresses
         run: |
           DEPLOYMENT_JSON=$(jq -n '[inputs | {key: (input_filename | sub(".json$"; "") | sub(".*/"; "")), value: .address}] | from_entries' deployments/buildbear/*.json | jq -c .)
           echo "deployment_details=$DEPLOYMENT_JSON" >> $GITHUB_OUTPUT
-
       - name: 'Generate Pre-release Version Number'
         id: versioning
         run: |
@@ -97,26 +84,25 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  trigger_sdk_build:
-    runs-on: ubuntu-latest
-    needs: deploy_and_publish_contracts_preview
-    steps:
-      - name: 'Trigger SDK Preview Build'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CI_PAT }}
-          repository: 'peeramid-labs/sdk'
-          event-type: 'build-preview-sdk'
-          client-payload: >
-            {
-              "branch": "${{ github.head_ref }}",
-              "pr_number": "${{ github.event.pull_request.number }}",
-              "sha": "${{ github.event.pull_request.head.sha }}",
-              "rpc_url": "${{ needs.deploy_and_publish_contracts_preview.outputs.rpc_url }}",
-              "contracts_package_version": "${{ needs.deploy_and_publish_contracts_preview.outputs.contracts_package_version }}",
-              "contracts": ${{ needs.deploy_and_publish_contracts_preview.outputs.deployment_details }}
-            }
-
+  # trigger_sdk_build:
+  #   runs-on: ubuntu-latest
+  #   needs: deploy_and_publish_contracts_preview
+  #   steps:
+  #     - name: 'Trigger SDK Preview Build'
+  #       uses: peter-evans/repository-dispatch@v3
+  #       with:
+  #         token: ${{ secrets.CI_PAT }}
+  #         repository: 'peeramid-labs/sdk'
+  #         event-type: 'build-preview-sdk'
+  #         client-payload: >
+  #           {
+  #             "branch": "${{ github.head_ref }}",
+  #             "pr_number": "${{ github.event.pull_request.number }}",
+  #             "sha": "${{ github.event.pull_request.head.sha }}",
+  #             "rpc_url": "${{ needs.deploy_and_publish_contracts_preview.outputs.rpc_url }}",
+  #             "contracts_package_version": "${{ needs.deploy_and_publish_contracts_preview.outputs.contracts_package_version }}",
+  #             "contracts": ${{ needs.deploy_and_publish_contracts_preview.outputs.deployment_details }}
+  #           }
 # =====================================================================================
 # == SDK WORKFLOW BOILERPLATE
 # ==

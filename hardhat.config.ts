@@ -136,27 +136,33 @@ export default {
   },
   namedAccounts: {
     deployer: {
+      buildbear: '0x7f79e09bd360c7E736170650eDA658BA83AE1cf8',
       hardhat: '0xF52E5dF676f51E410c456CC34360cA6F27959420',
       anvil: '0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583',
       arbsepolia: '0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583',
       default: '0xF52E5dF676f51E410c456CC34360cA6F27959420', //TODO this must be set for networks
     },
     owner: {
+      buildbear: '0x25a13417337405E67Ba23d10F67a3c1E9f57e902',
       default: '0x520E00225C4a43B6c55474Db44a4a44199b4c3eE',
       anvil: '0x507c2d32185667156de5B4C440FEEf3800078bDb',
       arbsepolia: '0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583',
     },
     gameMaster: {
+      buildbear: '0xa01Ee1cFcAAaddC803C853ac715a999666901554',
       localhost: '0xaA63aA2D921F23f204B6Bcb43c2844Fb83c82eb9',
     },
     defaultPlayer: {
+      buildbear: '0x6c648B1955Ea35DFB7a032aAD76A49F0138c7459',
       localhost: '0xF52E5dF676f51E410c456CC34360cA6F27959420',
     },
     DAO: {
+      buildbear: '0xE22792FFCa0EE8c542259a1A3B0D16224B0C3915',
       default: '0x520E00225C4a43B6c55474Db44a4a44199b4c3eE',
       arbsepolia: '0xf5ea7A32aBcaFE1c7Ef79396402180B549bA4aa4',
     },
     player1: {
+      buildbear: '0x332b03D39e64Ad6317cF5d0fA329627DF0645507',
       default: '0xFE87428cC8C72A3a79eD1cC7e2B5892c088d0af0',
     },
   },
@@ -177,9 +183,10 @@ export default {
         mnemonic: process.env.BUILDBEAR_MNEMONIC ?? 'x',
       },
       url: process.env.BUILDBEAR_RPC_URL ?? '',
+      tags: ['ERC7744'],
     },
     hardhat: {
-    //   allowUnlimitedContractSize: true,
+      //   allowUnlimitedContractSize: true,
       name: 'hardhat',
       accounts: {
         mnemonic: 'casual vacant letter raw trend tool vacant opera buzz jaguar bridge myself',
