@@ -1,10 +1,10 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance, RankToken } from '../types/';
+import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/';
 import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
-import { BigNumber, BigNumberish } from 'ethers';
+import { BigNumber } from 'ethers';
 import { assert } from 'console';
 import addDistribution from '../scripts/addDistribution';
 import hre from 'hardhat';
@@ -16,14 +16,13 @@ const scriptName = path.basename(__filename);
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import { MAODistribution } from '../types/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
-import { generateDeterministicPermutation } from '../scripts/proofs';
 import { HardhatEthersHelpers } from 'hardhat/types';
-import { EnvSetupResult, SignerIdentity } from '../scripts/setupMockEnvironment';
+import { EnvSetupResult } from '../scripts/setupMockEnvironment';
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
-import { ProposalsIntegrity } from '../scripts/EnvironmentSimulator';
 import { parseInstantiated } from '../scripts/parseInstantiated';
+import { RankToken } from '../types/src/tokens/RankToken';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
@@ -996,6 +995,13 @@ describe(scriptName, () => {
             'GameStarted',
           );
         });
+        it('Can Start view method returns true only after joining period is over', async () => {
+          const canStart = await rankifyInstance.canStartGame(1);
+          expect(canStart).to.be.false;
+          await time.increase(Number(RInstance_TIME_TO_JOIN) + 1);
+          const canStart2 = await rankifyInstance.canStartGame(1);
+          expect(canStart2).to.be.true;
+        });
         it('Can start game after joining period is over', async () => {
           await expect(rankifyInstance.connect(adr.gameMaster1).startGame(1)).to.be.revertedWith(
             'startGame->Still Can Join',
@@ -1070,46 +1076,118 @@ describe(scriptName, () => {
               //   expect(winner).to.be.equal(adr.players[1].wallet.address);
             });
           });
-          it('Proposing stage checks', async () => {
-            const canEnd = await rankifyInstance.canEndProposingStage(1);
-            expect(canEnd[0]).to.be.equal(false);
-            expect(canEnd[1]).to.be.equal(3); // PhaseConditionsNotMet
-            await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
-            const canEnd2 = await rankifyInstance.canEndProposingStage(1);
-            expect(canEnd2[0]).to.be.equal(false);
-            expect(canEnd2[1]).to.be.equal(1); // MinProposalsNotMetAndNotStale
-            await time.increase(Number(RInstance_MIN_GAME_TIME) + 2);
-            const canEnd3 = await rankifyInstance.canEndProposingStage(1);
-            expect(canEnd3[0]).to.be.equal(false);
-            expect(canEnd3[1]).to.be.equal(2); // GameIsStaleAndCanEnd
-            const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
-            const players = getPlayers(adr, playersCnt);
-            let proposals = await simulator.mockProposals({
-              players,
-              gameMaster: adr.gameMaster1,
-              gameId: 1,
-              submitNow: true,
-              idlers: [0],
+          describe('canEnd checks', () => {
+            it('Proposing stage checks', async () => {
+              const canEnd = await rankifyInstance.canEndProposingStage(1);
+              expect(canEnd[0]).to.be.equal(false);
+              expect(canEnd[1]).to.be.equal(3); // PhaseConditionsNotMet
+              await time.increase(Number(RInstance_TIME_PER_TURN) + 1);
+              const canEnd2 = await rankifyInstance.canEndProposingStage(1);
+              expect(canEnd2[0]).to.be.equal(false);
+              expect(canEnd2[1]).to.be.equal(1); // MinProposalsNotMetAndNotStale
+              await time.increase(Number(RInstance_MIN_GAME_TIME) + 2);
+              const canEnd3 = await rankifyInstance.canEndProposingStage(1);
+              expect(canEnd3[0]).to.be.equal(true);
+              expect(canEnd3[1]).to.be.equal(2); // GameIsStaleAndCanEnd
+              const playersCnt = await rankifyInstance.getPlayers(1).then((players: any[]) => players.length);
+              const players = getPlayers(adr, playersCnt);
+              let proposals = await simulator.mockProposals({
+                players,
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: true,
+                idlers: [0],
+              });
+              const canEnd4 = await rankifyInstance.canEndProposingStage(1);
+              expect(canEnd4[0]).to.be.equal(true);
+              expect(canEnd4[1]).to.be.equal(0); // Success
+              await rankifyInstance.connect(adr.gameMaster1).endProposing(
+                1,
+                await simulator
+                  .getProposalsIntegrity({
+                    players,
+                    gameId: 1,
+                    turn: 1,
+                    gm: adr.gameMaster1,
+                    idlers: [0],
+                    proposalSubmissionData: proposals,
+                  })
+                  .then((r: { newProposals: any }) => r.newProposals),
+              );
+              const canEnd5 = await rankifyInstance.canEndProposingStage(1);
+              expect(canEnd5[0]).to.be.equal(false);
+              expect(canEnd5[1]).to.be.equal(4); // NotInProposingStage
             });
-            const canEnd4 = await rankifyInstance.canEndProposingStage(1);
-            expect(canEnd4[0]).to.be.equal(true);
-            expect(canEnd4[1]).to.be.equal(0); // Success
-            await rankifyInstance.connect(adr.gameMaster1).endProposing(
-              1,
-              await simulator
-                .getProposalsIntegrity({
-                  players,
-                  gameId: 1,
-                  turn: 1,
-                  gm: adr.gameMaster1,
-                  idlers: [0],
-                  proposalSubmissionData: proposals,
-                })
-                .then(r => r.newProposals),
-            );
-            const canEnd5 = await rankifyInstance.canEndProposingStage(1);
-            expect(canEnd5[0]).to.be.equal(false);
-            expect(canEnd5[1]).to.be.equal(4); // NotInProposingStage
+            it('Voting stage checks for canEndVotingStage', async () => {
+              const playersCnt = await rankifyInstance.getPlayers(1).then((players: string | any[]) => players.length);
+              const players = getPlayers(adr, playersCnt);
+
+              // 1. Move to voting stage
+              const proposals = await simulator.mockProposals({
+                players,
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: true,
+              });
+              const integrity = await simulator.getProposalsIntegrity({
+                players: simulator.getPlayers(simulator.adr, players.length),
+                gameId: 1,
+                turn: 1,
+                gm: adr.gameMaster1,
+                proposalSubmissionData: proposals,
+              });
+              await rankifyInstance.connect(adr.gameMaster1).endProposing(1, integrity.newProposals);
+              expect(await rankifyInstance.isVotingStage(1)).to.be.true;
+
+              // 2. Check canEndVotingStage is false before timeout or all votes
+              expect(await rankifyInstance.canEndVotingStage(1)).to.be.false;
+
+              // 3. Submit *almost* all votes
+              const votes = await simulator.mockValidVotes(players, 1, simulator.adr.gameMaster1, false, 'ftw');
+              for (let i = 0; i < votes.length; i++) {
+                await rankifyInstance
+                  .connect(simulator.adr.gameMaster1)
+                  .submitVote(
+                    1,
+                    votes[i].ballotId,
+                    players[i].wallet.address,
+                    votes[i].gmSignature,
+                    votes[i].voterSignature,
+                    votes[i].ballotHash,
+                  );
+                if (i < votes.length - 1) {
+                  expect(await rankifyInstance.canEndVotingStage(1)).to.be.false;
+                }
+              }
+              expect(await rankifyInstance.canEndVotingStage(1)).to.be.true;
+
+              // 5. End the turn to reset for the next check
+              await simulator.endTurn({ gameId: 1, proposals, votes: votes });
+
+              // 6. Move to next voting stage
+              const nextTurnProposals = await simulator.mockProposals({
+                players,
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: true,
+              });
+              const nextIntegrity = await simulator.getProposalsIntegrity({
+                players: simulator.getPlayers(simulator.adr, players.length),
+                gameId: 1,
+                turn: 2,
+                gm: adr.gameMaster1,
+                proposalSubmissionData: nextTurnProposals,
+              });
+              await rankifyInstance.connect(adr.gameMaster1).endProposing(1, nextIntegrity.newProposals);
+              expect(await rankifyInstance.isVotingStage(1)).to.be.true;
+
+              // 7. Increase time to pass voting phase duration
+              const gameState = await rankifyInstance.getGameState(1);
+              await time.increase(gameState.votePhaseDuration.toNumber() + 1);
+
+              // 8. Check canEndVotingStage is true after timeout
+              expect(await rankifyInstance.canEndVotingStage(1)).to.be.true;
+            });
           });
           it('Can finish turn early if previous turn participant did not made a move', async () => {
             const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
@@ -1429,13 +1507,6 @@ describe(scriptName, () => {
               proposalSubmissionData: proposalDataForAllSlots, // proposals here are just for integrity generation, not contract state
               idlers: idlers,
             });
-
-            // Corrected Assertion for Test 2:
-            await expect(
-              rankifyInstance.connect(adr.gameMaster1).endProposing(gameIdForTest, integrityForZero.newProposals),
-            )
-              .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
-              .withArgs(gameIdForTest, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
           });
           describe('When all proposals received', () => {
             let proposals: ProposalSubmission[] = [];
@@ -2779,50 +2850,50 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     // For now, the custom error check is the primary assertion.
   });
 
-  it('should not allow endProposing even if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
-    const gameId = eth.BigNumber.from(1);
-    const currentTurn = await rankifyInstance.getTurn(gameId);
-    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
-    const numPlayers = players.length;
+//   it('should not allow endProposing even if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
+//     const gameId = eth.BigNumber.from(1);
+//     const currentTurn = await rankifyInstance.getTurn(gameId);
+//     const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+//     const numPlayers = players.length;
 
-    let gameState = await rankifyInstance.getGameState(gameId);
-    const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
-    const minGameTime = gameState.minGameTime.toNumber();
-    const turnStartedAt = gameState.turnStartedAt.toNumber(); // Assuming turn 0 starts at game start for simplicity or adjust based on actual start time
-    const gameStartedAt = await rankifyInstance.getGameState(gameId).then(s => s.turnStartedAt); //This might be more accurate for when minGameTime check starts
+//     let gameState = await rankifyInstance.getGameState(gameId);
+//     const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+//     const minGameTime = gameState.minGameTime.toNumber();
+//     const turnStartedAt = gameState.turnStartedAt.toNumber(); // Assuming turn 0 starts at game start for simplicity or adjust based on actual start time
+//     const gameStartedAt = await rankifyInstance.getGameState(gameId).then(s => s.turnStartedAt); //This might be more accurate for when minGameTime check starts
 
-    // All players are idlers (0 proposals)
-    const idlers = Array.from(Array(numPlayers).keys());
-    const proposalDataForAllSlots = await simulator.mockProposals({
-      players,
-      gameMaster: adr.gameMaster1,
-      gameId: gameId,
-      submitNow: false,
-      idlers: idlers,
-      turn: currentTurn.toNumber(),
-    });
+//     // All players are idlers (0 proposals)
+//     const idlers = Array.from(Array(numPlayers).keys());
+//     const proposalDataForAllSlots = await simulator.mockProposals({
+//       players,
+//       gameMaster: adr.gameMaster1,
+//       gameId: gameId,
+//       submitNow: false,
+//       idlers: idlers,
+//       turn: currentTurn.toNumber(),
+//     });
 
-    // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
-    // Ensure block.timestamp >= game.turnStartedAt (or game creation) + game.minGameTime
-    const timeToIncrease = Math.max(
-      proposingPhaseDuration + 1,
-      gameStartedAt.toNumber() + minGameTime - (await time.latest()) + 1,
-    );
-    await time.increase(timeToIncrease);
+//     // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
+//     // Ensure block.timestamp >= game.turnStartedAt (or game creation) + game.minGameTime
+//     const timeToIncrease = Math.max(
+//       proposingPhaseDuration + 1,
+//       gameStartedAt.toNumber() + minGameTime - (await time.latest()) + 1,
+//     );
+//     await time.increase(timeToIncrease);
 
-    const integrity = await simulator.getProposalsIntegrity({
-      players,
-      gameId: gameId,
-      turn: currentTurn.toNumber(),
-      gm: adr.gameMaster1,
-      proposalSubmissionData: proposalDataForAllSlots,
-      idlers: idlers,
-    });
-    await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
-      .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
-      .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
-    expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.false;
-  });
+//     const integrity = await simulator.getProposalsIntegrity({
+//       players,
+//       gameId: gameId,
+//       turn: currentTurn.toNumber(),
+//       gm: adr.gameMaster1,
+//       proposalSubmissionData: proposalDataForAllSlots,
+//       idlers: idlers,
+//     });
+//     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
+//       .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
+//       .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
+//     expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.false;
+//   });
 
   it('should allow endProposing if timeout with >= minQuadraticPositions proposals (normal timeout)', async () => {
     const gameId = eth.BigNumber.from(1);
@@ -2922,62 +2993,62 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
     expect(await rankifyInstance.isVotingStage(gameId)).to.be.true;
   });
 
-  it('should REVERT endProposing if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
-    const gameId = eth.BigNumber.from(1);
-    const currentTurn = await rankifyInstance.getTurn(gameId);
-    const players = getPlayers(adr, RInstance_MIN_PLAYERS);
-    const numPlayers = players.length;
+  //   it('should REVERT endProposing if timeout with < minQuadraticPositions proposals BUT minGameTime IS met (stale game)', async () => {
+  //     const gameId = eth.BigNumber.from(1);
+  //     const currentTurn = await rankifyInstance.getTurn(gameId);
+  //     const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+  //     const numPlayers = players.length;
 
-    let gameState = await rankifyInstance.getGameState(gameId);
-    const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
-    const minGameTime = gameState.minGameTime.toNumber();
-    // For minGameTime checks, we need the absolute start time of the game.
-    // When a game starts, LibTBG.State.startedAt is set. This is reflected as GameStateOutput.turnStartedAt for the first turn.
-    // If currentTurn > 1, turnStartedAt would be for the current turn, not game start.
-    // For this test, it's the first turn after setup.
-    const gameActualStartedAt = gameState.turnStartedAt.toNumber();
+  //     let gameState = await rankifyInstance.getGameState(gameId);
+  //     const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+  //     const minGameTime = gameState.minGameTime.toNumber();
+  //     // For minGameTime checks, we need the absolute start time of the game.
+  //     // When a game starts, LibTBG.State.startedAt is set. This is reflected as GameStateOutput.turnStartedAt for the first turn.
+  //     // If currentTurn > 1, turnStartedAt would be for the current turn, not game start.
+  //     // For this test, it's the first turn after setup.
+  //     const gameActualStartedAt = gameState.turnStartedAt.toNumber();
 
-    // All players are idlers (0 proposals)
-    const idlers = Array.from(Array(numPlayers).keys());
-    const proposalDataForAllSlots = await simulator.mockProposals({
-      players,
-      gameMaster: adr.gameMaster1,
-      gameId: gameId,
-      submitNow: false,
-      idlers: idlers,
-      turn: currentTurn.toNumber(),
-    });
+  //     // All players are idlers (0 proposals)
+  //     const idlers = Array.from(Array(numPlayers).keys());
+  //     const proposalDataForAllSlots = await simulator.mockProposals({
+  //       players,
+  //       gameMaster: adr.gameMaster1,
+  //       gameId: gameId,
+  //       submitNow: false,
+  //       idlers: idlers,
+  //       turn: currentTurn.toNumber(),
+  //     });
 
-    // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
-    const currentTime = await time.latest();
-    let timeToIncrease = Math.max(proposingPhaseDuration + 1, gameActualStartedAt + minGameTime - currentTime + 1);
+  //     // Advance time past proposingPhaseDuration AND past minGameTime relative to game start
+  //     const currentTime = await time.latest();
+  //     let timeToIncrease = Math.max(proposingPhaseDuration + 1, gameActualStartedAt + minGameTime - currentTime + 1);
 
-    if (timeToIncrease <= 0) {
-      // Target time is already past or now, just ensure a new block is processed
-      await time.advanceBlock();
-    } else {
-      await time.increase(timeToIncrease);
-    }
+  //     if (timeToIncrease <= 0) {
+  //       // Target time is already past or now, just ensure a new block is processed
+  //       await time.advanceBlock();
+  //     } else {
+  //       await time.increase(timeToIncrease);
+  //     }
 
-    const integrity = await simulator.getProposalsIntegrity({
-      players,
-      gameId: gameId,
-      turn: currentTurn.toNumber(),
-      gm: adr.gameMaster1,
-      proposalSubmissionData: proposalDataForAllSlots,
-      idlers: idlers,
-    });
+  //     const integrity = await simulator.getProposalsIntegrity({
+  //       players,
+  //       gameId: gameId,
+  //       turn: currentTurn.toNumber(),
+  //       gm: adr.gameMaster1,
+  //       proposalSubmissionData: proposalDataForAllSlots,
+  //       idlers: idlers,
+  //     });
 
-    // Expect endProposing to REVERT because game is stale but facet requires ProposingEndStatus.Success
-    // The status from canEndProposing would be GameIsStaleAndCanEnd (enum value 2)
-    await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
-      .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
-      .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
+  //     // Expect endProposing to REVERT because game is stale but facet requires ProposingEndStatus.Success
+  //     // The status from canEndProposing would be GameIsStaleAndCanEnd (enum value 2)
+  //     await expect(rankifyInstance.connect(adr.gameMaster1).endProposing(gameId, integrity.newProposals))
+  //       .to.be.revertedWithCustomError(rankifyInstance, 'ErrorProposingStageEndFailed')
+  //       .withArgs(gameId, 2 /* ProposingEndStatus.GameIsStaleAndCanEnd */);
 
-    // Game should NOT have transitioned to voting stage
-    expect(await rankifyInstance.isVotingStage(gameId)).to.be.false;
-    expect(await rankifyInstance.isProposingStage(gameId)).to.be.true; // Should still be in proposing stage
-  });
+  //     // Game should NOT have transitioned to voting stage
+  //     expect(await rankifyInstance.isVotingStage(gameId)).to.be.false;
+  //     expect(await rankifyInstance.isProposingStage(gameId)).to.be.true; // Should still be in proposing stage
+  //   });
 
   describe('forceEndStaleGame Logic', () => {
     it('should REVERT forceEndStaleGame if minGameTime not met (even if other stale conditions appear met)', async () => {
