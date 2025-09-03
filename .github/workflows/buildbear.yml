@@ -77,10 +77,10 @@ jobs:
           VERSION="$BASE_VERSION-pr-${{ github.event.pull_request.number }}-$SHA_SHORT"
           echo "package_version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: 'Update package.json for Scoped Publishing'
+      - name: 'Update package.json for GitHub Packages'
         run: |
-          # Use jq to robustly update package name and version
-          jq '.name = "@peeramid-labs/rankify-contracts" | .version = "${{ steps.versioning.outputs.package_version }}"' package.json > package.json.tmp && mv package.json.tmp package.json
+          # Use jq to robustly update package name, version, and registry
+          jq '.name = "@peeramid-labs/rankify-contracts" | .version = "${{ steps.versioning.outputs.package_version }}" | .publishConfig = { "registry": "https://npm.pkg.github.com" }' package.json > package.json.tmp && mv package.json.tmp package.json
 
       - name: 'Publish Preview to GitHub Packages'
         run: pnpm publish --no-git-checks --tag preview
