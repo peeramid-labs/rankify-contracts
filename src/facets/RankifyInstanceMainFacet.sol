@@ -321,11 +321,17 @@ contract RankifyInstanceMainFacet is
 
     /**
      * @dev Returns the current state of the contract
-     * @return LibRankify.InstanceState The current state of the contract
+     * @return numGames The number of games in the instance
+     * @return contractInitialized Whether the contract is initialized
+     * @return commonParams The common parameters of the instance
      */
-    function getContractState() public pure returns (LibRankify.InstanceState memory) {
-        LibRankify.InstanceState memory state = LibRankify.instanceState();
-        return state;
+    function getContractState()
+        public
+        view
+        returns (uint256 numGames, bool contractInitialized, LibRankify.CommonParams memory commonParams)
+    {
+        LibRankify.InstanceState storage state = LibRankify.instanceState();
+        return (state.numGames, state.contractInitialized, state.commonParams);
     }
 
     /**
@@ -471,9 +477,9 @@ contract RankifyInstanceMainFacet is
      * @param minGameTime The minimum game time
      * @return uint256 The estimated price of the game
      */
-    function estimateGamePrice(uint128 minGameTime) public pure returns (uint256) {
-        LibRankify.InstanceState memory state = LibRankify.instanceState();
-        return LibRankify.getGamePrice(minGameTime, state.commonParams);
+    function estimateGamePrice(uint128 minGameTime) public view returns (uint256) {
+        LibRankify.CommonParams memory commonParams = LibRankify.instanceState().commonParams;
+        return LibRankify.getGamePrice(minGameTime, commonParams);
     }
 
     /**
