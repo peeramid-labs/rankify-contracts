@@ -423,11 +423,17 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
                 uint256[][] memory finalizedVotingMatrix
             ) = gameId.calculateScores(votesSorted);
 
-            string[] memory proposals = new string[](players.length);
             uint256 turn = gameId.getTurn();
             for (uint256 i = 0; i < players.length; ++i) {
-                string memory proposal = game.ongoingProposals[permutation[i]];
+                string memory proposal = game.proposals[turn][permutation[i]];
+                address proposedBy = players[i];
                 emit ProposalScore(gameId, turn, proposal, proposal, roundScores[i]);
+                bytes32 proposalHash = keccak256(abi.encodePacked(proposal));
+                LibRankify.InstanceState storage instanceState = LibRankify.instanceState();
+                instanceState.proposalScore[proposalHash].turn[gameId][turn].score += roundScores[i];
+                instanceState.proposalScore[proposalHash].turn[gameId][turn].proposedBy.push(proposedBy);
+                instanceState.proposalScore[proposalHash].game[gameId].score += roundScores[i];
+                instanceState.proposalScore[proposalHash].totalScore += roundScores[i];
             }
             emit VotingStageResults(
                 gameId,
@@ -461,7 +467,6 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
 
         // Clean up for next turn
         for (uint256 i = 0; i < players.length; ++i) {
-            game.ongoingProposals[i] = "";
             game.playerVoted[players[i]] = false;
             game.ballotHashes[players[i]] = bytes32(0);
             game.proposalCommitment[players[i]] = 0;
@@ -484,6 +489,7 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         gameId.enforceHasStarted();
         gameId.enforceIsNotOver();
         require(gameId.isProposingStage(), "Not in proposing stage");
+        uint256 turn = gameId.getTurn();
         LibRankify.GameState storage game = gameId.getGameState();
         (bool canEnd, IRankifyInstance.ProposingEndStatus status) = gameId.canEndProposing();
         require(canEnd, IRankifyInstance.ErrorProposingStageEndFailed(gameId, status));
@@ -511,6 +517,13 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             // Fill public inputs with proposals
             for (uint256 i = 15; i < 30; ++i) {
                 bytes32 proposalHash = keccak256(abi.encodePacked(newProposals.proposals[i - 15]));
+                instanceState.proposalScore[proposalHash].exists = true;
+                instanceState.proposalScore[proposalHash].game[gameId].exists = true;
+                instanceState.proposalScore[proposalHash].turn[gameId][turn] = LibRankify.TurnProposalScore({
+                    proposedBy: new address[](0),
+                    score: 0,
+                    exists: true
+                });
                 if (i - 15 < players.length && proposalHash != emptyProposalHash) {
                     PropIntegrityPublicInputs[i] = uint256(proposalHash);
                 } else {
@@ -533,8 +546,9 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
         }
         game.permutationCommitment = uint256(newProposals.permutationCommitment);
         for (uint256 i = 0; i < newProposals.proposals.length; ++i) {
-            game.ongoingProposals[i] = newProposals.proposals[i];
+            game.proposals[turn][i] = newProposals.proposals[i];
         }
+        game.numProposals[turn] = newProposals.proposals.length;
         emit ProposingStageEnded(gameId, gameId.getTurn(), game.numCommitments, newProposals.proposals);
         gameId.next();
     }

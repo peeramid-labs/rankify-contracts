@@ -127,6 +127,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
   });
 
+  const ScoreGetterFacetDeployment = await deploy('ScoreGetterFacet', {
+    from: deployer,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
+    libraries: {
+      LibRankify: libRankifyDeployment.address,
+    },
+  });
+
   const addresses: ArguableVotingTournament.ArguableTournamentAddressesStruct = {
     loupeFacet: loupeFacetDeployment.address,
     inspectorFacet: inspectorFacetDeployment.address,
@@ -134,6 +142,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     RankifyReqsFacet: RankifyReqsFacetDeployment.address,
     RankifyGMFacet: RankifyGMFacetDeployment.address,
     OwnershipFacet: OwnershipFacetDeployment.address,
+    ScoreGetterFacet: ScoreGetterFacetDeployment.address,
   };
 
   const arguableVotingTournamentDeployment = await deploy('ArguableVotingTournament', {
