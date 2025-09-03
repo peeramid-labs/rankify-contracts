@@ -186,7 +186,7 @@ export default {
       tags: ['ERC7744'],
     },
     hardhat: {
-      //   allowUnlimitedContractSize: true,
+      allowUnlimitedContractSize: true,
       name: 'hardhat',
       accounts: {
         mnemonic: 'casual vacant letter raw trend tool vacant opera buzz jaguar bridge myself',
