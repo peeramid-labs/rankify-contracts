@@ -57,10 +57,11 @@ jobs:
         run: pnpm build
       - name: 'Deploy to BuildBear'
         id: buildbear
-        uses: BuildBearLabs/buildbear_x_action@v1.7.0
-        with:
-          buildbear-api-key: '${{ secrets.CICD_BUILDBEAR_TOKEN }}'
-          deploy-command: 'rm -rf ./deployments/buildbear && pnpm hardhat deploy --network buildbear --tags MAO'
+        run: 'rm -rf ./deployments/buildbear && pnpm hardhat deploy --network buildbear --tags MAO'
+        # uses: BuildBearLabs/buildbear_x_action@v1.7.0
+        # with:
+        #   buildbear-api-key: '${{ secrets.CICD_BUILDBEAR_TOKEN }}'
+        #   deploy-command: 'rm -rf ./deployments/buildbear && pnpm hardhat deploy --network buildbear --tags MAO'
       - name: 'Export Contract Addresses'
         id: export_addresses
         run: |
