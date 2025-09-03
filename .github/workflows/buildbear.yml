@@ -41,7 +41,9 @@ on:
   pull_request:
     branches: [main, dev]
     types: [opened, reopened, synchronize]
-
+env:
+  BUILDBEAR_MNEMONIC: ${{ secrets.BUILDBEAR_MNEMONIC }}
+  BUILDBEAR_RPC_URL: ${{ secrets.BUILDBEAR_RPC_URL }}
 jobs:
   deploy_and_publish_contracts_preview:
     runs-on: ubuntu-latest
