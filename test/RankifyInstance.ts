@@ -3427,5 +3427,128 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
       //   expect(finalWinner).to.equal(eth.constants.AddressZero);
       //   expect(await rankifyInstance.getGameState(gameId).then(s => s.hasEnded)).to.be.true;
     });
+
+    describe('Consistency between canEndProposing and forceEndStaleGame', () => {
+      it('should handle edge case: exactly minGameTime reached with insufficient proposals', async () => {
+        const gameId = eth.BigNumber.from(1);
+        const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+        const numPlayers = players.length;
+
+        // Get game parameters
+        let gameState = await rankifyInstance.getGameState(gameId);
+        const minGameTime = gameState.minGameTime.toNumber();
+        const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+
+        // Ensure we're in proposing stage
+        expect(await rankifyInstance.isProposingStage(gameId)).to.be.true;
+
+        // Ensure insufficient proposals
+        expect(gameState.numCommitments).to.be.lt(gameState.voting.minQuadraticPositions.toNumber());
+
+        // Advance time to exactly minGameTime
+        const gameStartedAt = gameState.startedAt.toNumber();
+        const timeToAdvance = gameStartedAt + minGameTime - (await time.latest());
+        await time.increase(timeToAdvance);
+
+        // Verify minGameTime is exactly met
+        expect(await time.latest()).to.be.gte(gameStartedAt + minGameTime);
+
+        // Should be able to force end stale game
+        await expect(rankifyInstance.connect(adr.gameMaster1).forceEndStaleGame(gameId))
+          .to.emit(rankifyInstance, 'GameOver')
+          .and.emit(rankifyInstance, 'StaleGameEnded');
+      });
+
+      it('should handle edge case: one proposal short of minimum', async () => {
+        const gameId = eth.BigNumber.from(1);
+        const currentTurn = await rankifyInstance.getTurn(gameId);
+        const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+        const numPlayers = players.length;
+
+        // Get minimum proposals needed
+        const gameState = await rankifyInstance.getGameState(gameId);
+        const minQuadraticPositions = gameState.voting.minQuadraticPositions.toNumber();
+        // const minQuadraticPositions = gameState.voteCredits.toNumber();
+
+        // Submit one less than required proposals
+        const numProposals = minQuadraticPositions - 1;
+        const idlers = Array.from(Array(numPlayers - numProposals).keys());
+
+        await simulator.mockProposals({
+          players,
+          gameMaster: adr.gameMaster1,
+          gameId: gameId,
+          submitNow: true,
+          idlers: idlers,
+          turn: currentTurn.toNumber(),
+        });
+
+        // Verify we have exactly one less than required
+        const updatedGameState = await rankifyInstance.getGameState(gameId);
+        expect(updatedGameState.numCommitments).to.equal(numProposals);
+        expect(updatedGameState.numCommitments).to.equal(minQuadraticPositions - 1);
+
+        // Advance time past proposing phase + minGameTime
+        const minGameTime = updatedGameState.minGameTime.toNumber();
+        const proposingPhaseDuration = updatedGameState.proposingPhaseDuration.toNumber();
+        await time.increase(proposingPhaseDuration + minGameTime + 1);
+
+        // Should be able to force end stale game due to insufficient proposals
+        await expect(rankifyInstance.connect(adr.gameMaster1).forceEndStaleGame(gameId)).to.emit(
+          rankifyInstance,
+          'StaleGameEnded',
+        );
+      });
+
+      it('should verify canEndProposing and forceEndStaleGame consistency - positive case', async () => {
+        const gameId = eth.BigNumber.from(1);
+        const currentTurn = await rankifyInstance.getTurn(gameId);
+        const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+
+        // Ensure we're stuck with insufficient proposals
+        let gameState = await rankifyInstance.getGameState(gameId);
+        expect(gameState.numCommitments).to.be.lt(gameState.voting.minQuadraticPositions.toNumber());
+
+        // Advance to meet minGameTime
+        const minGameTime = gameState.minGameTime.toNumber();
+        const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+
+        await time.increase(Math.max(minGameTime + 1, proposingPhaseDuration + 1));
+
+        // Check consistency: canEndProposing should indicate stale game
+        const [canEnd, status] = await rankifyInstance.canEndProposingStage(gameId);
+        expect(status).to.equal(2);
+
+        // forceEndStaleGame should succeed with same conditions
+        await expect(rankifyInstance.connect(adr.gameMaster1).forceEndStaleGame(gameId)).to.not.be.reverted;
+      });
+      it('should verify canEndProposing and forceEndStaleGame consistency - negative case (minGameTime not met)', async () => {
+        const gameId = eth.BigNumber.from(1);
+        const players = getPlayers(adr, RInstance_MIN_PLAYERS);
+
+        // Ensure we're stuck with insufficient proposals
+        let gameState = await rankifyInstance.getGameState(gameId);
+        expect(gameState.numCommitments).to.be.lt(gameState.voteCredits.toNumber());
+
+        // Advance time past proposing phase, but NOT minGameTime
+        const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
+        await time.increase(proposingPhaseDuration + 1);
+
+        // Verify minGameTime is not met
+        const minGameTime = gameState.minGameTime.toNumber();
+        const gameStartedAt = gameState.startedAt.toNumber();
+        expect(await time.latest()).to.be.lt(gameStartedAt + minGameTime);
+
+        // Check consistency: canEndProposing should indicate not stale
+        const [canEnd, status] = await rankifyInstance.canEndProposingStage(gameId);
+        expect(status).to.equal(1);
+
+        // forceEndStaleGame should revert
+        await expect(rankifyInstance.connect(adr.gameMaster1).forceEndStaleGame(gameId)).to.be.revertedWithCustomError(
+          rankifyInstance,
+          'ErrorCannotForceEndGame',
+        );
+      });
+    });
   });
 });

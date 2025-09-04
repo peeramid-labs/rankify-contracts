@@ -563,7 +563,13 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
     function forceEndStaleGame(uint256 gameId) public nonReentrant {
         gameId.enforceGameExists();
         require(!LibTBG.isGameOver(gameId), "Rankify: Game already over");
-        require(LibRankify.isGameStaleForForcedEnd(gameId), IRankifyInstance.ErrorCannotForceEndGame(gameId));
+
+        gameId.enforceIsGM(msg.sender);
+        (bool canEnd, IRankifyInstance.ProposingEndStatus status) = gameId.canEndProposing();
+        require(
+            canEnd && status == IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd,
+            IRankifyInstance.ErrorCannotForceEndGame(gameId)
+        );
 
         LibRankify.GameState storage game = gameId.getGameState();
         LibTBG.State storage tbgState = gameId._getState();

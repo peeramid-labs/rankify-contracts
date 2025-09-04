@@ -667,13 +667,7 @@ library LibRankify {
 
     /**
      * @dev Checks if a game is in a state where it can be forcibly ended due to being stale.
-     * Conditions for being stale for forced end:
-     * 1. Game exists and is not already over.
-     * 2. Minimum game time has been reached.
-     * 3. Game is stuck in the proposing stage:
-     *    a. Proposing phase has timed out.
-     *    b. Not all active players have made their move (committed proposals).
-     *    c. The number of submitted proposals is less than minQuadraticPositions.
+     * Uses the same stale detection logic as canEndProposing to ensure consistency
      * @param gameId The ID of the game.
      * @return bool True if the game is stale and can be forcibly ended, false otherwise.
      */
@@ -685,7 +679,6 @@ library LibRankify {
 
         LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
         LibTBG.State storage tbgState = tbgInstanceState.state;
-        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
         GameState storage game = getGameState(gameId);
 
         bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
@@ -693,20 +686,8 @@ library LibRankify {
             return false;
         }
 
-        // Check if stuck in proposing stage
-        if (isProposingStage(gameId)) {
-            bool proposingPhaseTimedOut = block.timestamp >=
-                tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0];
-            bool notAllActivePlayersMoved = tbgState.numPlayersMadeMove < tbgState.numActivePlayers;
-            bool minProposalsNotMet = game.numCommitments < game.voting.minQuadraticPositions;
-
-            if (proposingPhaseTimedOut && notAllActivePlayersMoved && minProposalsNotMet) {
-                return true;
-            }
-        }
-
-        // Potentially add conditions for being stuck in voting if other scenarios arise in the future
-
-        return false;
+        // Check if game is stale using the same logic as canEndProposing
+        (bool canEnd, IRankifyInstance.ProposingEndStatus status) = canEndProposing(gameId);
+        return canEnd && status == IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd;
     }
 }
