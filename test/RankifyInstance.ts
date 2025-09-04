@@ -3507,11 +3507,10 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
 
         // Ensure we're stuck with insufficient proposals
         let gameState = await rankifyInstance.getGameState(gameId);
-        expect(gameState.numCommitments).to.be.lt(gameState.voteCredits.toNumber());
+        expect(gameState.numCommitments).to.be.lt(gameState.voting.minQuadraticPositions.toNumber());
 
         // Advance to meet minGameTime
         const minGameTime = gameState.minGameTime.toNumber();
-        const gameStartedAt = gameState.startedAt.toNumber();
         const proposingPhaseDuration = gameState.proposingPhaseDuration.toNumber();
 
         await time.increase(Math.max(minGameTime + 1, proposingPhaseDuration + 1));
