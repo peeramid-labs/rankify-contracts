@@ -1,7 +1,7 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Governor, IRankifyInstance, Rankify, RankifyDiamondInstance } from '../types/';
+import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/';
 import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
 import { BigNumber, BigNumberish } from 'ethers';
