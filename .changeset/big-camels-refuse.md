@@ -2,4 +2,4 @@
 'rankify-contracts': patch
 ---
 
-fixed discrepency that was causing stales games not to end
+fixed discrepancy that was causing stale games not to end
