@@ -3443,7 +3443,7 @@ describe(scriptName + '::Voting and Proposing Edge Cases', () => {
         expect(await rankifyInstance.isProposingStage(gameId)).to.be.true;
 
         // Ensure insufficient proposals
-        expect(gameState.numCommitments).to.be.lt(gameState.voteCredits.toNumber());
+        expect(gameState.numCommitments).to.be.lt(gameState.voting.minQuadraticPositions.toNumber());
 
         // Advance time to exactly minGameTime
         const gameStartedAt = gameState.startedAt.toNumber();
