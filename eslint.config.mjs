@@ -16,7 +16,7 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ['docs/templates/', '**/node_modules/', 'types/', 'zk_artifacts', 'zk_compile'],
+    ignores: ['docs/templates/', '**/node_modules/', 'types/', 'zk_artifacts', 'zk_compile', 'abi/'],
   },
   ...compat.extends('eslint:recommended', 'plugin:promise/recommended', 'prettier'),
   {
