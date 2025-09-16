@@ -240,8 +240,8 @@ library LibRankify {
             "LibRankify::newGame->Time per turn voting and proposing must sum to time per turn"
         );
         uint256[] memory phases = new uint256[](2);
-        phases[0] = params.votePhaseDuration;
-        phases[1] = params.proposingPhaseDuration;
+        phases[0] = params.proposingPhaseDuration;
+        phases[1] = params.votePhaseDuration;
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
             maxPlayerCnt: params.maxPlayerCnt,
