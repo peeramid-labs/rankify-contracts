@@ -8,9 +8,9 @@
 #    triggers the creation of a sandboxed environment with the new contracts.
 # 2. Seamless Dependency Propagation: Changes in the contracts are automatically packaged
 #    and made available to the SDK, which in turn is packaged and made available to other services.
-# 3. Private, Versioned Packages: We use GitHub Packages to host private, pre-release
-#    versions of our packages, avoiding pollution of the public NPM registry. This ensures
-#    that each PR has a corresponding, installable artifact for testing and development.
+# 3. Public, Pre-release Packages: We use npm to host public, pre-release
+#    versions of our packages. This allows for easy testing and integration of PR-specific builds
+#    without polluting the 'latest' tag.
 # 4. Clear Handoff: This workflow file is designed to be self-documenting. The first part
 #    (in this file) handles the contracts, and the second part (commented out below) serves
 #    as a ready-to-use template for the SDK's corresponding workflow.
@@ -19,9 +19,9 @@
 # 1. Contracts PR -> New Sandbox: A pull request in the 'contracts' repo kicks off this workflow.
 # 2. Deploy & Package:
 #    - Contracts are deployed to a fresh BuildBear sandbox.
-#    - The contracts package (`rankify-contracts`) is versioned with a unique
-#      pre-release tag (e.g., `0.15.0-pr-123-a1b2c3d`).
-#    - The package is published to GitHub Packages.
+#    - The contracts package (`@peeramid-labs/rankify-contracts`) is versioned with a unique
+#      pre-release tag using Changesets (e.g., `0.15.0-pr-123-abcdef`).
+#    - The package is published to the public npm registry with a special dist-tag.
 # 3. Trigger SDK Build: A 'repository_dispatch' event is sent to the 'sdk' repo, containing:
 #    - The RPC URL of the BuildBear sandbox.
 #    - The deployed contract addresses.
@@ -30,8 +30,8 @@
 # 4. SDK Consumes Package: The SDK workflow (template below) catches the event.
 #    - It checks out the corresponding branch from its own repository.
 #    - It updates its `package.json` to point to the new pre-release version of the contracts.
-#    - It installs the new package from GitHub Packages.
-#    - It builds and publishes its own pre-release SDK package.
+#    - It installs the new package from npm.
+#    - It builds and publishes its own pre-release SDK package to npm.
 # 5. Downstream Services Update: The SDK then triggers downstream services, passing its
 #    own new package version, continuing the chain.
 
@@ -44,28 +44,32 @@ on:
 env:
   BUILDBEAR_MNEMONIC: ${{ secrets.BUILDBEAR_MNEMONIC }}
   BUILDBEAR_RPC_URL: ${{ secrets.BUILDBEAR_RPC_URL }}
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
   deploy_and_publish_contracts_preview:
     runs-on: ubuntu-latest
+    if: (github.base_ref == 'main' && github.head_ref == 'dev') || (github.base_ref == 'dev')
     outputs:
-      # rpc_url: ${{ steps.buildbear.outputs.rpc_url }}
       deployment_details: ${{ steps.export_addresses.outputs.deployment_details }}
-      contracts_package_version: ${{ steps.versioning.outputs.package_version }}
+      contracts_package_version: ${{ steps.get_version.outputs.package_version }}
     steps:
       - name: 'Checkout Code'
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessary for changesets to work correctly
+
       - uses: './.github/setup'
 
-      - name: 'Setup Node.js for GitHub Packages'
+      - name: 'Setup Node.js for npm'
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           cache: 'pnpm'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@peeramid-labs'
 
       - name: 'Build Contracts'
         run: pnpm build
+
       - name: 'Deploy to BuildBear'
         id: buildbear
         run: 'rm -rf ./deployments/buildbear && pnpm hardhat deploy --network buildbear --tags MAO'
@@ -78,21 +82,29 @@ jobs:
         run: |
           DEPLOYMENT_JSON=$(jq -n '[inputs | {key: (input_filename | sub(".json$"; "") | sub(".*/"; "")), value: .address}] | from_entries' deployments/buildbear/*.json | jq -c .)
           echo "deployment_details=$DEPLOYMENT_JSON" >> $GITHUB_OUTPUT
-      - name: 'Generate Pre-release Version Number'
-        id: versioning
+
+      - name: Setup git
         run: |
-          SHA_SHORT=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
-          BASE_VERSION=$(jq -r .version package.json)
-          VERSION="$BASE_VERSION-pr-${{ github.event.pull_request.number }}-$SHA_SHORT"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create empty changeset
+        run: pnpm changeset add --empty
+
+      - name: Enter prerelease mode
+        run: pnpm changeset pre enter pr-${{ github.event.pull_request.number }}
+
+      - name: Bump versions
+        run: pnpm changeset version
+
+      - name: Get package version
+        id: get_version
+        run: |
+          VERSION=$(jq -r .version package.json)
           echo "package_version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: 'Update package.json for GitHub Packages'
-        run: |
-          # Use jq to robustly update package name, version, and registry
-          jq '.name = "@peeramid-labs/rankify-contracts" | .version = "${{ steps.versioning.outputs.package_version }}" | .publishConfig = { "registry": "https://npm.pkg.github.com" }' package.json > package.json.tmp && mv package.json.tmp package.json
-
-      - name: 'Publish Preview to GitHub Packages'
-        run: pnpm publish --no-git-checks --tag preview
+      - name: 'Publish Preview to npm'
+        run: pnpm changeset publish --no-git-checks --tag pr-${{ github.event.pull_request.number }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
