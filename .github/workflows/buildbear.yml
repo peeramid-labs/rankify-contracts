@@ -66,6 +66,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: 'Build Contracts'
         run: pnpm build
@@ -106,7 +107,7 @@ jobs:
       - name: 'Publish Preview to npm'
         run: pnpm changeset publish --no-git-checks --tag pr-${{ github.event.pull_request.number }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
   # trigger_sdk_build:
   #   runs-on: ubuntu-latest
