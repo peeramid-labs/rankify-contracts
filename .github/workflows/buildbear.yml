@@ -106,7 +106,7 @@ jobs:
           echo "package_version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: 'Publish Preview to npm'
-        run: pnpm changeset publish --no-git-checks --tag pr-${{ github.event.pull_request.number }}
+        run: pnpm changeset publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
 
