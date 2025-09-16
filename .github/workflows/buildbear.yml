@@ -45,6 +45,7 @@ env:
   BUILDBEAR_MNEMONIC: ${{ secrets.BUILDBEAR_MNEMONIC }}
   BUILDBEAR_RPC_URL: ${{ secrets.BUILDBEAR_RPC_URL }}
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   deploy_and_publish_contracts_preview:
