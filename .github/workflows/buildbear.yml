@@ -50,6 +50,9 @@ env:
 jobs:
   deploy_and_publish_contracts_preview:
     runs-on: ubuntu-latest
+    concurrency:
+     group: preview-${{ github.event.pull_request.number }}
+     cancel-in-progress: true
     if: ${{ !github.event.pull_request.head.repo.fork && ((github.base_ref == 'main' && github.head_ref == 'dev') || (github.base_ref == 'dev')) }}
     outputs:
       deployment_details: ${{ steps.export_addresses.outputs.deployment_details }}
