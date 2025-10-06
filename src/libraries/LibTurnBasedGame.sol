@@ -211,7 +211,7 @@ library LibTBG {
      */
     function canBeJoined(uint256 gameId) internal view returns (bool) {
         State storage state = _getState(gameId);
-        if (state.hasStarted || state.registrationOpenAt == 0) return false;
+        if (state.registrationOpenAt == 0 || state.hasEnded || isLastTurn(gameId)) return false;
         return true;
     }
 
@@ -473,6 +473,12 @@ library LibTBG {
             return
                 state.registrationOpenAt < block.timestamp + tbg.instances[gameId].settings.timeToJoin ? true : false;
         }
+    }
+
+    function isJoiningPhase(uint256 gameId) internal view returns (bool) {
+        State storage state = _getState(gameId);
+        TBGStorageStruct storage tbg = TBGStorage();
+        return state.registrationOpenAt != 0 && !state.hasStarted;
     }
 
     /**

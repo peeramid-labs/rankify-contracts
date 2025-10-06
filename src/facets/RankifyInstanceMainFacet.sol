@@ -221,15 +221,14 @@ contract RankifyInstanceMainFacet is
     }
 
     /**
-     * @dev Allows a player to join a game with the provided game ID. `gameId` is the ID of the game.
+     * @dev Allows a player to join a game or be added to its waitlist if the game is ongoing.
+     * Funding via LibCoinVending occurs immediately if the join/waitlist request is valid.
+     * Requires a Game Master's signature approving the join attempt.
      * @param gameId The ID of the game.
-     * @param gameMasterSignature The ECDSA signature of the game master.
-     * @param gmCommitment The gmCommitment to the player signed by the game master.
-     * @param deadline The deadline for the player to sign the gmCommitment.
-     * @notice This function:
-     *         - Calls the `joinGame` function with `msg.sender`.
-     *         - Calls the `fund` function with `bytes32(gameId)`.
-     *         - Emits a _PlayerJoined_ event.
+     * @param gameMasterSignature ECDSA signature from the Game Master.
+     * @param gmCommitment Commitment data signed by the Game Master (part of the signed digest).
+     * @param deadline Timestamp by which the GM signature must be used.
+     * @param voterPubKey Public key of the voter (part of the signed digest, relevant for off-chain parts).
      * @custom:security nonReentrant
      */
     function joinGame(
@@ -239,7 +238,12 @@ contract RankifyInstanceMainFacet is
         uint256 deadline,
         string memory voterPubKey
     ) public payable nonReentrant {
+        LibRankify.enforceIsInitialized(); // Ensure contract is initialized
+
         require(block.timestamp < deadline, "Signature deadline has passed");
+
+        // EIP712 digest for GM approval.
+        // "AttestJoiningGame" is the type string for the action of a player attempting to join the game ecosystem.
         bytes32 digest = _hashTypedDataV4(
             keccak256(
                 abi.encode(
@@ -254,9 +258,35 @@ contract RankifyInstanceMainFacet is
                 )
             )
         );
-        gameId.joinGame(msg.sender, gameMasterSignature, digest);
-        LibCoinVending.fund(bytes32(gameId));
-        emit PlayerJoined(gameId, msg.sender, gmCommitment, voterPubKey);
+
+        // gameId.enforceGameExists() is called by gameId.getGM() and LibRankify._handleJoinRequest()
+        address gameMaster = gameId.getGM();
+        require(
+            SignatureChecker.isValidSignatureNow(gameMaster, digest, gameMasterSignature),
+            IErrors.invalidECDSARecoverSigner(digest, "RankifyMainFacet: Invalid Game Master signature")
+        );
+
+        LibRankify.JoinStatus joinStatus = LibRankify._handleJoinRequest(gameId, msg.sender);
+
+        if (joinStatus == LibRankify.JoinStatus.JoinedDirectly) {
+            LibCoinVending.fund(bytes32(gameId)); // Player pays now
+            emit PlayerJoined(gameId, msg.sender, gmCommitment, voterPubKey);
+        } else if (joinStatus == LibRankify.JoinStatus.AddedToWaitlist) {
+            LibCoinVending.fund(bytes32(gameId)); // Player pays now
+            emit PlayerAddedToWaitlist(gameId, msg.sender);
+        } else if (joinStatus == LibRankify.JoinStatus.AlreadyInGame) {
+            revert(" Player already in game.");
+        } else if (joinStatus == LibRankify.JoinStatus.AlreadyWaitlisted) {
+            revert("Player already waitlisted.");
+        } else if (joinStatus == LibRankify.JoinStatus.GameFull) {
+            revert("Game is full.");
+        } else if (joinStatus == LibRankify.JoinStatus.GameNotJoinable) {
+            revert("Game not joinable at this time.");
+        } else {
+            // This case should ideally not be reached if JoinStatus enum is comprehensive
+            // and _handleJoinRequest handles all paths.
+            revert("Unknown or invalid join status.");
+        }
     }
 
     /**
@@ -590,5 +620,26 @@ contract RankifyInstanceMainFacet is
      */
     function gameWinner(uint256 gameId) public view returns (address) {
         return gameId.getGameState().winner;
+    }
+
+    /**
+     * @dev Checks if a player is currently on the waitlist for a given game.
+     * @param gameId The ID of the game.
+     * @param player The address of the player to check.
+     * @return bool True if the player is on the waitlist, false otherwise.
+     */
+    function isPlayerWaitlisted(uint256 gameId, address player) public view returns (bool) {
+        // LibRankify.enforceGameExists(gameId); // Already handled by LibRankify.isPlayerWaitlisted
+        return LibRankify.isPlayerWaitlisted(gameId, player);
+    }
+
+    /**
+     * @dev Retrieves the list of players currently on the waitlist for a given game.
+     * @param gameId The ID of the game.
+     * @return address[] Memory array of addresses of players on the waitlist.
+     */
+    function getWaitlistedPlayers(uint256 gameId) public view returns (address[] memory) {
+        // LibRankify.enforceGameExists(gameId); // Already handled by LibRankify.getWaitlistedPlayers
+        return LibRankify.getWaitlistedPlayers(gameId);
     }
 }

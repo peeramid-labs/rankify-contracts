@@ -37,6 +37,9 @@ interface IRankifyInstance {
     event RequirementsConfigured(uint256 indexed gameId, LibCoinVending.ConfigPosition config);
     event StaleGameEnded(uint256 indexed gameId, address winner);
 
+    event PlayerAddedToWaitlist(uint256 indexed gameId, address indexed player);
+    event WaitlistFlushed(uint256 indexed gameId, address[] playersAdded);
+
     struct NewGameParamsInput {
         uint256 gameRank;
         uint256 minPlayerCnt;
@@ -81,4 +84,7 @@ interface IRankifyInstance {
         uint256 phaseStartedAt;
         uint256 startedAt;
     }
+
+    function isPlayerWaitlisted(uint256 gameId, address player) external view returns (bool);
+    function getWaitlistedPlayers(uint256 gameId) external view returns (address[] memory);
 }
