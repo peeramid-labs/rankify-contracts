@@ -42,6 +42,7 @@ library LibRankify {
         uint256 numGames;
         bool contractInitialized;
         CommonParams commonParams;
+        mapping(bytes32 => ProposalScore) proposalScore;
     }
 
     /**
@@ -67,6 +68,24 @@ library LibRankify {
         address poseidon2;
     }
 
+    struct TurnProposalScore {
+        uint256 score;
+        bool exists;
+        address[] proposedBy;
+    }
+
+    struct GameProposalScore {
+        uint256 score;
+        bool exists;
+    }
+
+    struct ProposalScore {
+        bool exists;
+        uint256 totalScore;
+        mapping(uint256 => GameProposalScore) game;
+        mapping(uint256 => mapping(uint256 => TurnProposalScore)) turn;
+    }
+
     /**
      * @dev Comprehensive state structure for an individual game
      * @param rank Required rank level for participation
@@ -74,7 +93,7 @@ library LibRankify {
      * @param createdBy Address of the game creator
      * @param numCommitments Number of players who have committed a proposal in the current proposing stage
      * @param numVotes Number of votes cast in the current voting stage
-     * @param permutationCommitment Commitment related to the permutation of ongoingProposals, set at end of proposing stage
+     * @param permutationCommitment Commitment related to the permutation of ongoing proposals, set at end of proposing stage
      * @param voting Quadratic voting state for this game
      * @param waitlist Array of addresses representing the waitlist for the game
      * @param isWaitlisted Mapping of addresses to booleans indicating whether a player is waitlisted
@@ -88,9 +107,9 @@ library LibRankify {
         address createdBy;
         uint256 numCommitments; // Number of players who have committed a proposal in the current proposing stage
         uint256 numVotes; // Number of votes cast in the current voting stage
-        uint256 permutationCommitment; // Commitment related to the permutation of ongoingProposals, set at end of proposing stage
+        uint256 permutationCommitment; // Commitment related to the permutation of ongoing proposals, set at end of proposing stage
         LibQuadraticVoting.qVotingStruct voting;
-        mapping(uint256 => string) ongoingProposals; // Proposals for the current round (submitted in proposing stage, voted on in voting stage)
+        mapping(uint256 => string) ongoingProposals; // ToDo: This is kept to avoid breaking data structure on existing instances, we can remove it later
         mapping(address => uint256) proposalCommitment; // Player's commitment to their proposal
         mapping(address => bytes32) ballotHashes; // Player's committed ballot hash
         mapping(address => bool) playerVoted; // Has player voted in the current voting stage
@@ -98,6 +117,8 @@ library LibRankify {
         // --- Waitlist Data ---
         address[] waitlist;
         mapping(address => bool) isWaitlisted;
+        mapping(uint256 => mapping(uint256 => string)) proposals; // Turn -> playerIdx -> Proposal
+        mapping(uint256 => uint256) numProposals; // Turn -> number of proposals submitted by players
     }
 
     /**
@@ -235,8 +256,8 @@ library LibRankify {
             "LibRankify::newGame->Time per turn voting and proposing must sum to time per turn"
         );
         uint256[] memory phases = new uint256[](2);
-        phases[0] = params.votePhaseDuration;
-        phases[1] = params.proposingPhaseDuration;
+        phases[0] = params.proposingPhaseDuration;
+        phases[1] = params.votePhaseDuration;
         LibTBG.Settings memory newSettings = LibTBG.Settings({
             timePerTurn: params.timePerTurn,
             maxPlayerCnt: params.maxPlayerCnt,
@@ -551,10 +572,10 @@ library LibRankify {
      * or the time for the stage has run out, subject to minimum proposal and stale game rules.
      * Returns a status indicating whether and how the proposing stage can end.
      */
-    function canEndProposing(uint256 gameId) public view returns (IRankifyInstance.ProposingEndStatus) {
+    function canEndProposing(uint256 gameId) internal view returns (bool, IRankifyInstance.ProposingEndStatus) {
         enforceGameExists(gameId);
         if (!isProposingStage(gameId)) {
-            return IRankifyInstance.ProposingEndStatus.NotProposingStage;
+            return (false, IRankifyInstance.ProposingEndStatus.NotProposingStage);
         }
         LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
         LibTBG.State storage tbgState = tbgInstanceState.state;
@@ -569,27 +590,27 @@ library LibRankify {
             bool phaseTimedOut = block.timestamp >= tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0]; // Proposing is phase 0
 
             if (game.numCommitments >= game.voting.minQuadraticPositions) {
-                return IRankifyInstance.ProposingEndStatus.Success;
+                return (true, IRankifyInstance.ProposingEndStatus.Success);
             }
             // If not enough proposals:
             bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
             if (minGameTimeReached) {
                 // Even if proposals are insufficient, if minGameTime is met and phase can end by TBG rules (timeout/all_moved),
                 // it's considered stale and can proceed (but facet will revert as it needs Success)
-                return IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd;
+                return (true, IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd);
             }
             // If minGameTime not reached, and not enough proposals, and phase timed out (or all moved without enough proposals)
             if (phaseTimedOut || allPlayersMoved) {
                 // All moved but not enough proposals is a specific type of not met
-                return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+                return (false, IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale);
             }
             // This case should ideally be covered by PhaseConditionsNotMet if canTransitionBasicTBG was false initially
             // or if canTransitionBasicTBG was true only because of allPlayersMoved but minProposals not met (and not stale)
             // This logic path might need refinement to ensure all conditions map to an enum state clearly.
             // For now, if it got here, it means minProposalsNotMet and not stale.
-            return IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale;
+            return (false, IRankifyInstance.ProposingEndStatus.MinProposalsNotMetAndNotStale);
         }
-        return IRankifyInstance.ProposingEndStatus.PhaseConditionsNotMet;
+        return (false, IRankifyInstance.ProposingEndStatus.PhaseConditionsNotMet);
     }
 
     /**
@@ -662,13 +683,7 @@ library LibRankify {
 
     /**
      * @dev Checks if a game is in a state where it can be forcibly ended due to being stale.
-     * Conditions for being stale for forced end:
-     * 1. Game exists and is not already over.
-     * 2. Minimum game time has been reached.
-     * 3. Game is stuck in the proposing stage:
-     *    a. Proposing phase has timed out.
-     *    b. Not all active players have made their move (committed proposals).
-     *    c. The number of submitted proposals is less than minQuadraticPositions.
+     * Uses the same stale detection logic as canEndProposing to ensure consistency
      * @param gameId The ID of the game.
      * @return bool True if the game is stale and can be forcibly ended, false otherwise.
      */
@@ -680,7 +695,6 @@ library LibRankify {
 
         LibTBG.Instance storage tbgInstanceState = LibTBG._getInstance(gameId);
         LibTBG.State storage tbgState = tbgInstanceState.state;
-        LibTBG.Settings storage tbgSettings = tbgInstanceState.settings; // To get phase duration
         GameState storage game = getGameState(gameId);
 
         bool minGameTimeReached = block.timestamp >= tbgState.startedAt + game.minGameTime;
@@ -688,21 +702,9 @@ library LibRankify {
             return false;
         }
 
-        // Check if stuck in proposing stage
-        if (isProposingStage(gameId)) {
-            bool proposingPhaseTimedOut = block.timestamp >=
-                tbgState.phaseStartedAt + tbgSettings.turnPhaseDurations[0];
-            bool notAllActivePlayersMoved = tbgState.numPlayersMadeMove < tbgState.numActivePlayers;
-            bool minProposalsNotMet = game.numCommitments < game.voting.minQuadraticPositions;
-
-            if (proposingPhaseTimedOut && notAllActivePlayersMoved && minProposalsNotMet) {
-                return true;
-            }
-        }
-
-        // Potentially add conditions for being stuck in voting if other scenarios arise in the future
-
-        return false;
+        // Check if game is stale using the same logic as canEndProposing
+        (bool canEnd, IRankifyInstance.ProposingEndStatus status) = canEndProposing(gameId);
+        return canEnd && status == IRankifyInstance.ProposingEndStatus.GameIsStaleAndCanEnd;
     }
 
     /**
