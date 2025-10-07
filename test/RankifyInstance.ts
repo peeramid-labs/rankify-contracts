@@ -1078,7 +1078,7 @@ describe(scriptName, () => {
               });
               await expect(
                 rankifyInstance
-                  .connect(adr.gameMaster1)
+                  .connect(adr.players[3].wallet)
                   .submitProposal({ ...proposals[0].params, proposerSignature: '0x00' }),
               ).to.be.revertedWith('invalid proposer signature');
             });
@@ -1090,7 +1090,7 @@ describe(scriptName, () => {
                 submitNow: false,
               });
               await expect(
-                rankifyInstance.connect(adr.gameMaster1).submitProposal(proposals[0].params),
+                rankifyInstance.connect(adr.players[0].wallet).submitProposal(proposals[0].params),
               ).to.be.not.revertedWith('invalid proposer signature');
             });
           });
@@ -1587,7 +1587,7 @@ describe(scriptName, () => {
               });
               it('should revert if voter is not a player', async () => {
                 await expect(
-                  rankifyInstance.connect(adr.gameMaster1).submitVote(
+                  rankifyInstance.connect(adr.players[0].wallet).submitVote(
                     1,
                     checkVotes[0].ballotId,
                     adr.players[0].wallet.address,
