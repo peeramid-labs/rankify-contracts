@@ -6,8 +6,19 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@zkit": ["./types/zk"]
+    }
   },
-  "include": ["./test", "./src", "./scripts", "hardhat.config.js", "./deploy"],
+  "include": [
+    "./test",
+    "./src",
+    "./scripts",
+    "hardhat.config.js",
+    "./deploy",
+    "playbook/utils.ts",
+    "./types/**/*.d.ts"
+  ],
   "files": ["hardhat.config.ts"]
 }

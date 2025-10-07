@@ -7,9 +7,8 @@ pragma solidity ^0.8.20;
 contract MockERC721 is ERC721Burnable, Ownable {
     uint256 numTokens;
 
-    constructor(string memory name_, string memory symbol_, address owner) ERC721(name_, symbol_) {
+    constructor(string memory name_, string memory symbol_, address owner) ERC721(name_, symbol_) Ownable(owner) {
         require(owner != address(0), "MockERC721: must specify owner of the contract");
-        transferOwnership(owner);
         numTokens = 0;
     }
 

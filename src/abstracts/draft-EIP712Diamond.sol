@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "../libraries/LibEIP712Storage.sol";
 import "../modifiers/OnlyOwnerDiamond.sol";
 
@@ -83,6 +83,6 @@ abstract contract EIP712 is OnlyOwnerDiamond {
      * ```
      */
     function _hashTypedDataV4(bytes32 structHash) internal view virtual returns (bytes32) {
-        return ECDSA.toTypedDataHash(_domainSeparatorV4(), structHash);
+        return MessageHashUtils.toTypedDataHash(_domainSeparatorV4(), structHash);
     }
 }

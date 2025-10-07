@@ -1,0 +1,51 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions: {}
+jobs:
+  release:
+    permissions:
+      contents: write # to create release (changesets/action)
+      issues: write # to post issue comments (changesets/action)
+      pull-requests: write # to create pull request (changesets/action)
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - uses: './.github/setup'
+        with:
+          node-version: 18.x
+      - name: install dependencies
+        run: pnpm install
+      - name: build
+        run: pnpm build
+      - name: generate docs
+        run: pnpm hardhat docgen
+      - name: generate doc selectors
+        run: pnpm hardhat generate-selector-docs
+      - name: Create Release Pull Request or Publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: pnpm run release
+          version: pnpm run version
+          commit: 'chore: new release'
+          title: 'chore: new release candidate'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Send Discord notification
+        if: steps.changesets.outputs.published == 'true'
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            New Rankify-Contracts release published! Check out the changes: https://github.com/${{ github.repository }}/releases/tag/v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_NOTIFIER }}

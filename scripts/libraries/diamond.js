@@ -150,7 +150,7 @@ async function deployDiamond(FacetNames, signer, initializer, initializerArgs) {
     console.log('DiamondCutFacet deployed:', diamondCutFacet.address);
   }
 
-  const Diamond = await ethers.getContractFactory('Diamond', signer);
+  const Diamond = await ethers.getContractFactory('DiamondClonable', signer);
   const diamond = await Diamond.deploy(signer.address, diamondCutFacet.address);
   await diamond.deployed();
   if (require.main === module) {

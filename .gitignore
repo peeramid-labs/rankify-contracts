@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+.vscode
 
 # testing
 /coverage
@@ -269,5 +270,19 @@ package-lock.json
 
 artifacts/
 build/
-types
+/types
 bin/
+/deployments/localhost/
+/deployments/hardhat/
+
+abi/
+docs/contracts/
+docs/selectors.md
+
+# circom
+.zkproofs-cache/
+
+signatures.json
+
+
+zk_compile

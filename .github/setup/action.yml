@@ -1,4 +1,5 @@
 name: setup
+description: 'setup environment'
 runs:
   using: 'composite'
   steps:
@@ -6,14 +7,14 @@ runs:
       with:
         fetch-depth: 0
     - name: Install pnpm
-      uses: pnpm/action-setup@v2
+      uses: pnpm/action-setup@v4
       with:
-        version: 8
+        version: 9
         run_install: false
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: 18.17.1
+        node-version: 22.12.0
         cache: 'pnpm'
     - name: Get pnpm store directory
       shell: bash
@@ -26,6 +27,13 @@ runs:
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
+    - uses: actions/cache@v3
+      name: Setup ZK proofs cache
+      with:
+        path: ./.zkproofs-cache
+        key: ${{ runner.os }}-zkproofs-${{ hashFiles('**/proposals_integrity_15.circom', '**/hardhat.config.ts') }}
+        restore-keys: |
+          ${{ runner.os }}-zkproofs-
     - name: Installing dependencies
       run: pnpm install --frozen-lockfile
       shell: bash

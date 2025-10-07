@@ -1,5 +1,10 @@
 name: CI
-on: push
+on:
+  pull_request:
+    branches: [main,dev]
+    types: [opened, reopened, labeled, synchronize]
+env:
+    NODE_ENV: 'TEST'
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -19,3 +24,4 @@ jobs:
 
       - name: Running tests
         run: pnpm test:parallel
+

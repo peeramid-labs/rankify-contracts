@@ -5,9 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 pragma solidity ^0.8.20;
 
 contract MockERC1155 is ERC1155Burnable, Ownable {
-    constructor(string memory uri_, address owner) ERC1155(uri_) {
+    constructor(string memory uri_, address owner) ERC1155(uri_) Ownable(owner) {
         require(owner != address(0), "must specify owner of the contract");
-        transferOwnership(owner);
     }
 
     function mint(address to, uint256 amount, uint256 poolId, bytes memory data) public onlyOwner {

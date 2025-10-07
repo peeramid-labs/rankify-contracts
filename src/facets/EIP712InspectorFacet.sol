@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.20;
 import "../libraries/LibEIP712Storage.sol";
 
 contract EIP712InspectorFacet {
@@ -12,7 +12,9 @@ contract EIP712InspectorFacet {
             address _CACHED_THIS,
             bytes32 _HASHED_NAME,
             bytes32 _HASHED_VERSION,
-            bytes32 _TYPE_HASH
+            bytes32 _TYPE_HASH,
+            string memory _NAME,
+            string memory _VERSION
         )
     {
         LibEIP712WithStorage.LibEIP712WithStorageStorage storage ss = LibEIP712WithStorage.EIP712WithStorage();
@@ -23,7 +25,9 @@ contract EIP712InspectorFacet {
             ss._CACHED_THIS,
             ss._HASHED_NAME,
             ss._HASHED_VERSION,
-            ss._TYPE_HASH
+            ss._TYPE_HASH,
+            ss._NAME,
+            ss._VERSION
         );
     }
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Author: Tim Pechersky <@Peersky>
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.20;
 
 import {LibCoinVending} from "../libraries/LibCoinVending.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "hardhat/console.sol";
 
@@ -21,8 +21,8 @@ contract MockVendingMachine is ReentrancyGuard {
         LibCoinVending.fund(_positionName);
     }
 
-    function release(bytes32 _positionName, address payee, address beneficiary) public nonReentrant {
-        LibCoinVending.release(_positionName, payee, beneficiary, msg.sender);
+    function release(bytes32 position, address payee, address beneficiary) external {
+        LibCoinVending.release(position, payee, beneficiary, msg.sender);
     }
 
     function refund(bytes32 _positionName, address to) public nonReentrant {
@@ -68,5 +68,14 @@ contract MockVendingMachine is ReentrancyGuard {
             return IERC721Receiver.onERC721Received.selector;
         }
         return bytes4("");
+    }
+
+    function getPullableEth(address player) public view returns (uint256) {
+        return LibCoinVending.bankBalance(player);
+    }
+
+    function pullEth(address player, uint256 amount) public {
+        require(player == msg.sender, "unauthorized");
+        LibCoinVending.withdrawFromBank(player, amount);
     }
 }

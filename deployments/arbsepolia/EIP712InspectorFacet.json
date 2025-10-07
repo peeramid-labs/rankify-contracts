@@ -1,0 +1,102 @@
+{
+  "address": "0xD72A98EeF2B6a9c58fe2822d41f1666A90e6Ef21",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "currentChainId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "inspectEIP712Hashes",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_CACHED_DOMAIN_SEPARATOR",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_CACHED_CHAIN_ID",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_CACHED_THIS",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_HASHED_NAME",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_HASHED_VERSION",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_TYPE_HASH",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_NAME",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_VERSION",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x8c193c097bd44812057683f142936fb13f941485b13afc34fc78dc0be01c549e",
+  "receipt": {
+    "to": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "from": "0x6Cf8d74C7875de8C2FfB09228F4bf2A21b25e583",
+    "contractAddress": null,
+    "transactionIndex": 1,
+    "gasUsed": "312741",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0xd31b8a185852cad3ce5b233943851148b49248dbad0393afb8ad16a2fbe7367a",
+    "transactionHash": "0x8c193c097bd44812057683f142936fb13f941485b13afc34fc78dc0be01c549e",
+    "logs": [],
+    "blockNumber": 177092484,
+    "cumulativeGasUsed": "312741",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 2,
+  "solcInputHash": "1b742a02baa97e6715880566a1101cf4",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"currentChainId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"inspectEIP712Hashes\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"_CACHED_DOMAIN_SEPARATOR\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"_CACHED_CHAIN_ID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_CACHED_THIS\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"_HASHED_NAME\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"_HASHED_VERSION\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"_TYPE_HASH\",\"type\":\"bytes32\"},{\"internalType\":\"string\",\"name\":\"_NAME\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_VERSION\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/facets/EIP712InspectorFacet.sol\":\"EIP712InspectorFacet\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":2000},\"remappings\":[],\"viaIR\":true},\"sources\":{\"src/facets/EIP712InspectorFacet.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.20;\\nimport \\\"../libraries/LibEIP712Storage.sol\\\";\\n\\ncontract EIP712InspectorFacet {\\n    function inspectEIP712Hashes()\\n        public\\n        view\\n        returns (\\n            bytes32 _CACHED_DOMAIN_SEPARATOR,\\n            uint256 _CACHED_CHAIN_ID,\\n            address _CACHED_THIS,\\n            bytes32 _HASHED_NAME,\\n            bytes32 _HASHED_VERSION,\\n            bytes32 _TYPE_HASH,\\n            string memory _NAME,\\n            string memory _VERSION\\n        )\\n    {\\n        LibEIP712WithStorage.LibEIP712WithStorageStorage storage ss = LibEIP712WithStorage.EIP712WithStorage();\\n\\n        return (\\n            ss._CACHED_DOMAIN_SEPARATOR,\\n            ss._CACHED_CHAIN_ID,\\n            ss._CACHED_THIS,\\n            ss._HASHED_NAME,\\n            ss._HASHED_VERSION,\\n            ss._TYPE_HASH,\\n            ss._NAME,\\n            ss._VERSION\\n        );\\n    }\\n\\n    function currentChainId() public view returns (uint256) {\\n        return block.chainid;\\n    }\\n}\\n\",\"keccak256\":\"0x1296d449003e6acf84e793ab8441023f8fd0c91fcb459a6bb7d8d44ff9a05972\",\"license\":\"MIT\"},\"src/libraries/LibEIP712Storage.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n\\npragma solidity ^0.8.20;\\n\\nimport {IDiamondCut} from \\\"../vendor/diamond/interfaces/IDiamondCut.sol\\\";\\n\\nlibrary LibEIP712WithStorage {\\n    bytes32 constant EIP712_STORAGE_POSITION = keccak256(\\\"EIP.712.STORAGE.POSITION\\\");\\n\\n    struct LibEIP712WithStorageStorage {\\n        bytes32 _CACHED_DOMAIN_SEPARATOR;\\n        uint256 _CACHED_CHAIN_ID;\\n        address _CACHED_THIS;\\n        bytes32 _HASHED_NAME;\\n        bytes32 _HASHED_VERSION;\\n        bytes32 _TYPE_HASH;\\n        string _VERSION; // Added for introspection reasons\\n        string _NAME; // Added for introspection reasons\\n    }\\n\\n    function EIP712WithStorage() internal pure returns (LibEIP712WithStorageStorage storage ds) {\\n        bytes32 position = EIP712_STORAGE_POSITION;\\n        assembly {\\n            ds.slot := position\\n        }\\n    }\\n}\\n\",\"keccak256\":\"0x27cc882c94d0cd9d3a338d408f9d2e165519c158773fcf4faed28cc62d437fba\",\"license\":\"MIT\"},\"src/vendor/diamond/interfaces/IDiamondCut.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.20;\\n\\n/******************************************************************************\\\\\\n*  Adapted from\\n*  Author: Nick Mudge <nick@perfectabstractions.com> (https://twitter.com/mudgen)\\n* EIP-2535 Diamond Standard: https://eips.ethereum.org/EIPS/eip-2535\\n/******************************************************************************/\\n\\ninterface IDiamondCut {\\n    enum FacetCutAction {\\n        Add,\\n        Replace,\\n        Remove\\n    }\\n    // Add=0, Replace=1, Remove=2\\n\\n    struct FacetCut {\\n        address facetAddress;\\n        FacetCutAction action;\\n        bytes4[] functionSelectors;\\n    }\\n\\n    /// @notice Add/replace/remove any number of functions and optionally execute\\n    ///         a function with delegatecall\\n    /// @param _diamondCut Contains the facet addresses and function selectors\\n    /// @param _init The address of the contract or facet to execute _calldata\\n    /// @param _calldata A function call, including function selector and arguments\\n    ///                  _calldata is executed with delegatecall on _init\\n    function diamondCut(FacetCut[] calldata _diamondCut, address _init, bytes calldata _calldata) external;\\n}\\n\",\"keccak256\":\"0x238f7bcdbbedfac48b94cbc9d4a15e16fb5c9c09fb41a8c72e2a7ff48c81f24b\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608080604052346015576104b0908161001b8239f35b600080fdfe608080604052600436101561001357600080fd5b60003560e01c9081636cbadbfa14610420575063d3a8018d1461003557600080fd5b3461041b57600060031936011261041b577fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3a7547fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3a8549073ffffffffffffffffffffffffffffffffffffffff7fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3a954167fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3aa547fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ab54907fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ac546040519060007fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ae548060011c90600181168015610411575b60208310811461033a578286528593929181156103ed5750600114610371575b5003601f01601f1916820167ffffffffffffffff81118382101761026b576040526040519360007fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ad548060011c90600181168015610367575b60208310811461033a57828952889392918115610316575060011461029a575b5003601f01601f191685019367ffffffffffffffff85118686101761026b576102679661025995604052604051998a998a5260208a015260408901526060880152608087015260a086015261010060c0860152610100850190610439565b9083820360e0850152610439565b0390f35b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b7fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ad600090815291507fc5c890a89b2ac831e4c9f6e8f1ea5ae98d7cbfd619197ee2bc5b0aff51a14d8e5b8183106102fa5750508101602001601f196101fb565b6020919350806001915483858c010152019101909187926102e4565b60ff191660208581019190915291151560051b84019091019150601f1990506101fb565b6024847f4e487b710000000000000000000000000000000000000000000000000000000081526022600452fd5b91607f16916101db565b7fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ae600090815291507fc72307a12ab1e211a43df3970a68598079aacb48da18d6e37e255dc3212e7da25b8183106103d15750508101602001601f19610182565b60209193508060019154838589010152019101909184926103bb565b60ff191660208581019190915291151560051b84019091019150601f199050610182565b91607f1691610162565b600080fd5b3461041b57600060031936011261041b57602090468152f35b919082519283825260005b848110610465575050601f19601f8460006020809697860101520116010190565b8060208092840101518282860101520161044456fea264697066735822122040cb2be259a206ad4cfd81a0d0b293698f484b5b43cd1bfa4421dd36f84a959764736f6c634300081c0033",
+  "deployedBytecode": "0x608080604052600436101561001357600080fd5b60003560e01c9081636cbadbfa14610420575063d3a8018d1461003557600080fd5b3461041b57600060031936011261041b577fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3a7547fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3a8549073ffffffffffffffffffffffffffffffffffffffff7fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3a954167fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3aa547fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ab54907fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ac546040519060007fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ae548060011c90600181168015610411575b60208310811461033a578286528593929181156103ed5750600114610371575b5003601f01601f1916820167ffffffffffffffff81118382101761026b576040526040519360007fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ad548060011c90600181168015610367575b60208310811461033a57828952889392918115610316575060011461029a575b5003601f01601f191685019367ffffffffffffffff85118686101761026b576102679661025995604052604051998a998a5260208a015260408901526060880152608087015260a086015261010060c0860152610100850190610439565b9083820360e0850152610439565b0390f35b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b7fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ad600090815291507fc5c890a89b2ac831e4c9f6e8f1ea5ae98d7cbfd619197ee2bc5b0aff51a14d8e5b8183106102fa5750508101602001601f196101fb565b6020919350806001915483858c010152019101909187926102e4565b60ff191660208581019190915291151560051b84019091019150601f1990506101fb565b6024847f4e487b710000000000000000000000000000000000000000000000000000000081526022600452fd5b91607f16916101db565b7fe5b6a7afa77789577f2802f0da58895f660e5798c5c11b2ea18b0a53bd65d3ae600090815291507fc72307a12ab1e211a43df3970a68598079aacb48da18d6e37e255dc3212e7da25b8183106103d15750508101602001601f19610182565b60209193508060019154838589010152019101909184926103bb565b60ff191660208581019190915291151560051b84019091019150601f199050610182565b91607f1691610162565b600080fd5b3461041b57600060031936011261041b57602090468152f35b919082519283825260005b848110610465575050601f19601f8460006020809697860101520116010190565b8060208092840101518282860101520161044456fea264697066735822122040cb2be259a206ad4cfd81a0d0b293698f484b5b43cd1bfa4421dd36f84a959764736f6c634300081c0033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}

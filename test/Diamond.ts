@@ -73,7 +73,6 @@ describe('DiamondTest', async function () {
       ],
       ethers.constants.AddressZero,
       '0x',
-      { gasLimit: 800000 },
     );
     receipt = await tx.wait();
     if (!receipt.status) {
