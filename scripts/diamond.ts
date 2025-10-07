@@ -31,6 +31,7 @@ export const enum FacetCutAction {
 
 // Turns an abiElement into a signature string, like `"init(bytes4)"`
 export function toSignature(abiElement: unknown): string {
+  console.log(ethers);
   ethers.FunctionFragment.from(abiElement);
   return ethers.FunctionFragment.from(abiElement as JsonFragment).format();
 }

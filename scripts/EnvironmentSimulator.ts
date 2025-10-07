@@ -11,10 +11,20 @@ import {
   ArguableVotingTournament,
   RankifyInstanceGameMastersFacet,
   RankifyDiamondInstance,
-} from '../types';
+} from '../types/artifacts';
 import cryptoJs from 'crypto-js';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { BigNumberish, BytesLike, TypedDataField, BigNumber, constants, utils, Wallet, ethers } from 'ethers';
+import {
+  BigNumberish,
+  BytesLike,
+  TypedDataField,
+  BigNumber,
+  constants,
+  utils,
+  Wallet,
+  ethers,
+  parseUnits,
+} from 'ethers';
 // @ts-ignore
 import { assert } from 'console';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
@@ -184,14 +194,14 @@ export const constantParams = {
   RInstance_MIN_PLAYERS: 3,
   RInstance_MAX_TURNS: 3,
   RInstance_TIME_TO_JOIN: '200',
-  RInstance_GAME_PRICE: utils.parseUnits('0.001', 9),
-  RInstance_JOIN_GAME_PRICE: utils.parseUnits('0.001', 9),
+  RInstance_GAME_PRICE: parseUnits('0.001', 9),
+  RInstance_JOIN_GAME_PRICE: parseUnits('0.001', 9),
   RInstance_NUM_WINNERS: 3,
   RInstance_VOTE_CREDITS: 5,
   RInstance_SUBJECT: 'Best Music on youtube',
   PRINCIPAL_TIME_CONSTANT: 3600,
   RInstance_MIN_GAME_TIME: 10000,
-  PRINCIPAL_COST: utils.parseUnits('1', 9),
+  PRINCIPAL_COST: parseUnits('1', 9),
 };
 class EnvironmentSimulator {
   hre: HardhatRuntimeEnvironment;
@@ -306,7 +316,7 @@ class EnvironmentSimulator {
       chainId,
       verifyingContract: verifierAddress,
     };
-    const s = await signer.wallet._signTypedData(domain, VoteTypes, {
+    const s = await signer.wallet.signTypedData(domain, VoteTypes, {
       ...message,
     });
     log(`Vote signed for game ${message.gameId}, turn ${message.turn}`, 2);

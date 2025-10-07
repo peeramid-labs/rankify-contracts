@@ -1,10 +1,13 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/';
-import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
+// import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/artifacts';
+import { Governor } from '../types/artifacts/src';
+import { RankifyDiamondInstance } from '../types/abi/hardhat-diamond-abi/HardhatDiamondABI.sol/RankifyDiamondInstance';
+import { Rankify } from '../types/artifacts/src/tokens';
+import { IRankifyInstance, LibCoinVending } from '../types/artifacts/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
-import { BigNumber, BigNumberish } from 'ethers';
+
 import { assert } from 'console';
 import addDistribution from '../scripts/addDistribution';
 import hre from 'hardhat';
@@ -14,7 +17,7 @@ const path = require('path');
 const scriptName = path.basename(__filename);
 
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
-import { MAODistribution } from '../types/src/distributions/MAODistribution';
+import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { HardhatEthersHelpers } from 'hardhat/types';
 import { EnvSetupResult } from '../scripts/setupMockEnvironment';
@@ -22,7 +25,7 @@ import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { parseInstantiated } from '../scripts/parseInstantiated';
-import { RankToken } from '../types/src/tokens/RankToken';
+import { RankToken } from '../types/artifacts/src/tokens/RankToken';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,

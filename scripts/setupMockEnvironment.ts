@@ -1,4 +1,3 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { HardhatEthersHelpers, HardhatRuntimeEnvironment, HttpNetworkHDAccountsConfig } from 'hardhat/types';
 import { Wallet } from 'ethers';
 import { MockERC20 } from '../types/src/mocks/MockERC20';
@@ -29,7 +28,7 @@ export interface SignerIdentity {
   /** Unique identifier for the signer */
   id: string;
   /** Ethereum wallet associated with the signer */
-  wallet: SignerWithAddress | Wallet;
+  wallet: Wallet;
 }
 
 export interface AdrSetupResult {
