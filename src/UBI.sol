@@ -45,7 +45,12 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
 
     error InvalidSender(bool recordFound, uint256 validUtil);
     event Claimed(address indexed user, uint256 amount);
-
+    struct ProposalGlobalStats {
+        uint256 aggregateScore;
+        uint256 proposedTimes;
+        uint256 repostedTimes;
+    }
+    event ProposedTime(bytes32 proposalHash, uint256 newTimesProposed);
     struct UBIStorage {
         IMultipass multipass;
         DistributableGovernanceERC20 token;
@@ -55,7 +60,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         mapping(address => uint256) lastClaimedAt;
         mapping(address => uint256) supportSpent;
         mapping(uint256 day => Daily) daily;
-        mapping(bytes32 proposal => uint256 score) proposalScores;
+        mapping(bytes32 proposalHash => ProposalGlobalStats stats) proposalGlobalStats;
         uint256 lastProposalDay;
         address pauser;
     }
@@ -70,16 +75,22 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
     event VotingByAddress(address indexed participant, uint256 indexed day, bytes32 indexed proposal, uint256 amount);
 
     event ProposalScoreUpdatedByAddress(
-        uint256 indexed score,
+        uint256 indexed dailyScore,
         uint256 indexed day,
         address indexed proposer,
         bytes32 proposal
     );
     event ProposalScoreUpdatedByProposal(
-        uint256 indexed score,
+        uint256 indexed dailyScore,
         uint256 indexed day,
         bytes32 indexed proposal,
         address proposer
+    );
+
+    event ProposalLifetimeScore(
+        uint256 indexed lifeTimeScore,
+        uint256 indexed proposedTimes,
+        uint256 indexed repostedTimes
     );
 
     /**
@@ -173,6 +184,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         if (s.daily[day].proposals[hash].exists) {
             emit RepostByReposter(msg.sender, day, hash, s.daily[day].proposals[hash].proposer, data);
             emit RepostByProposer(s.daily[day].proposals[hash].proposer, day, hash, msg.sender, data);
+            s.proposalGlobalStats[hash].repostedTimes += 1;
         } else {
             if (hash != keccak256("")) {
                 s.daily[day].proposals[hash] = DailyProposal({
@@ -182,8 +194,10 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
                     exists: true
                 });
                 s.daily[day].proposalCnt++;
-                uint256 scoreWhenProposed = s.proposalScores[hash];
+                uint256 scoreWhenProposed = s.proposalGlobalStats[hash].aggregateScore;
+                s.proposalGlobalStats[hash].proposedTimes += 1;
                 emit ProposingByAddress(msg.sender, day, hash, data, scoreWhenProposed);
+                emit ProposedTime(hash, s.proposalGlobalStats[hash].proposedTimes);
             }
         }
 
@@ -237,19 +251,24 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
             address user = msg.sender;
             s.token.mint(proposer, voteElement.amount);
             emit VotingByAddress(user, day, voteElement.proposal, voteElement.amount);
-            s.proposalScores[voteElement.proposal] += voteElement.amount;
+            s.proposalGlobalStats[voteElement.proposal].aggregateScore += voteElement.amount;
             s.daily[day - 1].proposals[voteElement.proposal].score += voteElement.amount;
             emit ProposalScoreUpdatedByAddress(
-                s.proposalScores[voteElement.proposal],
+                s.daily[day - 1].proposals[voteElement.proposal].score,
                 day,
                 proposer,
                 voteElement.proposal
             );
             emit ProposalScoreUpdatedByProposal(
-                s.proposalScores[voteElement.proposal],
+                s.daily[day - 1].proposals[voteElement.proposal].score,
                 day,
                 voteElement.proposal,
                 proposer
+            );
+            emit ProposalLifetimeScore(
+                s.proposalGlobalStats[voteElement.proposal].aggregateScore,
+                s.proposalGlobalStats[voteElement.proposal].proposedTimes,
+                s.proposalGlobalStats[voteElement.proposal].repostedTimes
             );
         }
         s.dailySupportAmount -= totalSpent;
@@ -264,8 +283,8 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
      * @param proposal Hash of the proposal to query
      * @return uint256 Current score/votes for the proposal
      */
-    function proposalScores(bytes32 proposal) public view returns (uint256) {
-        return getStorage().proposalScores[proposal];
+    function proposalLifetimeStats(bytes32 proposal) public view returns (ProposalGlobalStats memory) {
+        return getStorage().proposalGlobalStats[proposal];
     }
 
     function pauser() public view returns (address) {
@@ -278,9 +297,25 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         return s.multipass;
     }
 
-     function token() public view returns (DistributableGovernanceERC20) {
+    function token() public view returns (DistributableGovernanceERC20) {
         UBIStorage storage s = getStorage();
         return s.token;
     }
 
+    function getUBIParams() public view returns (uint256 dailyClaimAmount, uint256 dailySupportAmount,  bytes32 domainName) {
+        UBIStorage storage s = getStorage();
+        dailyClaimAmount = s.dailyClaimAmount;
+        dailySupportAmount = s.dailySupportAmount;
+        domainName = s.domainName;
+    }
+
+    function getProposalDailyScore(bytes32 hash, uint256 day) public view returns (DailyProposal memory) {
+        UBIStorage storage s = getStorage();
+        return s.daily[day].proposals[hash];
+    }
+
+    function getProposalsCnt(uint256 day) public view returns (uint256) {
+        UBIStorage storage s = getStorage();
+        return s.daily[day].proposalCnt;
+    }
 }

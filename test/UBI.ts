@@ -1,22 +1,9 @@
-import { ethers, getNamedAccounts, network } from 'hardhat';
+import { ethers, getNamedAccounts } from 'hardhat';
 import { expect } from 'chai';
-import hre, { deployments } from 'hardhat';
+import hre from 'hardhat';
 import { setupTest } from './utils';
-import {
-  RankifyDiamondInstance,
-  RankToken,
-  Rankify,
-  UBI,
-  IMultipass,
-  Multipass,
-  DistributableGovernanceERC20,
-} from '../types';
-import addDistribution from '../scripts/addDistribution';
-import { getCodeIdFromArtifact } from '../scripts/getCodeId';
-import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
+import { RankifyDiamondInstance, UBI, Multipass } from '../types';
 import { AdrSetupResult, EnvSetupResult } from '../scripts/setupMockEnvironment';
-import { constantParams } from '../scripts/EnvironmentSimulator';
-import { parseInstantiated } from '../scripts/parseInstantiated';
 import { MockERC20 } from '@peeramid-labs/eds/types';
 import { BigNumber, BytesLike, Wallet } from 'ethers';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
@@ -25,7 +12,7 @@ let adr: AdrSetupResult;
 let env: EnvSetupResult;
 let rankifyInstance: RankifyDiamondInstance;
 let rankToken: MockERC20;
-
+const NEW_DOMAIN_NAME1 = 'invisible-garden.rankify';
 export interface RegisterMessage {
   name: BytesLike;
   id: BytesLike;
@@ -95,7 +82,7 @@ describe('UBI contract', async function () {
       await hre.ethers.getSigner(adr.gameMaster1.address),
     ) as Multipass;
     ubi = await factory.deploy(true);
-    const NEW_DOMAIN_NAME1 = 'invisible-garden.rankify';
+
     ubi.initialize(
       mp.address,
       env.mockERC20.address,
@@ -105,7 +92,8 @@ describe('UBI contract', async function () {
       ethers.utils.parseEther('1'),
       ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
     );
-    mp.connect(await ethers.getSigner('owner')).initializeDomain(
+    const { owner } = await getNamedAccounts();
+    mp.connect(await hre.ethers.getSigner(owner)).initializeDomain(
       adr.gameMaster1.address,
       ethers.utils.parseEther('0'),
       ethers.utils.parseEther('0'),
@@ -133,12 +121,28 @@ describe('UBI contract', async function () {
       expect(await ubi.pauser()).to.be.equal(adr.gameMaster2.address);
       expect(await ubi.owner()).to.be.equal(adr.gameMaster3.address);
       expect(await ubi.token()).to.be.equal(env.mockERC20.address);
+      expect(await ubi.connect(adr.gameMaster2).pause()).to.emit(ubi, 'Paused');
       // Check s.dailyClaimAmount and s.dailySupportAmount
+      const { dailyClaimAmount, dailySupportAmount, domainName } = await ubi.getUBIParams();
+      expect(dailyClaimAmount.toString()).to.be.equal(ethers.utils.parseEther('1'));
+      expect(dailySupportAmount.toString()).to.be.equal(ethers.utils.parseEther('1'));
       // Check s.domainName
+      expect(domainName).to.be.equal(ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1));
     });
 
     it('should revert if the initialize function is called a second time', async () => {
       // Expect the second initialize call to be reverted by the Initializable guard
+      await expect(
+        ubi.initialize(
+          mp.address,
+          env.mockERC20.address,
+          adr.gameMaster2.address,
+          adr.gameMaster3.address,
+          ethers.utils.parseEther('1'),
+          ethers.utils.parseEther('1'),
+          ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
+        ),
+      ).to.be.revertedWithCustomError(ubi, 'InvalidInitialization');
     });
   });
 
