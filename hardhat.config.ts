@@ -179,7 +179,7 @@ export default {
       url: process.env.BUILDBEAR_RPC_URL ?? '',
     },
     hardhat: {
-    //   allowUnlimitedContractSize: true,
+      //   allowUnlimitedContractSize: true,
       name: 'hardhat',
       accounts: {
         mnemonic: 'casual vacant letter raw trend tool vacant opera buzz jaguar bridge myself',
@@ -270,7 +270,10 @@ export default {
     },
   ],
   typechain: {
-    externalArtifacts: ['abi/hardhat-diamond-abi/HardhatDiamondABI.sol/RankifyDiamondInstance.json'],
+    externalArtifacts: [
+      'abi/hardhat-diamond-abi/HardhatDiamondABI.sol/RankifyDiamondInstance.json',
+      'node_modules/@peeramid-labs/multipass/artifacts/src/Multipass.sol/Multipass.json',
+    ],
     outDir: 'types',
     target: 'ethers-v5',
     alwaysGenerateOverloads: true, // should overloads with full signatures like deposit(uint256) be generated always, even if there are no overloads?
@@ -297,6 +300,10 @@ export default {
       {
         artifacts: 'node_modules/@peeramid-labs/eds/artifacts',
         deploy: 'node_modules/@peeramid-labs/eds/deploy',
+      },
+      {
+        artifacts: 'node_modules/@peeramid-labs/multipass/artifacts',
+        deploy: 'node_modules/@peeramid-labs/multipass/deploy',
       },
     ],
   },

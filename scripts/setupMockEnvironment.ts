@@ -1,15 +1,12 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { HardhatEthersHelpers, HardhatRuntimeEnvironment, HttpNetworkHDAccountsConfig } from 'hardhat/types';
+import { HardhatRuntimeEnvironment, HttpNetworkHDAccountsConfig } from 'hardhat/types';
 import { Wallet } from 'ethers';
-import { MockERC20 } from '../types/src/mocks/MockERC20';
-import { MockERC1155 } from '../types/src/mocks/MockERC1155';
-import { MockERC721 } from '../types/src/mocks/MockERC721';
-import { MAODistribution } from '../types/src/distributions/MAODistribution';
-import { RankToken } from '../types/src/tokens/RankToken';
+import { MockERC20 } from '../types/artifacts/src/mocks/MockERC20';
+import { MockERC1155 } from '../types/artifacts/src/mocks/MockERC1155';
+import { MockERC721 } from '../types/artifacts/src/mocks/MockERC721';
+import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
+import { RankToken, Rankify, DAODistributor, ArguableVotingTournament } from '../types';
 import { Deployment } from 'hardhat-deploy/types';
-import { Rankify } from '../types/src/tokens/Rankify';
-import { DAODistributor } from '../types/src/DAODistributor';
-import { ArguableVotingTournament } from '../types/src/distributions/ArguableVotingTournament';
 import { log } from './utils';
 
 export interface EnvSetupResult {
