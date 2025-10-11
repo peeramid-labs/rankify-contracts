@@ -5,10 +5,9 @@ import "@peeramid-labs/multipass/src/interfaces/IMultipass.sol";
 import "@peeramid-labs/multipass/src/libraries/LibMultipass.sol";
 import "./tokens/DistributableGovernanceERC20.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
-contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradeable {
+contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
     /**
      * @notice Structure representing a vote for a proposal
      * @param proposal Hash of the proposal being voted on
@@ -147,7 +146,6 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         IMultipass _multipass,
         DistributableGovernanceERC20 _token,
         address _pauser,
-        address _owner,
         uint256 dailyClaim,
         uint256 dailySupport,
         bytes32 domainName
@@ -161,7 +159,6 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         s.domainName = domainName;
         __ReentrancyGuard_init();
         __Pausable_init();
-        __Ownable_init(_owner);
     }
 
     function claim(string memory data) public nonReentrant whenNotPaused {

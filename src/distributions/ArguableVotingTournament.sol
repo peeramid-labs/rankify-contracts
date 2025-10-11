@@ -13,7 +13,7 @@ import "../initializers/RankifyInstanceInit.sol";
 import "../vendor/diamond/interfaces/IDiamondCut.sol";
 import "@peeramid-labs/eds/src/libraries/LibSemver.sol";
 import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStrings.sol";
-
+import { UBI } from "../UBI.sol";
 /**
  * @title ArguableVotingTournament Distribution
  * @notice This contract implements a diamond distribution for the Ethereum Distribution System (EDS).
@@ -33,6 +33,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
     OwnershipFacet private immutable _OwnershipFacet;
     address private immutable _initializer;
     ScoreGetterFacet private immutable _ScoreGetterFacet;
+    UBI private immutable _ubi;
 
     ShortString private immutable distributionName;
     uint256 private immutable distributionVersion;
@@ -58,6 +59,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         address RankifyGMFacet;
         address OwnershipFacet;
         address ScoreGetterFacet;
+        address UBI;
     }
 
     /**
@@ -86,6 +88,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         distributionName = ShortStrings.toShortString(_distributionName);
         // console.log(LibSemver.toString())
         distributionVersion = LibSemver.toUint256(version);
+        _ubi = UBI(addresses.UBI);
     }
 
     /**
@@ -101,7 +104,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         address owner = abi.decode(ownerEncoded, (address));
         (address[] memory _instances, , ) = super._instantiate();
         address diamond = _instances[0];
-        IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](8);
+        IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](9);
 
         bytes4[] memory loupeSelectors = new bytes4[](4);
         loupeSelectors[0] = DiamondLoupeFacet.facets.selector;
@@ -227,8 +230,30 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: ScoreGetterFacetSelectors
         });
 
+        bytes4[] memory UBIFacetSelectors = new bytes4[](15);
+        UBIFacetSelectors[0] = UBI.claim.selector;
+        UBIFacetSelectors[1] = UBI.support.selector;
+        UBIFacetSelectors[2] = UBI.pause.selector;
+        UBIFacetSelectors[3] = UBI.unpause.selector;
+        UBIFacetSelectors[4] = UBI.currentDay.selector;
+        UBIFacetSelectors[5] = UBI.proposalLifetimeStats.selector;
+        UBIFacetSelectors[6] = UBI.pauser.selector;
+        UBIFacetSelectors[7] = UBI.multipass.selector;
+        UBIFacetSelectors[8] = UBI.token.selector;
+        UBIFacetSelectors[9] = UBI.getUBIParams.selector;
+        UBIFacetSelectors[10] = UBI.getProposalDailyScore.selector;
+        UBIFacetSelectors[11] = UBI.getProposalsCnt.selector;
+        UBIFacetSelectors[12] = UBI.lastClaimedAt.selector;
+        UBIFacetSelectors[13] = UBI.getCurrentDay.selector;
+        UBIFacetSelectors[14] = UBI.getUserState.selector;
+        facetCuts[8] = IDiamondCut.FacetCut({
+            facetAddress: address(_ubi),
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: UBIFacetSelectors
+        });
+
         super.initialize(DiamondCutFacet(diamond), facetCuts, "");
-        address[] memory returnValue = new address[](9);
+        address[] memory returnValue = new address[](10);
         returnValue[0] = diamond;
         returnValue[1] = facetCuts[0].facetAddress;
         returnValue[2] = facetCuts[1].facetAddress;
@@ -237,7 +262,8 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         returnValue[5] = facetCuts[4].facetAddress;
         returnValue[6] = facetCuts[5].facetAddress;
         returnValue[7] = facetCuts[6].facetAddress;
-        returnValue[8] = address(_ScoreGetterFacet);
+        returnValue[8] = facetCuts[7].facetAddress;
+        returnValue[9] = facetCuts[8].facetAddress;
 
         //renouncing ownership
         OwnershipFacet(diamond).transferOwnership(owner);

@@ -19,6 +19,9 @@ import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStri
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
 import {Governor} from "../Governor.sol";
+import {IMultipass} from "@peeramid-labs/multipass/src/interfaces/IMultipass.sol";
+import {UBI} from "../UBI.sol";
+
 struct MAOApp {
     IRankifyInstance fellowship;
     RankToken rankToken;
@@ -26,6 +29,7 @@ struct MAOApp {
     IGovernor DAO;
     SimpleAccessManager rankTokenManager;
     SimpleAccessManager govTokenManager;
+    UBI UBI;
 }
 
 /**
@@ -73,6 +77,8 @@ contract MAODistribution is IDistribution, CodeIndexer {
     address private immutable _poseidon6;
     address private immutable _poseidon2;
     address private immutable _DAO;
+    address private immutable _multipass;
+    address private immutable _ubi;
 
     /**
      * @notice Initializes the contract with the provided parameters and performs necessary checks.
@@ -86,6 +92,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
      * @param distributionName Name identifier for this distribution
      * @param distributionVersion Semantic version information as LibSemver.Version struct
      * @param minParticipantsInCircle Minimum number of participants in a circle
+     * @param multipass multipass ID lookup registry deployment address
      */
     constructor(
         address[] memory zkpVerifier,
@@ -96,7 +103,9 @@ contract MAODistribution is IDistribution, CodeIndexer {
         bytes32 DAOId,
         string memory distributionName,
         LibSemver.Version memory distributionVersion,
-        uint256 minParticipantsInCircle
+        uint256 minParticipantsInCircle,
+        address multipass,
+        address ubi
     ) {
         require(minParticipantsInCircle > 2, "minParticipantsInCircle must be greater than 2");
         _minParticipantsInCircle = minParticipantsInCircle;
@@ -142,6 +151,12 @@ contract MAODistribution is IDistribution, CodeIndexer {
             ERC165Checker.supportsInterface(_accessManagerBase, type(IERC7746).interfaceId),
             "Access manager does not support IERC7746"
         );
+
+        require(multipass != address(0), "multipass address required");
+        _multipass = multipass;
+
+        require(ubi != address(0), "multipass address required");
+        _ubi = ubi;
     }
 
     function createOrg(GovernanceArgs memory args) internal returns (address[] memory instances, bytes32, uint256) {
@@ -184,7 +199,8 @@ contract MAODistribution is IDistribution, CodeIndexer {
     function createRankify(
         UserRankifySettings memory args,
         address derivedToken,
-        address governor
+        address governor,
+        string memory orgName
     ) internal returns (address[] memory instances, bytes32, uint256) {
         address rankToken = _rankTokenBase.clone();
 
@@ -229,12 +245,12 @@ contract MAODistribution is IDistribution, CodeIndexer {
             address(rankTokenAccessManager),
             governor
         );
-
+        address owner = DAODistributor(msg.sender).owner();
         (
             address[] memory RankifyDistrAddresses,
             bytes32 RankifyDistributionName,
             uint256 RankifyDistributionVersion
-        ) = _RankifyDistributionBase.instantiate(abi.encode(DAODistributor(msg.sender).owner()));
+        ) = _RankifyDistributionBase.instantiate(abi.encode(owner));
 
         RankifyInstanceInit.contractInitializer memory RankifyInit = RankifyInstanceInit.contractInitializer({
             rewardToken: rankToken,
@@ -247,7 +263,14 @@ contract MAODistribution is IDistribution, CodeIndexer {
             proposalIntegrityVerifier: _proposalIntegrityVerifier,
             poseidon5: _poseidon5,
             poseidon6: _poseidon6,
-            poseidon2: _poseidon2
+            poseidon2: _poseidon2,
+            multipass: IMultipass(_multipass),
+            ubiToken: DistributableGovernanceERC20(args.paymentToken),
+            pauser: owner,
+            owner: owner,
+            dailyClaim: 16 * DistributableGovernanceERC20(args.paymentToken).decimals(),
+            dailySupport: 16,
+            domainName: ShortString.unwrap(ShortStrings.toShortString(orgName))
         });
 
         RankifyInstanceInit(RankifyDistrAddresses[0]).init(
@@ -280,7 +303,8 @@ contract MAODistribution is IDistribution, CodeIndexer {
         (address[] memory RankifyInstances, , ) = createRankify(
             args.rankifySettings,
             tokenInstances[0],
-            tokenInstances[2]
+            tokenInstances[2],
+            args.govSettings.orgName
         );
 
         address[] memory returnValue = new address[](tokenInstances.length + RankifyInstances.length);
@@ -305,6 +329,8 @@ contract MAODistribution is IDistribution, CodeIndexer {
         srcs[2] = address(_governanceERC20Base);
         srcs[3] = address(_accessManagerBase);
         srcs[4] = address(_DAO);
+        srcs[5] = address(_multipass);
+        srcs[6] = address(_ubi);
         return (srcs, ShortString.unwrap(_distributionName), _distributionVersion);
     }
 
@@ -325,6 +351,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         app.fellowship = IRankifyInstance(appComponents[3]);
         app.rankTokenManager = SimpleAccessManager(appComponents[4]);
         app.rankToken = RankToken(appComponents[5]);
+        app.UBI = UBI(appComponents[6]);
         return app;
     }
 }

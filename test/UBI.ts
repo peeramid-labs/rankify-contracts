@@ -115,7 +115,6 @@ describe('UBI contract', async function () {
       mp.address,
       env.mockERC20.address,
       adr.gameMaster2.address,
-      adr.gameMaster3.address,
       ethers.utils.parseEther('1'),
       16,
       ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
@@ -149,7 +148,6 @@ describe('UBI contract', async function () {
     it('should correctly set the owner, pauser, and other initial parameters', async () => {
       // Check s.owner, s.pauser, s.token, s.multipass
       expect(await ubi.pauser()).to.be.equal(adr.gameMaster2.address);
-      expect(await ubi.owner()).to.be.equal(adr.gameMaster3.address);
       expect(await ubi.token()).to.be.equal(env.mockERC20.address);
       expect(await ubi.connect(adr.gameMaster2).pause()).to.emit(ubi, 'Paused');
       // Check s.dailyClaimAmount and s.dailySupportAmount
@@ -167,7 +165,6 @@ describe('UBI contract', async function () {
           mp.address,
           env.mockERC20.address,
           adr.gameMaster2.address,
-          adr.gameMaster3.address,
           ethers.utils.parseEther('1'),
           ethers.utils.parseEther('1'),
           ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),

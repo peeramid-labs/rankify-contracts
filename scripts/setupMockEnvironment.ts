@@ -311,7 +311,7 @@ export const setupMockedEnvironment = async (
 
   if (useFixture) {
     log('Using fixture');
-    await deployments.fixture(['ERC7744', 'MAO']);
+    await deployments.fixture(['multipass', 'ERC7744', 'MAO']);
   } else if (withDeploy) {
     log('Running ERC7744 and MAO deployments');
     await deployments.run(['ERC7744', 'MAO'], { writeDeploymentsToFiles: true });

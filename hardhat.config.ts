@@ -310,6 +310,7 @@ export default {
       },
       {
         artifacts: 'node_modules/@peeramid-labs/multipass/artifacts',
+        deploy: 'node_modules/@peeramid-labs/multipass/deploy',
       },
     ],
   },
