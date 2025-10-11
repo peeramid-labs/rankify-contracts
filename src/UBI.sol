@@ -236,7 +236,6 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         });
         (bool exists, LibMultipass.Record memory record) = s.multipass.resolveRecord(q);
         require(exists && record.validUntil > block.timestamp, InvalidSender(exists, record.validUntil));
-        uint256 totalSpent = s.supportSpent[msg.sender];
         uint256 day = currentDay();
         for (uint256 i = 0; i < votes.length; i++) {
             VoteElement memory voteElement = votes[i];
@@ -244,12 +243,14 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
             require(proposalExists, "Proposal is not in daily menu :(");
             address proposer = s.daily[day - 1].proposals[voteElement.proposal].proposer;
             require(voteElement.amount < s.dailySupportAmount, "Daily support limit exceeded");
-            require(s.lastClaimedAt[msg.sender] == day, "Can support only active claimers");
+            require(s.lastClaimedAt[msg.sender] == day, "First must claim");
             require(proposer != msg.sender, "Cannot support yourself");
-            totalSpent += voteElement.amount * voteElement.amount;
-            require(totalSpent <= s.dailySupportAmount, "Daily support limit exceeded");
+            require(voteElement.amount < 10000, "amount too large");
+            s.supportSpent[msg.sender] += voteElement.amount * voteElement.amount;
+            require(s.supportSpent[msg.sender] <= s.dailySupportAmount , "Daily support limit exceeded");
             address user = msg.sender;
-            s.token.mint(proposer, voteElement.amount);
+            uint256 decimals = s.token.decimals();
+            s.token.mint(proposer, voteElement.amount * 10 ** decimals);
             emit VotingByAddress(user, day, voteElement.proposal, voteElement.amount);
             s.proposalGlobalStats[voteElement.proposal].aggregateScore += voteElement.amount;
             s.daily[day - 1].proposals[voteElement.proposal].score += voteElement.amount;
@@ -271,7 +272,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
                 s.proposalGlobalStats[voteElement.proposal].repostedTimes
             );
         }
-        s.supportSpent[msg.sender] -= totalSpent;
+
     }
 
     function currentDay() public view returns (uint256) {
@@ -334,8 +335,8 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
 
     function getUserState(address user) public view returns (bool claimedToday, uint256 supportSpent) {
         UBIStorage storage s = getStorage();
-        claimedToday = s.lastClaimedAt[msg.sender] == currentDay() ? true : false;
-        supportSpent = s.supportSpent[msg.sender];
+        claimedToday = s.lastClaimedAt[user] == currentDay() ? true : false;
+        supportSpent = s.supportSpent[user];
 
     }
 }

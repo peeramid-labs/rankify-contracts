@@ -117,7 +117,7 @@ describe('UBI contract', async function () {
       adr.gameMaster2.address,
       adr.gameMaster3.address,
       ethers.utils.parseEther('1'),
-      ethers.utils.parseEther('1'),
+      16,
       ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
     );
     // const { owner } = await getNamedAccounts();
@@ -135,6 +135,7 @@ describe('UBI contract', async function () {
     await mp.connect(ownerIs).activateDomain(ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1));
     await registerOnMultipass(adr.players[0], adr.gameMaster1, mp);
     await registerOnMultipass(adr.players[1], adr.gameMaster1, mp);
+    await registerOnMultipass(adr.players[2], adr.gameMaster1, mp);
     const owner20 = await env.mockERC20.owner();
     const o20signer = await hre.ethers.getSigner(owner20);
     await env.mockERC20.connect(o20signer).transferOwnership(ubi.address);
@@ -154,7 +155,7 @@ describe('UBI contract', async function () {
       // Check s.dailyClaimAmount and s.dailySupportAmount
       const { dailyClaimAmount, dailySupportAmount, domainName } = await ubi.getUBIParams();
       expect(dailyClaimAmount.toString()).to.be.equal(ethers.utils.parseEther('1'));
-      expect(dailySupportAmount.toString()).to.be.equal(ethers.utils.parseEther('1'));
+      expect(dailySupportAmount.toString()).to.be.equal('16');
       // Check s.domainName
       expect(domainName).to.be.equal(ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1));
     });
@@ -195,7 +196,7 @@ describe('UBI contract', async function () {
         expect(await ubi.lastClaimedAt(adr.players[0].wallet.address)).to.be.equal(await ubi.getCurrentDay());
         // 4. Expect supportSpent for Player 0 to be reset to 0
         const { claimedToday, supportSpent } = await ubi.getUserState(defaultPlayerA);
-        expect(claimedToday).to.be.false;
+        expect(claimedToday).to.be.true;
         expect(supportSpent.toString()).to.be.equal('0');
         // 5. Expect a new proposal to be created for the hash of "gm"
         expect((await ubi.getProposalsCnt(await ubi.getCurrentDay())).toString()).to.be.eq('1');
@@ -281,64 +282,136 @@ describe('UBI contract', async function () {
   // Core Logic: Supporting Proposals
   // =================================================================
   describe('support() - Quadratic Voting and Rewards', () => {
+    beforeEach(async () => {
+      await ubi.connect(adr.players[0].wallet).claim('I love UBI');
+      await ubi.connect(adr.players[1].wallet).claim('I love UBI too');
+      await time.increase(24 * 3600);
+    });
     // This will require more complex setup within a nested beforeEach or the tests themselves
     // e.g., create proposals on Day 1, advance time to Day 2, and then have users support them.
     describe('Happy Paths', () => {
-      it.skip('should allow an active claimer to support a proposal from the previous day', async () => {
+      it('should allow an active claimer to support a proposal from the previous day', async () => {
         // SETUP: P0 claims with "Prop A" on Day 1. Advance to Day 2. P1 claims to become active.
+        await ubi.connect(adr.players[2].wallet).claim('I love UBI too');
         // 1. P1 supports "Prop A" with a score of 1.
+        expect(
+          await ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI']),
+              amount: 1,
+            },
+          ]),
+        ).changeTokenBalances(env.mockERC20, [defaultPlayerA], [await env.mockERC20.decimals()]);
         // 2. Expect P0's (the proposer) token balance to increase by 1.
         // 3. Expect P1's (the voter) supportSpent to increase by 1 (1*1).
         // 4. Expect proposalScores for "Prop A" to increase by 1.
         // 5. Expect VotingByAddress and ProposalScoreUpdated events.
       });
 
-      it.skip('should correctly calculate quadratic cost for supportSpent', async () => {
-        // SETUP: As above.
-        // 1. P1 supports "Prop A" with a score of 3.
-        // 2. Expect P0's token balance to increase by 3.
-        // 3. Expect P1's supportSpent to increase by 9 (3*3).
+      it('should correctly calculate quadratic cost for supportSpent', async () => {
+        await ubi.connect(adr.players[2].wallet).claim('I love UBI too');
+        expect(
+          await ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI']),
+              amount: 4,
+            },
+          ]),
+        ).changeTokenBalances(env.mockERC20, [defaultPlayerA], [(await env.mockERC20.decimals()) * 4]);
+        expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('16');
       });
 
-      it.skip('should allow a user to support multiple different proposals in one transaction', async () => {
-        // SETUP: P0 claims "Prop A", P2 claims "Prop B" on Day 1. Advance to Day 2. P1 claims.
-        // 1. P1 supports "Prop A" (score 2) and "Prop B" (score 3) in one call.
-        // 2. Expect P0 balance +2, P2 balance +3.
-        // 3. Expect P1 supportSpent to be 13 (2*2 + 3*3).
+      it('should allow a user to support multiple different proposals in one transaction', async () => {
+        await ubi.connect(adr.players[2].wallet).claim('You guys are amazing');
+        const decimals = await env.mockERC20.decimals();
+        expect(
+          await ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI']),
+              amount: 2,
+            },
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI too']),
+              amount: 3,
+            },
+          ]),
+        ).changeTokenBalances(
+          env.mockERC20,
+          [defaultPlayerA, adr.players[1].wallet.address],
+          [decimals * 2, decimals * 3],
+        );
+        expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('13');
       });
 
-      it.skip('should update and respect supportSpent across multiple transactions within the same day', async () => {
-        // SETUP: As above.
-        // 1. P1 supports "Prop A" (score 2), spending 4 credits.
-        // 2. In a separate transaction on the same day, P1 supports "Prop B" (score 3).
-        // 3. Expect the second transaction to succeed and total supportSpent for P1 to be 13.
+      it('should update and respect supportSpent across multiple transactions within the same day', async () => {
+        await ubi.connect(adr.players[2].wallet).claim('You guys are amazing');
+        const decimals = await env.mockERC20.decimals();
+        expect(
+          await ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI too']),
+              amount: 3,
+            },
+          ]),
+        ).changeTokenBalances(env.mockERC20, [adr.players[1].wallet.address], [decimals * 3]);
+        expect(
+          await ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI']),
+              amount: 2,
+            },
+          ]),
+        ).changeTokenBalances(env.mockERC20, [defaultPlayerA], [decimals * 2]);
+        expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('13');
       });
     });
 
     describe('Failure and Edge Cases', () => {
-      it.skip('should revert if a user tries to support without having claimed on the current day', async () => {
-        // SETUP: P0 claims "Prop A" on Day 1. Advance to Day 2.
-        // 1. P1 (who has not claimed on Day 2) tries to support "Prop A".
-        // 2. Expect revert with "Can support only active claimers".
+      it('should revert if a user tries to support without having claimed on the current day', async () => {
+        await expect(
+          ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI too']),
+              amount: 3,
+            },
+          ]),
+        ).to.be.revertedWith('First must claim');
       });
 
-      it.skip('should revert if a user tries to support their own proposal', async () => {
-        // SETUP: P0 claims "Prop A" on Day 1. Advance to Day 2. P0 claims again.
-        // 1. P0 tries to support their own "Prop A".
-        // 2. Expect revert with "Cannot support yourself".
+      it('should revert if a user tries to support their own proposal', async () => {
+        await ubi.connect(adr.players[1].wallet).claim('You guys are amazing');
+        await expect(
+          ubi.connect(adr.players[1].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI too']),
+              amount: 3,
+            },
+          ]),
+        ).to.be.revertedWith('Cannot support yourself');
       });
 
-      it.skip('should revert if a user tries to support a non-existent proposal', async () => {
-        // SETUP: P1 is an active claimer on Day 2.
-        // 1. P1 tries to support a random bytes32 hash.
-        // 2. Expect revert with "Proposal is not in daily menu :(".
+      it('should revert if a user tries to support a non-existent proposal', async () => {
+        await ubi.connect(adr.players[1].wallet).claim('You guys are amazing');
+        await expect(
+          ubi.connect(adr.players[1].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI even more']),
+              amount: 3,
+            },
+          ]),
+        ).to.be.revertedWith('Proposal is not in daily menu :(');
       });
 
-      it.skip('should revert if the cumulative quadratic cost exceeds the daily limit', async () => {
-        // Set dailySupportAmount to 100 for the test.
-        // SETUP: P0, P2, P3 have proposals. P1 is active claimer.
-        // 1. P1 supports with votes that cost 101 (e.g., one vote of 11, or votes of 8 and 5).
-        // 2. Expect revert with "Daily support limit exceeded".
+      it('should revert if the cumulative quadratic cost exceeds the daily limit', async () => {
+        await ubi.connect(adr.players[2].wallet).claim('I love UBI too');
+        await expect(
+          ubi.connect(adr.players[2].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI']),
+              amount: 5,
+            },
+          ]),
+        ).to.be.revertedWith('Daily support limit exceeded');
       });
     });
   });
@@ -347,21 +420,31 @@ describe('UBI contract', async function () {
   // Administrative Functions
   // =================================================================
   describe('Pausable Functionality', () => {
-    it.skip('should allow the pauser to pause and unpause the contract', async () => {
-      // 1. Call pause() from the pauser address (gameMaster2).
-      // 2. Check contract is paused.
-      // 3. Call unpause() from the pauser address.
-      // 4. Check contract is not paused.
+    it('should allow the pauser to pause and unpause the contract', async () => {
+      await expect(ubi.connect(adr.gameMaster2).pause()).to.emit(ubi, 'Paused');
+      await expect(ubi.connect(adr.gameMaster2).unpause()).to.emit(ubi, 'Unpaused');
     });
 
-    it.skip('should prevent non-pausers from pausing or unpausing', async () => {
-      // 1. Call pause() from a non-pauser address.
-      // 2. Expect revert with "not a pauser".
+    it('should prevent non-pausers from pausing or unpausing', async () => {
+      await expect(ubi.connect(adr.gameMaster1).pause()).to.be.revertedWith('not a pauser');
+      await expect(ubi.connect(adr.gameMaster1).unpause()).to.be.revertedWith('not a pauser');
     });
 
-    it.skip('should block claim() and support() when paused', async () => {
-      // 1. Pause the contract.
-      // 2. Expect calls to claim() and support() to revert because of 'whenNotPaused' modifier.
+    it('should block claim() and support() when paused', async () => {
+      await ubi.connect(adr.gameMaster2).pause();
+      await expect(ubi.connect(adr.players[2].wallet).claim('You guys are amazing')).to.be.revertedWithCustomError(
+        ubi,
+        'EnforcedPause',
+      );
+      const decimals = await env.mockERC20.decimals();
+      await expect(
+        ubi.connect(adr.players[2].wallet).support([
+          {
+            proposal: solidityKeccak256(['string'], ['I love UBI too']),
+            amount: 3,
+          },
+        ]),
+      ).to.be.revertedWithCustomError(ubi, 'EnforcedPause');
     });
   });
 });
