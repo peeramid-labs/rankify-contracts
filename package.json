@@ -80,7 +80,7 @@
     "@noble/secp256k1": "^2.2.3",
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
-    "@peeramid-labs/multipass": "^0.3.5",
+    "@peeramid-labs/multipass": "^0.3.6",
     "@solarity/hardhat-zkit": "=0.5.10",
     "@types/chai": "^4.3.1",
     "@types/mocha": "^9.1.1",

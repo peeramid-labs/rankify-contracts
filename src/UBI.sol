@@ -271,7 +271,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
                 s.proposalGlobalStats[voteElement.proposal].repostedTimes
             );
         }
-        s.dailySupportAmount -= totalSpent;
+        s.supportSpent[msg.sender] -= totalSpent;
     }
 
     function currentDay() public view returns (uint256) {
@@ -302,7 +302,11 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
         return s.token;
     }
 
-    function getUBIParams() public view returns (uint256 dailyClaimAmount, uint256 dailySupportAmount,  bytes32 domainName) {
+    function getUBIParams()
+        public
+        view
+        returns (uint256 dailyClaimAmount, uint256 dailySupportAmount, bytes32 domainName)
+    {
         UBIStorage storage s = getStorage();
         dailyClaimAmount = s.dailyClaimAmount;
         dailySupportAmount = s.dailySupportAmount;
@@ -317,5 +321,21 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable, OwnableUpgradea
     function getProposalsCnt(uint256 day) public view returns (uint256) {
         UBIStorage storage s = getStorage();
         return s.daily[day].proposalCnt;
+    }
+
+    function lastClaimedAt(address user) public view returns (uint256) {
+        UBIStorage storage s = getStorage();
+        return s.lastClaimedAt[user];
+    }
+
+    function getCurrentDay() public view returns (uint256) {
+        return currentDay();
+    }
+
+    function getUserState(address user) public view returns (bool claimedToday, uint256 supportSpent) {
+        UBIStorage storage s = getStorage();
+        claimedToday = s.lastClaimedAt[msg.sender] == currentDay() ? true : false;
+        supportSpent = s.supportSpent[msg.sender];
+
     }
 }

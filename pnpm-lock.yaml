@@ -24,8 +24,8 @@ importers:
         specifier: ^5.0.0
         version: 5.2.0(@openzeppelin/contracts@5.2.0)
       '@peeramid-labs/multipass':
-        specifier: ^0.3.5
-        version: 0.3.5(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))
+        specifier: ^0.3.6
+        version: 0.3.6(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))
       '@solarity/hardhat-zkit':
         specifier: '=0.5.10'
         version: 0.5.10(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))
@@ -725,8 +725,8 @@ packages:
   '@peeramid-labs/eds@2.3.2':
     resolution: {integrity: sha512-jVXwY4kw9Fsfc0aUuUsR3RvMnGh2NjhJ7H2nq1A0INlMWg0iBKeAk0gn8EMM+deMydgPl/bnVVEUR6jv5POi/Q==}
 
-  '@peeramid-labs/multipass@0.3.5':
-    resolution: {integrity: sha512-eOH3vRANaUREUXIHjAQQHfBTTITidz5W4m/hU6oKrarcafRWz663+h4F52LXfSs0X/3WBbgusBDYGcKrKUBtMQ==}
+  '@peeramid-labs/multipass@0.3.6':
+    resolution: {integrity: sha512-nTzQcMzpekl738w7pH2mBOZVihE5bMV0bwpgi05hcCQy/ufRcLEJQOJkB/KhqDzTTsyKyIdEYS7HkLCmGWsP7w==}
 
   '@scure/base@1.1.9':
     resolution: {integrity: sha512-8YKhl8GHiNI/pU2VMaofa2Tor7PJRAjwQLBBuilkJ9L5+13yVbC7JO/wS7piioAvPSwR3JKM1IJ/u4xQzbcXKg==}
@@ -5129,7 +5129,7 @@ snapshots:
       - hardhat
       - utf-8-validate
 
-  '@peeramid-labs/multipass@0.3.5(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))':
+  '@peeramid-labs/multipass@0.3.6(hardhat@2.22.18(ts-node@10.9.2(@types/node@20.17.14)(typescript@5.7.3))(typescript@5.7.3))':
     dependencies:
       '@ethersproject/abi': 5.7.0
       '@ethersproject/providers': 5.7.2
