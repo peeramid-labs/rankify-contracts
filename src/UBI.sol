@@ -244,7 +244,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
             require(proposer != msg.sender, "Cannot support yourself");
             require(voteElement.amount < 10000, "amount too large");
             s.supportSpent[msg.sender] += voteElement.amount * voteElement.amount;
-            require(s.supportSpent[msg.sender] <= s.dailySupportAmount , "Daily support limit exceeded");
+            require(s.supportSpent[msg.sender] <= s.dailySupportAmount, "Daily support limit exceeded");
             address user = msg.sender;
             uint256 decimals = s.token.decimals();
             s.token.mint(proposer, voteElement.amount * 10 ** decimals);
@@ -269,7 +269,6 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
                 s.proposalGlobalStats[voteElement.proposal].repostedTimes
             );
         }
-
     }
 
     function currentDay() public view returns (uint256) {
@@ -334,6 +333,5 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         UBIStorage storage s = getStorage();
         claimedToday = s.lastClaimedAt[user] == currentDay() ? true : false;
         supportSpent = s.supportSpent[user];
-
     }
 }

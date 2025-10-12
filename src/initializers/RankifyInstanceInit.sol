@@ -23,8 +23,8 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {IMultipass} from "@peeramid-labs/multipass/src/interfaces/IMultipass.sol";
 // import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import { DistributableGovernanceERC20 } from "../tokens/DistributableGovernanceERC20.sol";
-import { UBI } from "../UBI.sol";
+import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
+import {UBI} from "../UBI.sol";
 // It is expected that this contract is customized if you want to deploy your diamond
 // with data from a deployment script. Use the init function to initialize state variables
 // of your diamond. Add parameters to the init function if you need to.

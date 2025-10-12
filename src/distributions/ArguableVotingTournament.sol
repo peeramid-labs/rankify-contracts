@@ -13,7 +13,7 @@ import "../initializers/RankifyInstanceInit.sol";
 import "../vendor/diamond/interfaces/IDiamondCut.sol";
 import "@peeramid-labs/eds/src/libraries/LibSemver.sol";
 import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStrings.sol";
-import { UBI } from "../UBI.sol";
+import {UBI} from "../UBI.sol";
 /**
  * @title ArguableVotingTournament Distribution
  * @notice This contract implements a diamond distribution for the Ethereum Distribution System (EDS).
