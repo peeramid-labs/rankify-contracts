@@ -6,63 +6,13 @@ import "@peeramid-labs/multipass/src/libraries/LibMultipass.sol";
 import "./tokens/DistributableGovernanceERC20.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {LibUBI} from "./libraries/LibUBI.sol";
+
 
 contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
-    /**
-     * @notice Structure representing a vote for a proposal
-     * @param proposal Hash of the proposal being voted on
-     * @param amount Amount of voting power allocated to this proposal
-     */
-    struct VoteElement {
-        bytes32 proposal;
-        uint256 amount;
-    }
-
-    /**
-     * @notice Structure representing a single proposal in the system
-     * @param proposal Hash of the proposal text
-     * @param score Current score/votes accumulated for this proposal
-     * @param proposer Address of the account that submitted the proposal
-     * @param exists Boolean to track if this proposal exists (used for lookups)
-     */
-    struct DailyProposal {
-        bytes32 proposal;
-        uint256 score;
-        address proposer;
-        bool exists;
-    }
-
-    /**
-     * @notice Structure to track proposals for a specific day
-     * @param proposals Mapping from proposal hash to DailyProposal data
-     * @param proposalCnt Number of proposals submitted on this day
-     */
-    struct Daily {
-        mapping(bytes32 proposal => DailyProposal) proposals;
-        uint256 proposalCnt;
-    }
-
     error InvalidSender(bool recordFound, uint256 validUtil);
     event Claimed(address indexed user, uint256 amount);
-    struct ProposalGlobalStats {
-        uint256 aggregateScore;
-        uint256 proposedTimes;
-        uint256 repostedTimes;
-    }
     event ProposedTime(bytes32 proposalHash, uint256 newTimesProposed);
-    struct UBIStorage {
-        IMultipass multipass;
-        DistributableGovernanceERC20 token;
-        bytes32 domainName;
-        uint256 dailyClaimAmount;
-        uint256 dailySupportAmount;
-        mapping(address => uint256) lastClaimedAt;
-        mapping(address => uint256) supportSpent;
-        mapping(uint256 day => Daily) daily;
-        mapping(bytes32 proposalHash => ProposalGlobalStats stats) proposalGlobalStats;
-        uint256 lastProposalDay;
-        address pauser;
-    }
 
     /**
      * @notice Event emitted when a user votes on proposals
@@ -121,16 +71,6 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         address proposer,
         string proposalText
     );
-    /// @notice Storage slot for the diamond storage pattern
-    bytes32 private constant UBIStorageLocation =
-        keccak256(abi.encode(uint256(keccak256("UBI.storage")) - 1)) & ~bytes32(uint256(0xff));
-
-    function getStorage() private pure returns (UBIStorage storage s) {
-        bytes32 position = UBIStorageLocation;
-        assembly {
-            s.slot := position
-        }
-    }
 
     /**
      * @notice Constructor
@@ -150,7 +90,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         uint256 dailySupport,
         bytes32 domainName
     ) public initializer {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         s.multipass = _multipass;
         s.token = _token;
         s.pauser = _pauser;
@@ -162,7 +102,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
     }
 
     function claim(string memory data) public nonReentrant whenNotPaused {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         LibMultipass.NameQuery memory q = LibMultipass.NameQuery({
             domainName: s.domainName,
             wallet: msg.sender,
@@ -184,7 +124,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
             s.proposalGlobalStats[hash].repostedTimes += 1;
         } else {
             if (hash != keccak256("")) {
-                s.daily[day].proposals[hash] = DailyProposal({
+                s.daily[day].proposals[hash] = LibUBI.DailyProposal({
                     proposal: hash,
                     score: 0,
                     proposer: msg.sender,
@@ -207,7 +147,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
      * @dev Can only be called by the WorldMultiSig contract
      */
     function pause() public {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         require(msg.sender == s.pauser, "not a pauser");
         _pause();
     }
@@ -217,13 +157,13 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
      * @dev Can only be called by the WorldMultiSig contract
      */
     function unpause() public {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         require(msg.sender == s.pauser, "not a pauser");
         _unpause();
     }
 
-    function support(VoteElement[] memory votes) public nonReentrant whenNotPaused {
-        UBIStorage storage s = getStorage();
+    function support(LibUBI.VoteElement[] memory votes) public nonReentrant whenNotPaused {
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         LibMultipass.NameQuery memory q = LibMultipass.NameQuery({
             domainName: s.domainName,
             wallet: msg.sender,
@@ -235,7 +175,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         require(exists && record.validUntil > block.timestamp, InvalidSender(exists, record.validUntil));
         uint256 day = currentDay();
         for (uint256 i = 0; i < votes.length; i++) {
-            VoteElement memory voteElement = votes[i];
+            LibUBI.VoteElement memory voteElement = votes[i];
             bool proposalExists = s.daily[day - 1].proposals[voteElement.proposal].exists;
             require(proposalExists, "Proposal is not in daily menu :(");
             address proposer = s.daily[day - 1].proposals[voteElement.proposal].proposer;
@@ -280,22 +220,22 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
      * @param proposal Hash of the proposal to query
      * @return uint256 Current score/votes for the proposal
      */
-    function proposalLifetimeStats(bytes32 proposal) public view returns (ProposalGlobalStats memory) {
-        return getStorage().proposalGlobalStats[proposal];
+    function proposalLifetimeStats(bytes32 proposal) public view returns (LibUBI.ProposalGlobalStats memory) {
+        return LibUBI.getStorage().proposalGlobalStats[proposal];
     }
 
     function pauser() public view returns (address) {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.pauser;
     }
 
     function multipass() public view returns (IMultipass) {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.multipass;
     }
 
     function token() public view returns (DistributableGovernanceERC20) {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.token;
     }
 
@@ -304,24 +244,24 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         view
         returns (uint256 dailyClaimAmount, uint256 dailySupportAmount, bytes32 domainName)
     {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         dailyClaimAmount = s.dailyClaimAmount;
         dailySupportAmount = s.dailySupportAmount;
         domainName = s.domainName;
     }
 
-    function getProposalDailyScore(bytes32 hash, uint256 day) public view returns (DailyProposal memory) {
-        UBIStorage storage s = getStorage();
+    function getProposalDailyScore(bytes32 hash, uint256 day) public view returns (LibUBI.DailyProposal memory) {
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.daily[day].proposals[hash];
     }
 
     function getProposalsCnt(uint256 day) public view returns (uint256) {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.daily[day].proposalCnt;
     }
 
     function lastClaimedAt(address user) public view returns (uint256) {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.lastClaimedAt[user];
     }
 
@@ -330,7 +270,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
     }
 
     function getUserState(address user) public view returns (bool claimedToday, uint256 supportSpent) {
-        UBIStorage storage s = getStorage();
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
         claimedToday = s.lastClaimedAt[user] == currentDay() ? true : false;
         supportSpent = s.supportSpent[user];
     }
