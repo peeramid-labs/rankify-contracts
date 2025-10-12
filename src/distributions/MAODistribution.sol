@@ -20,7 +20,6 @@ import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
 import {Governor} from "../Governor.sol";
 import {IMultipass} from "@peeramid-labs/multipass/src/interfaces/IMultipass.sol";
-import {UBI} from "../UBI.sol";
 
 struct MAOApp {
     IRankifyInstance fellowship;
@@ -29,7 +28,6 @@ struct MAOApp {
     IGovernor DAO;
     SimpleAccessManager rankTokenManager;
     SimpleAccessManager govTokenManager;
-    UBI UBI;
 }
 
 /**
@@ -78,7 +76,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
     address private immutable _poseidon2;
     address private immutable _DAO;
     address private immutable _multipass;
-    address private immutable _ubi;
 
     /**
      * @notice Initializes the contract with the provided parameters and performs necessary checks.
@@ -104,8 +101,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         string memory distributionName,
         LibSemver.Version memory distributionVersion,
         uint256 minParticipantsInCircle,
-        address multipass,
-        address ubi
+        address multipass
     ) {
         require(minParticipantsInCircle > 2, "minParticipantsInCircle must be greater than 2");
         _minParticipantsInCircle = minParticipantsInCircle;
@@ -155,8 +151,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
         require(multipass != address(0), "multipass address required");
         _multipass = multipass;
 
-        require(ubi != address(0), "multipass address required");
-        _ubi = ubi;
     }
 
     function createOrg(GovernanceArgs memory args) internal returns (address[] memory instances, bytes32, uint256) {
@@ -329,8 +323,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
         srcs[2] = address(_governanceERC20Base);
         srcs[3] = address(_accessManagerBase);
         srcs[4] = address(_DAO);
-        srcs[5] = address(_multipass);
-        srcs[6] = address(_ubi);
         return (srcs, ShortString.unwrap(_distributionName), _distributionVersion);
     }
 
@@ -351,7 +343,6 @@ contract MAODistribution is IDistribution, CodeIndexer {
         app.fellowship = IRankifyInstance(appComponents[3]);
         app.rankTokenManager = SimpleAccessManager(appComponents[4]);
         app.rankToken = RankToken(appComponents[5]);
-        app.UBI = UBI(appComponents[6]);
         return app;
     }
 }

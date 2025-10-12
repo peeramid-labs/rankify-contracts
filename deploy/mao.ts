@@ -243,7 +243,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       _distributionVersion,
       constantParams.RInstance_MIN_PLAYERS,
       mp.address,
-      ubi.address,
     ],
   });
 
