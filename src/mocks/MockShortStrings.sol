@@ -6,7 +6,6 @@ import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStri
 contract MockShortStrings {
     using ShortStrings for ShortString;
 
-
     function getShortStringBytes32(string memory text) public view returns (bytes32) {
         return ShortString.unwrap(ShortStrings.toShortString(text));
     }

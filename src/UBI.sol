@@ -8,7 +8,6 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {LibUBI} from "./libraries/LibUBI.sol";
 
-
 contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
     error InvalidSender(bool recordFound, uint256 validUtil);
     event Claimed(address indexed user, uint256 amount);

@@ -26,7 +26,7 @@ import {IMultipass} from "@peeramid-labs/multipass/src/interfaces/IMultipass.sol
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { LibUBI } from "../libraries/LibUBI.sol";
+import {LibUBI} from "../libraries/LibUBI.sol";
 import {UBI} from "../UBI.sol";
 // It is expected that this contract is customized if you want to deploy your diamond
 // with data from a deployment script. Use the init function to initialize state variables
@@ -59,7 +59,6 @@ contract RankifyInstanceInit is Initializable, ReentrancyGuardUpgradeable, Pausa
         __ReentrancyGuard_init();
         __Pausable_init();
     }
-
 
     struct contractInitializer {
         address rewardToken;

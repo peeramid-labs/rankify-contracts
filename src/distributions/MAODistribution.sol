@@ -252,7 +252,10 @@ contract MAODistribution is IDistribution, CodeIndexer {
         {
             bytes32 domainName = ShortString.unwrap(ShortStrings.toShortString(string.concat(orgName, ".mao")));
             {
-                require(IMultipass(_multipass).getDomainState(domainName).isActive, DomainNotActive(ShortString.wrap(domainName).toString()));
+                require(
+                    IMultipass(_multipass).getDomainState(domainName).isActive,
+                    DomainNotActive(ShortString.wrap(domainName).toString())
+                );
             }
             {
                 SimpleAccessManager bootTokenAccessManager = SimpleAccessManager(_accessManagerBase.clone());
