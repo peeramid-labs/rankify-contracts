@@ -20,7 +20,7 @@ import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { HardhatEthersHelpers } from 'hardhat/types';
-import { EnvSetupResult } from '../scripts/setupMockEnvironment';
+
 import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
@@ -1587,7 +1587,7 @@ describe(scriptName, () => {
               });
               it('should revert if voter is not a player', async () => {
                 await expect(
-                  rankifyInstance.connect(adr.players[0].wallet).submitVote(
+                  rankifyInstance.connect(adr.players[1].wallet).submitVote(
                     1,
                     checkVotes[0].ballotId,
                     adr.players[0].wallet.address,
