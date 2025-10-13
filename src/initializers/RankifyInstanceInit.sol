@@ -77,7 +77,6 @@ contract RankifyInstanceInit is Initializable, ReentrancyGuardUpgradeable, Pausa
         IMultipass multipass;
         DistributableGovernanceERC20 ubiToken;
         address pauser;
-        address owner;
         uint256 dailyClaim;
         uint256 dailySupport;
         bytes32 domainName;

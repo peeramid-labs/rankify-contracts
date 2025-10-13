@@ -268,6 +268,8 @@ export default {
         'RankifyInstanceRequirementsFacet',
         'RankifyInstanceGameMastersFacet',
         'ScoreGetterFacet',
+        'UBI',
+        'DiamondClonable',
       ],
       strict: false,
       filter(abiElement: unknown, index: number, abi: unknown[], fullyQualifiedName: string) {

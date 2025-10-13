@@ -1,21 +1,52 @@
-import { ethers, getNamedAccounts } from 'hardhat';
+import { deployments, ethers, getNamedAccounts } from 'hardhat';
 import { expect } from 'chai';
 import hre from 'hardhat';
 import { setupTest } from './utils';
-import { RankifyDiamondInstance, UBI, Multipass } from '../types';
+import { RankifyDiamondInstance, Multipass, MAODistribution, Rankify, DistributableGovernanceERC20 } from '../types';
 import { AdrSetupResult, EnvSetupResult, SignerIdentity } from '../scripts/setupMockEnvironment';
-import { MockERC20 } from '@peeramid-labs/eds/types';
 import { BigNumber, BytesLike, Wallet } from 'ethers';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { LibMultipass } from '../types/artifacts/@peeramid-labs/multipass/src/interfaces/IMultipass';
-import { solidityKeccak256 } from 'ethers/lib/utils';
+import { solidityKeccak256, toUtf8String } from 'ethers/lib/utils';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
+import { parseInstantiated } from '../scripts/parseInstantiated';
+import { getCodeIdFromArtifact } from '../scripts/getCodeId';
+import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
+import addDistribution from '../scripts/addDistribution';
+import { constantParams } from '../scripts/EnvironmentSimulator';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+export function parseShortString(bytes32: string): string {
+  // 1. Get the last byte (last 2 hex characters) which holds the length.
+  const lastByteHex = bytes32.slice(-2);
+  const encodedLength = parseInt(lastByteHex, 16);
+
+  // 2. The actual length is the encoded length divided by 2 (integer division).
+  //    A bitwise right shift (>> 1) is a fast way to do this.
+  const length = encodedLength;
+
+  // 3. Handle the edge case of an empty string.
+  if (length === 0) {
+    return '';
+  }
+
+  // 4. Slice the hex string to get only the part that contains the string data.
+  //    - Start at index 2 to skip the "0x" prefix.
+  //    - The end index is `2 + length * 2` because each byte is 2 hex characters.
+  const dataHex = bytes32.substring(2, 2 + length * 2);
+
+  // 5. Prepend "0x" to make it a valid hex string for ethers.
+  const hexSlice = '0x' + dataHex;
+
+  return toUtf8String(hexSlice);
+}
 
 let adr: AdrSetupResult;
 let env: EnvSetupResult;
-let rankifyInstance: RankifyDiamondInstance;
-let rankToken: MockERC20;
-const NEW_DOMAIN_NAME1 = 'invisible-garden.rankify';
+let owner: string;
+let oSigner: SignerWithAddress;
+let decimals: string;
+let paymentToken: DistributableGovernanceERC20;
+const NEW_DOMAIN_NAME1 = 'orgName.mao';
 export interface RegisterMessage {
   name: BytesLike;
   id: BytesLike;
@@ -67,12 +98,12 @@ const signRegistrarMessage = async (
   const s = await signer._signTypedData(domain, types, { ...message });
   return s;
 };
-const registerOnMultipass = async (player: SignerIdentity, registrar: Wallet, mp: Multipass) => {
+const registerOnMultipass = async (player: SignerIdentity, registrar: Wallet, mp: Multipass, domainName: string) => {
   const blockTimestamp = await ethers.provider.getBlock('latest').then(block => block.timestamp);
   const registrarMessage = {
     name: ethers.utils.formatBytes32String(player.name),
     id: ethers.utils.formatBytes32String(player.id),
-    domainName: ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
+    domainName,
     validUntil: ethers.BigNumber.from(blockTimestamp + 24 * 3600 * 28),
     nonce: ethers.BigNumber.from(0),
   };
@@ -84,6 +115,7 @@ const registerOnMultipass = async (player: SignerIdentity, registrar: Wallet, mp
     wallet: ethers.constants.AddressZero,
     targetDomain: ethers.utils.formatBytes32String(''),
   };
+
   return mp.register(
     { ...registrarMessage, wallet: player.wallet.address },
     sig,
@@ -92,7 +124,7 @@ const registerOnMultipass = async (player: SignerIdentity, registrar: Wallet, mp
   );
 };
 describe('UBI contract', async function () {
-  let ubi: UBI;
+  let ubi: RankifyDiamondInstance;
   let mp: Multipass;
   let defaultPlayerA: string;
 
@@ -100,44 +132,76 @@ describe('UBI contract', async function () {
     const setup = await setupTest();
     adr = setup.adr;
     env = setup.env;
-    const factory = await hre.ethers.getContractFactory('UBI');
-    const mpd = await hre.deployments.deploy('Multipass', { from: adr.contractDeployer.wallet.address, args: [true] });
-    let registrarSignatureP0;
-    mp = new hre.ethers.Contract(
-      mpd.address,
-      mpd.abi,
-      await hre.ethers.getSigner(adr.gameMaster1.address),
-    ) as Multipass;
-    await mp.initialize('MultipassDNS', '0.0.1', adr.gameMaster3.address);
-    ubi = await factory.deploy(true);
+    mp = env.multipass;
 
-    ubi.initialize(
-      mp.address,
-      env.mockERC20.address,
-      adr.gameMaster2.address,
-      ethers.utils.parseEther('1'),
-      16,
-      ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
-    );
-    // const { owner } = await getNamedAccounts();
-    const ownerIs = adr.gameMaster3;
+    await addDistribution(hre)({
+      distrId: await getCodeIdFromArtifact(hre)('MAODistribution'),
+      signer: adr.gameOwner.wallet,
+    });
+    const { owner: _owner } = await getNamedAccounts();
+    owner = _owner;
+    oSigner = await ethers.getSigner(owner);
+    const distributorArguments: MAODistribution.DistributorArgumentsStruct = {
+      govSettings: {
+        tokenName: 'tokenName',
+        tokenSymbol: 'tokenSymbol',
+        preMintAmounts: [ethers.utils.parseEther('100')],
+        preMintReceivers: [oSigner.address],
+        orgName: 'orgName',
+        votingDelay: 3600,
+        votingPeriod: 3600,
+        quorum: 51,
+      },
+      rankifySettings: {
+        paymentToken: ethers.constants.AddressZero,
+        rankTokenContractURI: 'https://example.com/rank',
+        rankTokenURI: 'https://example.com/rank',
+        principalCost: constantParams.PRINCIPAL_COST,
+        principalTimeConstant: constantParams.PRINCIPAL_TIME_CONSTANT,
+      },
+    };
+    const ownerIs = await ethers.getSigner(owner);
+    const dn = await env.mockShortStrings.getShortStringBytes32(NEW_DOMAIN_NAME1);
     await mp
       .connect(ownerIs)
       .initializeDomain(
         adr.gameMaster1.address,
         ethers.utils.parseEther('0'),
         ethers.utils.parseEther('0'),
-        ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
+        dn,
         ethers.utils.parseEther('0'),
         ethers.utils.parseEther('0'),
       );
-    await mp.connect(ownerIs).activateDomain(ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1));
-    await registerOnMultipass(adr.players[0], adr.gameMaster1, mp);
-    await registerOnMultipass(adr.players[1], adr.gameMaster1, mp);
-    await registerOnMultipass(adr.players[2], adr.gameMaster1, mp);
-    const owner20 = await env.mockERC20.owner();
-    const o20signer = await hre.ethers.getSigner(owner20);
-    await env.mockERC20.connect(o20signer).transferOwnership(ubi.address);
+    await mp.connect(ownerIs).activateDomain(dn);
+
+    const data = generateDistributorData(distributorArguments);
+    const maoCode = await ethers.provider.getCode(env.maoDistribution.address);
+    const distributorsDistId = await hre.run('defaultDistributionId');
+    if (!distributorsDistId) throw new Error('Distribution name not found');
+    if (typeof distributorsDistId !== 'string') throw new Error('Distribution name must be a string');
+
+    const token = await deployments.get('Rankify');
+    const tokenContract = new ethers.Contract(token.address, token.abi, oSigner) as Rankify;
+    await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
+    await tokenContract.approve(env.distributor.address, ethers.constants.MaxUint256);
+    await env.distributor.connect(oSigner).instantiate(distributorsDistId, data);
+
+    const filter = env.distributor.filters.Instantiated();
+    const evts = await env.distributor.queryFilter(filter);
+    const t1 = console.log;
+    console.log = () => {};
+    ubi = (await ethers.getContractAt(
+      'RankifyDiamondInstance',
+      parseInstantiated(evts[0].args.instances).ACIDInstance,
+    )) as RankifyDiamondInstance;
+    console.log = t1;
+    const paymentTokenAddress = parseInstantiated(evts[0].args.instances).paymentToken;
+    paymentToken = await ethers.getContractAt('DistributableGovernanceERC20', paymentTokenAddress);
+    decimals = await paymentToken.decimals().then(x => x.toString());
+
+    await registerOnMultipass(adr.players[0], adr.gameMaster1, mp, dn);
+    await registerOnMultipass(adr.players[1], adr.gameMaster1, mp, dn);
+    await registerOnMultipass(adr.players[2], adr.gameMaster1, mp, dn);
     defaultPlayerA = adr.players[0].wallet.address;
     // secondPlayerA = adr.players[1].wallet.address;
   });
@@ -147,29 +211,32 @@ describe('UBI contract', async function () {
   describe('Deployment and Initialization', () => {
     it('should correctly set the owner, pauser, and other initial parameters', async () => {
       // Check s.owner, s.pauser, s.token, s.multipass
-      expect(await ubi.pauser()).to.be.equal(adr.gameMaster2.address);
-      expect(await ubi.token()).to.be.equal(env.mockERC20.address);
-      expect(await ubi.connect(adr.gameMaster2).pause()).to.emit(ubi, 'Paused');
+      expect(await ubi.pauser()).to.be.equal(owner);
+      expect(await ubi.token()).to.be.equal(paymentToken.address);
+      expect(await ubi.connect(oSigner).pause()).to.emit(ubi, 'Paused');
       // Check s.dailyClaimAmount and s.dailySupportAmount
       const { dailyClaimAmount, dailySupportAmount, domainName } = await ubi.getUBIParams();
-      expect(dailyClaimAmount.toString()).to.be.equal(ethers.utils.parseEther('1'));
+      expect(dailyClaimAmount.toString()).to.be.equal(ethers.utils.parseUnits('16', decimals));
       expect(dailySupportAmount.toString()).to.be.equal('16');
       // Check s.domainName
-      expect(domainName).to.be.equal(ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1));
+      const dm = await env.multipass.getDomainState(domainName);
+      expect(parseShortString(dm.name)).to.be.equal(NEW_DOMAIN_NAME1);
     });
 
     it('should revert if the initialize function is called a second time', async () => {
       // Expect the second initialize call to be reverted by the Initializable guard
       await expect(
-        ubi.initialize(
-          mp.address,
-          env.mockERC20.address,
-          adr.gameMaster2.address,
-          ethers.utils.parseEther('1'),
-          ethers.utils.parseEther('1'),
-          ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
-        ),
-      ).to.be.revertedWithCustomError(ubi, 'InvalidInitialization');
+        ubi
+          .connect(oSigner)
+          .initialize(
+            mp.address,
+            paymentToken.address,
+            adr.gameMaster2.address,
+            ethers.utils.parseEther('1'),
+            ethers.utils.parseEther('1'),
+            ethers.utils.formatBytes32String(NEW_DOMAIN_NAME1),
+          ),
+      ).to.be.revertedWithCustomError(ubi, 'functionDoesNotExist'); //Because we did not cut it on diamond
     });
   });
 
@@ -179,15 +246,15 @@ describe('UBI contract', async function () {
   describe('claim() - UBI Distribution and Proposing', () => {
     describe('Happy Paths', () => {
       it('should allow a valid Multipass holder to claim for the first time on a given day', async () => {
-        const player0BalanceBefore = await env.mockERC20.balanceOf(adr.players[0].wallet.address);
+        const player0BalanceBefore = await paymentToken.balanceOf(adr.players[0].wallet.address);
         // 1. Player 0 calls claim() with "gm"
         // Expect Claimed and ProposingByAddress events to be emitted
         await expect(ubi.connect(adr.players[0].wallet).claim('gm'))
           .to.emit(ubi, 'Claimed')
           .to.emit(ubi, 'ProposingByAddress');
         // 2. Expect Player 0's token balance to increase by dailyClaimAmount
-        expect(await env.mockERC20.balanceOf(adr.players[0].wallet.address)).to.be.equal(
-          player0BalanceBefore.add(ethers.utils.parseEther('1')),
+        expect(await paymentToken.balanceOf(adr.players[0].wallet.address)).to.be.equal(
+          player0BalanceBefore.add(ethers.utils.parseUnits('16', decimals)),
         );
         // 3. Expect lastClaimedAt for Player 0 to be the current day
         expect(await ubi.lastClaimedAt(adr.players[0].wallet.address)).to.be.equal(await ubi.getCurrentDay());
@@ -204,7 +271,7 @@ describe('UBI contract', async function () {
       });
 
       it('should allow a user to claim again on the next day', async () => {
-        const player0BalanceBefore = await env.mockERC20.balanceOf(adr.players[0].wallet.address);
+        const player0BalanceBefore = await paymentToken.balanceOf(adr.players[0].wallet.address);
         // 1. Player 0 claims successfully
         await expect(ubi.connect(adr.players[0].wallet).claim('gm'))
           .to.emit(ubi, 'Claimed')
@@ -216,8 +283,8 @@ describe('UBI contract', async function () {
           .to.emit(ubi, 'Claimed')
           .to.emit(ubi, 'ProposingByAddress');
         // 4. Check that their token balance has increased again
-        expect(await env.mockERC20.balanceOf(adr.players[0].wallet.address)).to.be.equal(
-          player0BalanceBefore.add(ethers.utils.parseEther('1').mul(2)),
+        expect(await paymentToken.balanceOf(adr.players[0].wallet.address)).to.be.equal(
+          player0BalanceBefore.add(ethers.utils.parseUnits('16', decimals).mul(2)),
         );
       });
 
@@ -232,10 +299,10 @@ describe('UBI contract', async function () {
           .to.emit(ubi, 'RepostByReposter')
           .to.emit(ubi, 'RepostByProposer');
         // 3. Expect Player 1 to receive tokens
-        const p1b = await env.mockERC20.balanceOf(defaultPlayerA);
-        const p2b = await env.mockERC20.balanceOf(adr.players[1].wallet.address);
-        expect(p1b.toString()).to.be.equal(ethers.utils.parseEther('1'));
-        expect(p2b.toString()).to.be.equal(ethers.utils.parseEther('1'));
+        const p1b = await paymentToken.balanceOf(defaultPlayerA);
+        const p2b = await paymentToken.balanceOf(adr.players[1].wallet.address);
+        expect(p1b.toString()).to.be.equal(ethers.utils.parseUnits('16', decimals));
+        expect(p2b.toString()).to.be.equal(ethers.utils.parseUnits('16', decimals));
         // 4. Expect proposalCnt for the day to remain 1
         expect((await ubi.getProposalsCnt(await ubi.getCurrentDay())).toString()).to.be.equal('1');
         const hash = solidityKeccak256(['string'], ['I love UBI']);
@@ -298,7 +365,7 @@ describe('UBI contract', async function () {
               amount: 1,
             },
           ]),
-        ).changeTokenBalances(env.mockERC20, [defaultPlayerA], [await env.mockERC20.decimals()]);
+        ).changeTokenBalances(paymentToken, [defaultPlayerA], [await paymentToken.decimals()]);
         // 2. Expect P0's (the proposer) token balance to increase by 1.
         // 3. Expect P1's (the voter) supportSpent to increase by 1 (1*1).
         // 4. Expect proposalScores for "Prop A" to increase by 1.
@@ -314,13 +381,13 @@ describe('UBI contract', async function () {
               amount: 4,
             },
           ]),
-        ).changeTokenBalances(env.mockERC20, [defaultPlayerA], [(await env.mockERC20.decimals()) * 4]);
+        ).changeTokenBalances(paymentToken, [defaultPlayerA], [(await paymentToken.decimals()) * 4]);
         expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('16');
       });
 
       it('should allow a user to support multiple different proposals in one transaction', async () => {
         await ubi.connect(adr.players[2].wallet).claim('You guys are amazing');
-        const decimals = await env.mockERC20.decimals();
+        const decimals = await paymentToken.decimals();
         expect(
           await ubi.connect(adr.players[2].wallet).support([
             {
@@ -333,7 +400,7 @@ describe('UBI contract', async function () {
             },
           ]),
         ).changeTokenBalances(
-          env.mockERC20,
+          paymentToken,
           [defaultPlayerA, adr.players[1].wallet.address],
           [decimals * 2, decimals * 3],
         );
@@ -342,7 +409,7 @@ describe('UBI contract', async function () {
 
       it('should update and respect supportSpent across multiple transactions within the same day', async () => {
         await ubi.connect(adr.players[2].wallet).claim('You guys are amazing');
-        const decimals = await env.mockERC20.decimals();
+        const decimals = await paymentToken.decimals();
         expect(
           await ubi.connect(adr.players[2].wallet).support([
             {
@@ -350,7 +417,7 @@ describe('UBI contract', async function () {
               amount: 3,
             },
           ]),
-        ).changeTokenBalances(env.mockERC20, [adr.players[1].wallet.address], [decimals * 3]);
+        ).changeTokenBalances(paymentToken, [adr.players[1].wallet.address], [decimals * 3]);
         expect(
           await ubi.connect(adr.players[2].wallet).support([
             {
@@ -358,7 +425,7 @@ describe('UBI contract', async function () {
               amount: 2,
             },
           ]),
-        ).changeTokenBalances(env.mockERC20, [defaultPlayerA], [decimals * 2]);
+        ).changeTokenBalances(paymentToken, [defaultPlayerA], [decimals * 2]);
         expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('13');
       });
     });
@@ -418,8 +485,10 @@ describe('UBI contract', async function () {
   // =================================================================
   describe('Pausable Functionality', () => {
     it('should allow the pauser to pause and unpause the contract', async () => {
-      await expect(ubi.connect(adr.gameMaster2).pause()).to.emit(ubi, 'Paused');
-      await expect(ubi.connect(adr.gameMaster2).unpause()).to.emit(ubi, 'Unpaused');
+      const { DAO } = await getNamedAccounts();
+      const pauserSigner = await ethers.getSigner(DAO);
+      await expect(ubi.connect(pauserSigner).pause()).to.emit(ubi, 'Paused');
+      await expect(ubi.connect(pauserSigner).unpause()).to.emit(ubi, 'Unpaused');
     });
 
     it('should prevent non-pausers from pausing or unpausing', async () => {
@@ -428,12 +497,14 @@ describe('UBI contract', async function () {
     });
 
     it('should block claim() and support() when paused', async () => {
-      await ubi.connect(adr.gameMaster2).pause();
+      const { DAO } = await getNamedAccounts();
+      const pauserSigner = await ethers.getSigner(DAO);
+      await ubi.connect(pauserSigner).pause();
       await expect(ubi.connect(adr.players[2].wallet).claim('You guys are amazing')).to.be.revertedWithCustomError(
         ubi,
         'EnforcedPause',
       );
-      const decimals = await env.mockERC20.decimals();
+      const decimals = await paymentToken.decimals();
       await expect(
         ubi.connect(adr.players[2].wallet).support([
           {
