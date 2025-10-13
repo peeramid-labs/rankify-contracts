@@ -270,6 +270,7 @@ export default {
         'ScoreGetterFacet',
         'UBI',
         'DiamondClonable',
+        'RankifyInstanceInit',
       ],
       strict: false,
       filter(abiElement: unknown, index: number, abi: unknown[], fullyQualifiedName: string) {

@@ -28,11 +28,14 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {LibUBI} from "../libraries/LibUBI.sol";
 import {UBI} from "../UBI.sol";
+
 // It is expected that this contract is customized if you want to deploy your diamond
 // with data from a deployment script. Use the init function to initialize state variables
 // of your diamond. Add parameters to the init function if you need to.
 
 contract RankifyInstanceInit is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeable {
+    event RankifyInstanceInitialized(address indexed rankifyInstance, contractInitializer parameters);
+
     function _buildDomainSeparator(
         bytes32 typeHash,
         bytes32 nameHash,
@@ -137,5 +140,7 @@ contract RankifyInstanceInit is Initializable, ReentrancyGuardUpgradeable, Pausa
             initData.dailySupport,
             initData.domainName
         );
+
+        emit RankifyInstanceInitialized(address(this), initData);
     }
 }
