@@ -84,7 +84,7 @@ describe('MAODistribution', async function () {
       await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
       await tokenContract.approve(distributorContract.address, ethers.constants.MaxUint256);
 
-      const tx = expect(distributorContract.connect(oSigner).instantiate(distrId, data));
+      const tx = distributorContract.connect(oSigner).instantiate(distrId, data);
       await expect(tx).not.reverted;
       expect((await distributorContract.functions.getDistributions()).length).to.equal(1);
       const filter = distributorContract.filters.Instantiated();
