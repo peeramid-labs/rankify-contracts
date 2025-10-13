@@ -136,7 +136,7 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
                 emit ProposedTime(hash, s.proposalGlobalStats[hash].proposedTimes);
             }
         }
-
+        s.supportSpent[msg.sender] = 0; // reset support levels spent today
         s.token.mint(msg.sender, s.dailyClaimAmount);
         emit Claimed(msg.sender, s.dailyClaimAmount);
     }

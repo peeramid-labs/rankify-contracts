@@ -15,23 +15,14 @@ import { generateDistributorData } from '../scripts/libraries/generateDistributo
 import addDistribution from '../scripts/addDistribution';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+
 export function parseShortString(bytes32: string): string {
-  // 1. Get the last byte (last 2 hex characters) which holds the length.
   const lastByteHex = bytes32.slice(-2);
   const encodedLength = parseInt(lastByteHex, 16);
-
-  // 2. The actual length is the encoded length divided by 2 (integer division).
-  //    A bitwise right shift (>> 1) is a fast way to do this.
   const length = encodedLength;
-
-  // 3. Handle the edge case of an empty string.
   if (length === 0) {
     return '';
   }
-
-  // 4. Slice the hex string to get only the part that contains the string data.
-  //    - Start at index 2 to skip the "0x" prefix.
-  //    - The end index is `2 + length * 2` because each byte is 2 hex characters.
   const dataHex = bytes32.substring(2, 2 + length * 2);
 
   // 5. Prepend "0x" to make it a valid hex string for ethers.
@@ -365,7 +356,11 @@ describe('UBI contract', async function () {
               amount: 1,
             },
           ]),
-        ).changeTokenBalances(paymentToken, [defaultPlayerA], [await paymentToken.decimals()]);
+        ).changeTokenBalances(
+          paymentToken,
+          [defaultPlayerA],
+          [ethers.utils.parseUnits('1', await paymentToken.decimals())],
+        );
         // 2. Expect P0's (the proposer) token balance to increase by 1.
         // 3. Expect P1's (the voter) supportSpent to increase by 1 (1*1).
         // 4. Expect proposalScores for "Prop A" to increase by 1.
@@ -381,7 +376,11 @@ describe('UBI contract', async function () {
               amount: 4,
             },
           ]),
-        ).changeTokenBalances(paymentToken, [defaultPlayerA], [(await paymentToken.decimals()) * 4]);
+        ).changeTokenBalances(
+          paymentToken,
+          [defaultPlayerA],
+          [ethers.utils.parseUnits('4', await paymentToken.decimals())],
+        );
         expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('16');
       });
 
@@ -402,7 +401,7 @@ describe('UBI contract', async function () {
         ).changeTokenBalances(
           paymentToken,
           [defaultPlayerA, adr.players[1].wallet.address],
-          [decimals * 2, decimals * 3],
+          [ethers.utils.parseUnits('2', decimals), ethers.utils.parseUnits('3', decimals)],
         );
         expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('13');
       });
@@ -417,7 +416,7 @@ describe('UBI contract', async function () {
               amount: 3,
             },
           ]),
-        ).changeTokenBalances(paymentToken, [adr.players[1].wallet.address], [decimals * 3]);
+        ).changeTokenBalances(paymentToken, [adr.players[1].wallet.address], [ethers.utils.parseUnits('3', decimals)]);
         expect(
           await ubi.connect(adr.players[2].wallet).support([
             {
@@ -425,8 +424,36 @@ describe('UBI contract', async function () {
               amount: 2,
             },
           ]),
-        ).changeTokenBalances(paymentToken, [defaultPlayerA], [decimals * 2]);
+        ).changeTokenBalances(paymentToken, [defaultPlayerA], [ethers.utils.parseUnits('2', decimals)]);
         expect((await ubi.getUserState(adr.players[2].wallet.address)).supportSpent.toString()).to.be.equal('13');
+      });
+      it('can support day after as well', async () => {
+        await ubi.connect(adr.players[0].wallet).claim('I love UBI, day2');
+        await ubi.connect(adr.players[1].wallet).claim('I love UBI too, day2');
+        await expect(
+          ubi.connect(adr.players[1].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI, day2']),
+              amount: 3,
+            },
+          ]),
+        ).to.be.revertedWith('Proposal is not in daily menu :(');
+        await ubi.connect(adr.players[1].wallet).support([
+          {
+            proposal: solidityKeccak256(['string'], ['I love UBI']),
+            amount: 4,
+          },
+        ]);
+        await time.increase(24 * 3600);
+        await ubi.connect(adr.players[1].wallet).claim('I love UBI too, day3');
+        await expect(
+          ubi.connect(adr.players[1].wallet).support([
+            {
+              proposal: solidityKeccak256(['string'], ['I love UBI, day2']),
+              amount: 4,
+            },
+          ]),
+        ).to.emit(ubi, 'ProposalLifetimeScore');
       });
     });
 

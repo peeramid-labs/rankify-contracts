@@ -263,7 +263,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
                 SimpleAccessManager.SimpleAccessManagerInitializer[]
                     memory bootTokenAccessManagerSettings = new SimpleAccessManager.SimpleAccessManagerInitializer[](1);
 
-                bootTokenAccessManagerSettings[0].selector = RankToken.mint.selector;
+                bootTokenAccessManagerSettings[0].selector = DistributableGovernanceERC20.mint.selector;
                 bootTokenAccessManagerSettings[0].disallowedAddresses = new address[](1);
                 bootTokenAccessManagerSettings[0].distributionComponentsOnly = true;
                 paymentToken = _governanceERC20Base.clone();
