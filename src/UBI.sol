@@ -8,9 +8,35 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {LibUBI} from "./libraries/LibUBI.sol";
 
+/**
+ * @title Universal Basic Income (UBI) Contract
+ * @author Peeramid Labs
+ * @notice This contract manages a UBI system where users can claim daily tokens and support proposals.
+ * It integrates with Multipass for identity verification and uses an ERC20 token for distribution.
+ * Users can claim a fixed amount of tokens daily. After claiming, they can also propose ideas or
+ * support existing ones from the previous day using a quadratic voting mechanism.
+ * The contract is upgradeable and pausable.
+ */
 contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
+    /**
+     * @notice Error thrown when a user without a valid Multipass record tries to interact with the contract.
+     * @param recordFound Whether a Multipass record was found for the sender.
+     * @param validUtil The timestamp until which the sender's Multipass record is valid.
+     */
     error InvalidSender(bool recordFound, uint256 validUtil);
+
+    /**
+     * @notice Event emitted when a user successfully claims their daily tokens.
+     * @param user The address of the user who claimed.
+     * @param amount The amount of tokens claimed.
+     */
     event Claimed(address indexed user, uint256 amount);
+
+    /**
+     * @notice Event emitted when a proposal is made, indicating how many times it has been proposed.
+     * @param proposalHash The hash of the proposal.
+     * @param newTimesProposed The new total count of times this proposal has been made.
+     */
     event ProposedTime(bytes32 proposalHash, uint256 newTimesProposed);
 
     /**
@@ -22,12 +48,27 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
      */
     event VotingByAddress(address indexed participant, uint256 indexed day, bytes32 indexed proposal, uint256 amount);
 
+    /**
+     * @notice Event emitted when a proposal's daily score is updated, indexed by proposer.
+     * @param dailyScore The new daily score of the proposal.
+     * @param day The day the score was updated.
+     * @param proposer The address of the proposal's creator.
+     * @param proposal The hash of the proposal.
+     */
     event ProposalScoreUpdatedByAddress(
         uint256 indexed dailyScore,
         uint256 indexed day,
         address indexed proposer,
         bytes32 proposal
     );
+
+    /**
+     * @notice Event emitted when a proposal's daily score is updated, indexed by proposal hash.
+     * @param dailyScore The new daily score of the proposal.
+     * @param day The day the score was updated.
+     * @param proposal The hash of the proposal.
+     * @param proposer The address of the proposal's creator.
+     */
     event ProposalScoreUpdatedByProposal(
         uint256 indexed dailyScore,
         uint256 indexed day,
@@ -35,6 +76,12 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         address proposer
     );
 
+    /**
+     * @notice Event emitted when a proposal's lifetime statistics are updated.
+     * @param lifeTimeScore The new aggregate lifetime score of the proposal.
+     * @param proposedTimes The total number of times the proposal has been submitted.
+     * @param repostedTimes The total number of times the proposal has been reposted.
+     */
     event ProposalLifetimeScore(
         uint256 indexed lifeTimeScore,
         uint256 indexed proposedTimes,
@@ -56,6 +103,14 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         uint256 scoreWhenProposed
     );
 
+    /**
+     * @notice Event emitted when a user reposts an existing proposal, indexed by reposter.
+     * @param proposer The original proposer's address.
+     * @param day The day of the repost.
+     * @param proposal The hash of the proposal.
+     * @param reposter The address of the user who reposted.
+     * @param proposalText The text of the proposal.
+     */
     event RepostByReposter(
         address indexed proposer,
         uint256 indexed day,
@@ -63,6 +118,14 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         address reposter,
         string proposalText
     );
+    /**
+     * @notice Event emitted when a user reposts an existing proposal, indexed by original proposer.
+     * @param reposter The address of the user who reposted.
+     * @param day The day of the repost.
+     * @param proposal The hash of the proposal.
+     * @param proposer The original proposer's address.
+     * @param proposalText The text of the proposal.
+     */
     event RepostByProposer(
         address indexed reposter,
         uint256 indexed day,
@@ -81,6 +144,18 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         }
     }
 
+    /**
+     * @notice Initializes the UBI contract.
+     * @dev This function is called once to set up the contract's initial state.
+     * It sets the Multipass contract instance, the governance token, the pauser address,
+     * and the daily claim/support amounts.
+     * @param _multipass The address of the Multipass contract.
+     * @param _token The address of the DistributableGovernanceERC20 token contract.
+     * @param _pauser The address that has permission to pause and unpause the contract.
+     * @param dailyClaim The amount of tokens users can claim daily.
+     * @param dailySupport The amount of support points users can allocate daily.
+     * @param domainName The Multipass domain name for identity verification.
+     */
     function initialize(
         IMultipass _multipass,
         DistributableGovernanceERC20 _token,
@@ -100,6 +175,14 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         __Pausable_init();
     }
 
+    /**
+     * @notice Allows a user to claim their daily tokens and optionally submit a proposal.
+     * @dev A user must have a valid Multipass record to call this function. They can only claim once per day.
+     * If `data` is provided, it's treated as a proposal. If the proposal is new for the day, it's created.
+     * If it's a duplicate of an existing proposal for the day, it's counted as a repost.
+     * Claiming also resets the user's daily support allowance.
+     * @param data The proposal text. If empty, no proposal is submitted.
+     */
     function claim(string memory data) public nonReentrant whenNotPaused {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         LibMultipass.NameQuery memory q = LibMultipass.NameQuery({
@@ -161,6 +244,14 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         _unpause();
     }
 
+    /**
+     * @notice Allows a user to support one or more proposals from the previous day.
+     * @dev This function implements a quadratic voting mechanism where the cost to support is the square of the amount.
+     * A user must have claimed their tokens for the current day before they can support proposals.
+     * The total support spent cannot exceed the `dailySupportAmount`.
+     * Users cannot support their own proposals.
+     * @param votes An array of `VoteElement` structs, each containing a proposal hash and the amount of support.
+     */
     function support(LibUBI.VoteElement[] memory votes) public nonReentrant whenNotPaused {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         LibMultipass.NameQuery memory q = LibMultipass.NameQuery({
@@ -210,6 +301,11 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         }
     }
 
+    /**
+     * @notice Calculates the current day based on the block timestamp.
+     * @dev The day is calculated as `block.timestamp / 1 days`.
+     * @return The current day number.
+     */
     function currentDay() public view returns (uint256) {
         return block.timestamp / 1 days;
     }
@@ -223,21 +319,39 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         return LibUBI.getStorage().proposalGlobalStats[proposal];
     }
 
+    /**
+     * @notice Gets the address of the pauser.
+     * @return The address with pausing/unpausing permissions.
+     */
     function pauser() public view returns (address) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.pauser;
     }
 
+    /**
+     * @notice Gets the Multipass contract instance.
+     * @return The `IMultipass` contract instance used for identity checks.
+     */
     function multipass() public view returns (IMultipass) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.multipass;
     }
 
+    /**
+     * @notice Gets the governance token contract instance.
+     * @return The `DistributableGovernanceERC20` token contract used for UBI.
+     */
     function token() public view returns (DistributableGovernanceERC20) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.token;
     }
 
+    /**
+     * @notice Retrieves the main parameters of the UBI system.
+     * @return dailyClaimAmount The amount of tokens for a daily claim.
+     * @return dailySupportAmount The amount of support points available daily.
+     * @return domainName The Multipass domain name.
+     */
     function getUBIParams()
         public
         view
@@ -249,25 +363,51 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         domainName = s.domainName;
     }
 
+    /**
+     * @notice Gets the details of a proposal for a specific day.
+     * @param hash The hash of the proposal.
+     * @param day The day to query.
+     * @return A `DailyProposal` struct with the proposal's daily information.
+     */
     function getProposalDailyScore(bytes32 hash, uint256 day) public view returns (LibUBI.DailyProposal memory) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.daily[day].proposals[hash];
     }
 
+    /**
+     * @notice Gets the total number of unique proposals for a specific day.
+     * @param day The day to query.
+     * @return The count of proposals for that day.
+     */
     function getProposalsCnt(uint256 day) public view returns (uint256) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.daily[day].proposalCnt;
     }
 
+    /**
+     * @notice Gets the day a user last claimed their tokens.
+     * @param user The address of the user to query.
+     * @return The day number of the last claim. Returns 0 if never claimed.
+     */
     function lastClaimedAt(address user) public view returns (uint256) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         return s.lastClaimedAt[user];
     }
 
+    /**
+     * @notice An alias for `currentDay()`.
+     * @return The current day number.
+     */
     function getCurrentDay() public view returns (uint256) {
         return currentDay();
     }
 
+    /**
+     * @notice Gets the current daily state for a user.
+     * @param user The address of the user to query.
+     * @return claimedToday A boolean indicating if the user has claimed today.
+     * @return supportSpent The amount of support points the user has spent today.
+     */
     function getUserState(address user) public view returns (bool claimedToday, uint256 supportSpent) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         claimedToday = s.lastClaimedAt[user] == currentDay() ? true : false;
