@@ -999,7 +999,7 @@ describe(scriptName, () => {
           expect(canStart).to.be.true;
           const canStart2 = await rankifyInstance.connect(adr.gameCreator2.wallet).canStartGame(1);
           expect(canStart2).to.be.false;
-          expect(await rankifyInstance.connect(adr.gameCreator2.wallet).startGame(1)).to.be.revertedWith(
+          await expect(rankifyInstance.connect(adr.gameCreator2.wallet).startGame(1)).to.be.revertedWith(
             'startGame->Still Can Join',
           );
         });
