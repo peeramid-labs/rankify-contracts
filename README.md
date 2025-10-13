@@ -27,6 +27,12 @@ Smart contract infrastructure for [rankify.it](https://rankify.it) - A platform 
      - DiamondLoupeFacet: Facet introspection
      - OwnershipFacet: Contract ownership management
 
+4. **Universal basic income support**
+    - Uses [Multipass](https://github.com/peeramid-labs/multipass/) as registry
+    - Allows deployment without any prior tokens by deploying ACID entry
+    - Every qualified user can claim 16 tokens daily and allocate support of up to 16 tokens in quadratic voting system across other claimer posted claims
+
+
 ## Available Distributions
 
 ### 1. Meritocratic Autonomous Organization (MAO)
