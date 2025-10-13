@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import {LibRankify} from "../libraries/LibRankify.sol";
 import {LibTBG} from "../libraries/LibTurnBasedGame.sol";
+
 /**
  * @title ScoreGetterFacet
  * @notice Facet for querying proposal scores and existence across games, turns, and instances
