@@ -18,6 +18,7 @@ import {IErrors} from "../interfaces/IErrors.sol";
 import {IRankToken} from "../interfaces/IRankToken.sol";
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 /**
  * @title RankifyInstanceMainFacet
  * @notice Main facet for the Rankify protocol that handles game creation and management
@@ -40,6 +41,7 @@ contract RankifyInstanceMainFacet is
 
     // Event for when a voting stage ends and scores are calculated
     event VotingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber, address[] players, uint256[] scores);
+
     // Event for when a proposing stage ends (this might be better in GameMastersFacet if emitted there)
     // event ProposingStageEnded(uint256 indexed gameId, uint256 indexed roundNumber);
 
@@ -497,6 +499,11 @@ contract RankifyInstanceMainFacet is
      * @return bool Whether the game can be started early
      */
     function canStartGame(uint256 gameId) public view returns (bool) {
+        LibRankify.GameState storage game = gameId.getGameState();
+        LibTBG.Instance storage tbgInstance = LibTBG._getInstance(gameId);
+        if (msg.sender == game.createdBy) {
+            return gameId.getPlayers().length >= tbgInstance.settings.minPlayerCnt;
+        }
         return gameId.canStartByFull();
     }
 
