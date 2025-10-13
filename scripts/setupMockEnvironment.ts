@@ -4,8 +4,9 @@ import { Wallet } from 'ethers';
 import { MockERC20 } from '../types/artifacts/src/mocks/MockERC20';
 import { MockERC1155 } from '../types/artifacts/src/mocks/MockERC1155';
 import { MockERC721 } from '../types/artifacts/src/mocks/MockERC721';
+import { MockShortStrings } from '../types';
 import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
-import { RankToken, Rankify, DAODistributor, ArguableVotingTournament } from '../types';
+import { RankToken, Rankify, DAODistributor, ArguableVotingTournament, Multipass } from '../types';
 import { Deployment } from 'hardhat-deploy/types';
 import { log } from './utils';
 
@@ -18,6 +19,8 @@ export interface EnvSetupResult {
   mockERC721: MockERC721;
   maoDistribution: MAODistribution;
   distributor: DAODistributor;
+  multipass: Multipass;
+  mockShortStrings: MockShortStrings;
 }
 
 export interface SignerIdentity {
@@ -57,8 +60,10 @@ const setupEnvironment = async (setup: {
   mockERC20: MockERC20;
   mockERC721: MockERC721;
   mockERC1155: MockERC1155;
+  mockShortStrings: MockShortStrings;
   adr: AdrSetupResult;
   arguableVotingTournamentDistribution: Deployment;
+  multipass: Deployment;
   hre: HardhatRuntimeEnvironment;
 }): Promise<EnvSetupResult> => {
   const { ethers } = setup.hre;
@@ -77,6 +82,7 @@ const setupEnvironment = async (setup: {
     setup.arguableVotingTournamentDistribution.address,
   )) as ArguableVotingTournament;
 
+  const multipass = (await ethers.getContractAt(setup.multipass.abi, setup.multipass.address)) as Multipass;
   return {
     maoDistribution,
     distributor,
@@ -87,6 +93,8 @@ const setupEnvironment = async (setup: {
     mockERC20: setup.mockERC20,
     mockERC721: setup.mockERC721,
     arguableVotingTournamentDistribution,
+    multipass,
+    mockShortStrings: setup.mockShortStrings,
   };
 };
 
@@ -334,6 +342,10 @@ export const setupMockedEnvironment = async (
   const mockERC1155 = (await MockERC1155F.deploy('MOCKURI', adr.contractDeployer.wallet.address)) as MockERC1155;
   await mockERC1155.deployed();
 
+  const MockShortStringsF = await _eth.getContractFactory('MockShortStrings', adr.contractDeployer.wallet);
+  const mockShortStrings = (await MockShortStringsF.deploy()) as MockShortStrings;
+  await mockShortStrings.deployed();
+
   const MockERC721F = await _eth.getContractFactory('MockERC721', adr.contractDeployer.wallet);
   const mockERC721 = (await MockERC721F.deploy(
     'Mock ERC721',
@@ -353,6 +365,8 @@ export const setupMockedEnvironment = async (
     mockERC1155: mockERC1155,
     adr,
     hre,
+    multipass: await deployments.get('Multipass'),
+    mockShortStrings,
   });
   const { ethers } = hre;
   await env.rankifyToken
