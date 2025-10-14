@@ -1,5 +1,5 @@
 # Rankify Contracts
-
+a
 Smart contract infrastructure for [rankify.it](https://rankify.it) - A platform for building bottom-up self-organized organizations with use of autonomous competence identification and continuous voting proposing protocols .
 
 
