@@ -579,8 +579,8 @@ library LibCoinVending {
             mustDo.contractIds.push(configuration.contracts[i].contractId);
             mustDo.contractTypes.push(configuration.contracts[i].contractType);
             mustDo.contracts[configuration.contracts[i].contractType][configuration.contracts[i].contractAddress][
-                    configuration.contracts[i].contractId
-                ] = configuration.contracts[i].contractRequirement;
+                configuration.contracts[i].contractId
+            ] = configuration.contracts[i].contractRequirement;
         }
         mustDo._isConfigured = true;
     }
