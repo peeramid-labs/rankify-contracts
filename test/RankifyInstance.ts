@@ -2154,6 +2154,10 @@ describe(scriptName, () => {
       beforeEach(async () => {
         await lastTurnEqualScoresTest(simulator)();
       });
+      it('Last turn event was emitted', async () => {
+        const evts = (await rankifyInstance.queryFilter(rankifyInstance.filters.LastTurn(1))).map(e => e.args);
+        expect(evts.length).to.be.greaterThan(0);
+      });
       it('Next turn without winner brings Game is in overtime conditions', async () => {
         const playerCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
         let isGameOver = await rankifyInstance.isGameOver(1);
