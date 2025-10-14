@@ -1,17 +1,14 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import aes from 'crypto-js/aes';
-import {
-  Rankify,
-  MockERC1155,
-  MockERC20,
-  MockERC721,
-  RankToken,
-  MAODistribution,
-  DAODistributor,
-  ArguableVotingTournament,
-  RankifyInstanceGameMastersFacet,
-  RankifyDiamondInstance,
-} from '../types';
+
+import { Rankify, RankToken } from '../types/artifacts/src/tokens';
+import { RankifyDiamondInstance } from '../types/artifacts/hardhat-diamond-abi/HardhatDiamondABI.sol';
+import { IRankifyInstance } from '../types/artifacts/src/facets/RankifyInstanceMainFacet';
+import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
+import { DAODistributor } from '../types/artifacts/src/DAODistributor';
+import { ArguableVotingTournament } from '../types/artifacts/src/distributions/ArguableVotingTournament';
+import { MockERC1155, MockERC20, MockERC721 } from '../types/artifacts/src/mocks';
+import { RankifyInstanceGameMastersFacet } from '../types/artifacts/src/facets/RankifyInstanceGameMastersFacet.sol';
 import cryptoJs from 'crypto-js';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { BigNumberish, BytesLike, TypedDataField, BigNumber, constants, utils, Wallet, ethers } from 'ethers';
@@ -24,7 +21,6 @@ import { sharedGameKeySigner } from './sharedKey';
 import { generateDeterministicPermutation, generateEndTurnIntegrity } from './proofs';
 import { AdrSetupResult } from './setupMockEnvironment';
 import { SignerIdentity } from './setupMockEnvironment';
-import { IRankifyInstance } from '../types/src/facets/RankifyInstanceMainFacet';
 import { log } from './utils';
 declare global {
   interface BigInt {

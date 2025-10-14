@@ -9,6 +9,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import {IErrors} from "../interfaces/IErrors.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 /**
  * @title LibRankify
  * @dev Core library for the Rankify protocol that handles game state management, voting, and player interactions
@@ -32,6 +33,7 @@ library LibRankify {
         bool contractInitialized;
         CommonParams commonParams;
         mapping(bytes32 => ProposalScore) proposalScore;
+        mapping(address => bool) whitelistedGMs;
     }
 
     /**

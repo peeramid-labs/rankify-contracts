@@ -233,7 +233,7 @@ export default {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 2000,
+            runs: 200,
           },
         },
       },
@@ -242,7 +242,7 @@ export default {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 2000,
+            runs: 200,
           },
         },
       },
@@ -271,6 +271,7 @@ export default {
         'UBI',
         'DiamondClonable',
         'RankifyInstanceInit',
+        'RankifyOwnersFacet',
       ],
       strict: false,
       filter(abiElement: unknown, index: number, abi: unknown[], fullyQualifiedName: string) {
