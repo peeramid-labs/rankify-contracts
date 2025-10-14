@@ -109,7 +109,7 @@ pnpm clean
 
 1. Deployment:
    ```sh
-   pnpm hardhat deploy --network <network> --tags ERC7744,MAO,rankify
+   pnpm hardhat deploy --network <network> --tags ERC7744,multipass,MAO
    # or
    pnpm anvil:deploy
    # or :
