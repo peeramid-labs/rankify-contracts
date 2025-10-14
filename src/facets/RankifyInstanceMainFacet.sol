@@ -536,6 +536,11 @@ contract RankifyInstanceMainFacet is
      * @return bool Whether the game can be started early
      */
     function canStartGame(uint256 gameId) public view returns (bool) {
+        LibRankify.GameState storage game = gameId.getGameState();
+        LibTBG.Instance storage tbgInstance = LibTBG._getInstance(gameId);
+        if (msg.sender == game.createdBy) {
+            return gameId.getPlayers().length >= tbgInstance.settings.minPlayerCnt;
+        }
         return gameId.canStartByFull();
     }
 

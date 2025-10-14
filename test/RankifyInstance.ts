@@ -997,6 +997,15 @@ describe(scriptName, () => {
             'GameStarted',
           );
         });
+        it('Can Start view method returns true for game creator', async () => {
+          const canStart = await rankifyInstance.connect(adr.gameCreator1.wallet).canStartGame(1);
+          expect(canStart).to.be.true;
+          const canStart2 = await rankifyInstance.connect(adr.gameCreator2.wallet).canStartGame(1);
+          expect(canStart2).to.be.false;
+          await expect(rankifyInstance.connect(adr.gameCreator2.wallet).startGame(1)).to.be.revertedWith(
+            'startGame->Still Can Join',
+          );
+        });
         it('Can Start view method returns true only after joining period is over', async () => {
           const canStart = await rankifyInstance.canStartGame(1);
           expect(canStart).to.be.false;

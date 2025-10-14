@@ -7,7 +7,7 @@ env:
     NODE_ENV: 'TEST'
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-large
     steps:
       - uses: actions/checkout@v3
       - uses: './.github/setup'
