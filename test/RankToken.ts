@@ -5,7 +5,7 @@ import { setupTest } from './utils';
 import { RankifyDiamondInstance, RankToken, Rankify, Governor } from '../types';
 import addDistribution from '../scripts/addDistribution';
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
-import { MAODistribution } from '../types/src/distributions/MAODistribution';
+import { MAODistribution } from '../types';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { AdrSetupResult, EnvSetupResult } from '../scripts/setupMockEnvironment';
 import { constantParams } from '../scripts/EnvironmentSimulator';
@@ -217,7 +217,7 @@ describe('Rank Token Test', async function () {
       ).to.be.revertedWithCustomError(rankToken, 'OwnableUnauthorizedAccount');
       expect(
         await rankToken.connect(await ethers.getImpersonatedSigner(governance.address)).setURI('https://example.com'),
-      ).to.be.emit(rankToken, 'URIUpdated');
+      ).to.emit(rankToken, 'URIUpdated');
     });
     it('Only owner can set ContractURI', async () => {
       await adr.players[0].wallet.sendTransaction({
@@ -231,7 +231,7 @@ describe('Rank Token Test', async function () {
         await rankToken
           .connect(await ethers.getImpersonatedSigner(governance.address))
           .setContractURI('https://example.com'),
-      ).to.be.emit(rankToken, 'URIUpdated');
+      ).to.emit(rankToken, 'ContractURIUpdated');
     });
   });
 });
