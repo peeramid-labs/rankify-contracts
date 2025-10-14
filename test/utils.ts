@@ -7,6 +7,6 @@ export const addPlayerNameId = (idx: any) => {
 };
 
 export const setupTest = deployments.createFixture(async ({ deployments, getNamedAccounts, ethers: _eth }, options) => {
-  return setupMockedEnvironment(hre, true);
+  return setupMockedEnvironment(hre);
 });
 // export const setupTest = () => setupTest();
