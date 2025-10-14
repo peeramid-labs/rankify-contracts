@@ -270,6 +270,7 @@ export default {
         'ScoreGetterFacet',
         'UBI',
         'DiamondClonable',
+        'RankifyInstanceInit',
         'RankifyOwnersFacet',
       ],
       strict: false,

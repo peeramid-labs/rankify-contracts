@@ -84,7 +84,7 @@ describe('MAODistribution', async function () {
       await tokenContract.mint(oSigner.address, ethers.utils.parseUnits('100', 9));
       await tokenContract.approve(distributorContract.address, ethers.constants.MaxUint256);
 
-      const tx = await distributorContract.connect(oSigner).instantiate(distrId, data);
+      const tx = distributorContract.connect(oSigner).instantiate(distrId, data);
       await expect(tx).not.reverted;
       expect((await distributorContract.functions.getDistributions()).length).to.equal(1);
       const filter = distributorContract.filters.Instantiated();
@@ -96,6 +96,9 @@ describe('MAODistribution', async function () {
         parseInstantiated(evts[0].args.instances).ACIDInstance,
       )) as RankifyDiamondInstance;
       expect((await ACIDContract.functions['getGM(uint256)'](0))[0]).to.equal(ethers.constants.AddressZero);
+      const filter2 = ACIDContract.filters.RankifyInstanceInitialized();
+      const evts2 = await ACIDContract.queryFilter(filter2);
+      expect(evts2.length).to.equal(1);
     });
     it('Can allows DAO to set contractURI', async () => {
       const { owner } = await getNamedAccounts();
