@@ -1,8 +1,11 @@
 import EnvironmentSimulator, { MockVote, ProposalSubmission } from '../scripts/EnvironmentSimulator';
 import { expect } from 'chai';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
-import { DistributableGovernanceERC20, Governor, Rankify, RankifyDiamondInstance } from '../types/';
-import { IRankifyInstance, LibCoinVending } from '../types/src/facets/RankifyInstanceMainFacet';
+import { Governor } from '../types/artifacts/src';
+import { Rankify } from '../types/artifacts/src/tokens';
+import { RankifyDiamondInstance } from '../types/artifacts/hardhat-diamond-abi/HardhatDiamondABI.sol';
+import { DistributableGovernanceERC20 } from '../types/artifacts/src/tokens/DistributableGovernanceERC20.sol';
+import { IRankifyInstance, LibCoinVending } from '../types/artifacts/src/facets/RankifyInstanceMainFacet';
 import { deployments, ethers as ethersDirect } from 'hardhat';
 import { BigNumber, BigNumberish } from 'ethers';
 import { assert } from 'console';
@@ -14,7 +17,7 @@ const path = require('path');
 const scriptName = path.basename(__filename);
 
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
-import { MAODistribution } from '../types/src/distributions/MAODistribution';
+import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
 import { generateDistributorData } from '../scripts/libraries/generateDistributorData';
 import { HardhatEthersHelpers } from 'hardhat/types';
 import { EnvSetupResult } from '../scripts/setupMockEnvironment';
@@ -22,7 +25,7 @@ import { AdrSetupResult } from '../scripts/setupMockEnvironment';
 import { setupTest } from './utils';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { parseInstantiated } from '../scripts/parseInstantiated';
-import { RankToken } from '../types/src/tokens/RankToken';
+import { RankToken } from '../types/artifacts/src/tokens/RankToken';
 const {
   RANKIFY_INSTANCE_CONTRACT_NAME,
   RANKIFY_INSTANCE_CONTRACT_VERSION,
@@ -1074,6 +1077,32 @@ describe(scriptName, () => {
           beforeEach(async () => {
             await startedGameTest(simulator)();
           });
+          describe('Delegation checks', () => {
+            it('should revert if voter is not a player', async () => {
+              const proposals = await simulator.mockProposals({
+                players: getPlayers(adr, RInstance_MIN_PLAYERS),
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: false,
+              });
+              await expect(
+                rankifyInstance
+                  .connect(adr.players[3].wallet)
+                  .submitProposal({ ...proposals[0].params, proposerSignature: '0x00' }),
+              ).to.be.revertedWith('invalid proposer signature');
+            });
+            it('should succeed if proposer is a player', async () => {
+              const proposals = await simulator.mockProposals({
+                players: getPlayers(adr, RInstance_MIN_PLAYERS),
+                gameMaster: adr.gameMaster1,
+                gameId: 1,
+                submitNow: false,
+              });
+              await expect(
+                rankifyInstance.connect(adr.players[0].wallet).submitProposal(proposals[0].params),
+              ).to.be.not.revertedWith('invalid proposer signature');
+            });
+          });
           describe('Game End and Tie-Breaking Logic', () => {
             it('should correctly close stale game', async () => {
               await simulator.runToLastTurn(1, adr.gameMaster1, 'equal');
@@ -1538,6 +1567,59 @@ describe(scriptName, () => {
                     .then(r => r.newProposals),
                 ),
               ).to.be.emit(rankifyInstance, 'ProposingStageEnded');
+            });
+            describe('Delegation checks', () => {
+              let checkVotes: MockVote[];
+              beforeEach(async () => {
+                const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
+                rankifyInstance.connect(adr.gameMaster1).endProposing(
+                  1,
+                  await simulator
+                    .getProposalsIntegrity({
+                      players: getPlayers(adr, playersCnt),
+                      gameId: 1,
+                      turn: 1,
+                      gm: adr.gameMaster1,
+                      proposalSubmissionData: proposals,
+                    })
+                    .then(r => r.newProposals),
+                ),
+                  (checkVotes = await simulator.mockVotes({
+                    gameId: 1,
+                    turn: 1,
+                    verifier: rankifyInstance,
+                    players: getPlayers(adr, playersCnt),
+                    gm: adr.gameMaster1,
+                    distribution: 'ftw',
+                    voteHimself: [true],
+                  }));
+              });
+              it('should revert if voter is not a player', async () => {
+                await expect(
+                  rankifyInstance.connect(adr.players[1].wallet).submitVote(
+                    1,
+                    checkVotes[0].ballotId,
+                    adr.players[0].wallet.address,
+                    checkVotes[0].gmSignature,
+                    '0x00', // checkVotes[0].voterSignature,
+                    checkVotes[0].ballotHash,
+                  ),
+                ).to.be.revertedWithCustomError(rankifyInstance, 'invalidECDSARecoverSigner');
+              });
+              it('should succeed if voter is a player', async () => {
+                await expect(
+                  rankifyInstance
+                    .connect(adr.gameMaster1)
+                    .submitVote(
+                      1,
+                      checkVotes[0].ballotId,
+                      adr.players[0].wallet.address,
+                      checkVotes[0].gmSignature,
+                      checkVotes[0].voterSignature,
+                      checkVotes[0].ballotHash,
+                    ),
+                ).to.be.not.revertedWith('invalid voter signature');
+              });
             });
             it('cannot vote for himself', async () => {
               const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
@@ -2689,6 +2771,69 @@ describe(scriptName, () => {
           );
           expect(_CACHED_DOMAIN_SEPARATOR).to.equal(domainSeparator);
         });
+      });
+    });
+    describe('Join by master operator tests', () => {
+      it('Only owner should add a whitelisted game master', async () => {
+        const { owner } = await getNamedAccounts();
+        const oSigner = await hre.ethers.getSigner(owner);
+        await expect(rankifyInstance.connect(oSigner).addWhitelistedGM(adr.gameMaster1.address)).to.emit(
+          rankifyInstance,
+          'WhitelistedGMAdded',
+        );
+        await expect(
+          rankifyInstance.connect(adr.maliciousActor1.wallet).addWhitelistedGM(adr.gameMaster2.address),
+        ).to.be.revertedWith('LibDiamond: Must be contract owner');
+      });
+      it('Only owner should remove a whitelisted game master', async () => {
+        const { owner } = await getNamedAccounts();
+        const oSigner = await hre.ethers.getSigner(owner);
+        await expect(rankifyInstance.connect(oSigner).addWhitelistedGM(adr.gameMaster1.address)).to.emit(
+          rankifyInstance,
+          'WhitelistedGMAdded',
+        );
+        await expect(
+          rankifyInstance.connect(adr.maliciousActor1.wallet).removeWhitelistedGM(adr.gameMaster2.address),
+        ).to.be.revertedWith('LibDiamond: Must be contract owner');
+        await expect(rankifyInstance.connect(oSigner).removeWhitelistedGM(adr.gameMaster2.address)).to.emit(
+          rankifyInstance,
+          'WhitelistedGMRemoved',
+        );
+      });
+      it('Whitelisted operators can join the game for players', async () => {
+        const { owner } = await getNamedAccounts();
+        const oSigner = await hre.ethers.getSigner(owner);
+        const s1 = await simulator.signJoiningGame({
+          gameId: 1,
+          participant: adr.players[0].wallet,
+          signer: simulator.adr.gameMaster1,
+        });
+        await expect(
+          rankifyInstance
+            .connect(adr.gameMaster1)
+            .joinGameByMaster(
+              1,
+              s1.signature,
+              s1.gmCommitment,
+              s1.deadline,
+              s1.participantPubKey,
+              adr.players[0].wallet.address,
+            ),
+        ).to.be.revertedWith('not whitelisted joiner');
+        await rankifyInstance.connect(oSigner).addWhitelistedGM(adr.gameMaster1.address);
+        await simulator.rankifyInstance.connect(simulator.adr.gameCreator1.wallet).openRegistration(1);
+        await expect(
+          rankifyInstance
+            .connect(adr.gameMaster1)
+            .joinGameByMaster(
+              1,
+              s1.signature,
+              s1.gmCommitment,
+              s1.deadline,
+              s1.participantPubKey,
+              adr.players[0].wallet.address,
+            ),
+        ).to.emit(rankifyInstance, 'PlayerJoined');
       });
     });
   });

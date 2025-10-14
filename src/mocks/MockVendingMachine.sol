@@ -18,7 +18,7 @@ contract MockVendingMachine is ReentrancyGuard {
     }
 
     function fund(bytes32 _positionName) public payable nonReentrant {
-        LibCoinVending.fund(_positionName);
+        LibCoinVending.fund(_positionName, msg.sender);
     }
 
     function release(bytes32 position, address payee, address beneficiary) external {

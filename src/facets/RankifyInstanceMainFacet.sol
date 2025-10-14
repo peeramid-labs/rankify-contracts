@@ -241,6 +241,43 @@ contract RankifyInstanceMainFacet is
         uint256 deadline,
         string memory voterPubKey
     ) public payable nonReentrant {
+        _join(gameId, gameMasterSignature, gmCommitment, deadline, voterPubKey, msg.sender);
+    }
+
+    /**
+     * @dev Allows Operator to join a game with the provided game ID on behalf of the player. `gameId` is the ID of the game.
+     * @param gameId The ID of the game.
+     * @param gameMasterSignature The ECDSA signature of the game master.
+     * @param gmCommitment The gmCommitment to the player signed by the game master.
+     * @param deadline The deadline for the player to sign the gmCommitment.
+     * @param player The address of the player to join the game.
+     * @notice This function:
+     *         - Calls the `joinGame` function with `player`.
+     *         - Calls the `fund` function with `bytes32(gameId)`.
+     *         - Emits a _PlayerJoined_ event.
+     * @custom:security nonReentrant
+     */
+    function joinGameByMaster(
+        uint256 gameId,
+        bytes memory gameMasterSignature,
+        bytes32 gmCommitment,
+        uint256 deadline,
+        string memory voterPubKey,
+        address player
+    ) public payable nonReentrant {
+        LibRankify.InstanceState storage state = LibRankify.instanceState();
+        require(state.whitelistedGMs[msg.sender], "not whitelisted joiner");
+        _join(gameId, gameMasterSignature, gmCommitment, deadline, voterPubKey, player);
+    }
+
+    function _join(
+        uint256 gameId,
+        bytes memory gameMasterSignature,
+        bytes32 gmCommitment,
+        uint256 deadline,
+        string memory voterPubKey,
+        address player
+    ) private {
         require(block.timestamp < deadline, "Signature deadline has passed");
         bytes32 digest = _hashTypedDataV4(
             keccak256(
@@ -248,7 +285,7 @@ contract RankifyInstanceMainFacet is
                     keccak256(
                         "AttestJoiningGame(address participant,uint256 gameId,bytes32 gmCommitment,uint256 deadline,bytes32 participantPubKeyHash)"
                     ),
-                    msg.sender,
+                    player,
                     gameId,
                     gmCommitment,
                     deadline,
@@ -256,9 +293,9 @@ contract RankifyInstanceMainFacet is
                 )
             )
         );
-        gameId.joinGame(msg.sender, gameMasterSignature, digest);
-        LibCoinVending.fund(bytes32(gameId));
-        emit PlayerJoined(gameId, msg.sender, gmCommitment, voterPubKey);
+        gameId.joinGame(player, gameMasterSignature, digest);
+        LibCoinVending.fund(bytes32(gameId), player);
+        emit PlayerJoined(gameId, player, gmCommitment, voterPubKey);
     }
 
     /**
