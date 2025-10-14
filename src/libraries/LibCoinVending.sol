@@ -535,9 +535,22 @@ library LibCoinVending {
      * - Transfers the funds from `msg.sender` to this contract.
      * - Increments the `timesFunded` counter for the condition.
      */
-    function fund(bytes32 position) internal {
+
+    /**
+     * @dev Funds the position by `account`. `position` is the identifier of the condition.
+     *
+     * Requirements:
+     *
+     * - The condition must be configured.
+     *
+     * Modifies:
+     *
+     * - Transfers the funds from `msg.sender` to this contract.
+     * - Increments the `timesFunded` counter for the condition.
+     */
+    function fund(bytes32 position, address account) internal {
         Condition storage reqPos = coinVendingPosition(position);
-        _fund(reqPos, msg.sender);
+        _fund(reqPos, account);
     }
 
     /**
@@ -566,8 +579,8 @@ library LibCoinVending {
             mustDo.contractIds.push(configuration.contracts[i].contractId);
             mustDo.contractTypes.push(configuration.contracts[i].contractType);
             mustDo.contracts[configuration.contracts[i].contractType][configuration.contracts[i].contractAddress][
-                configuration.contracts[i].contractId
-            ] = configuration.contracts[i].contractRequirement;
+                    configuration.contracts[i].contractId
+                ] = configuration.contracts[i].contractRequirement;
         }
         mustDo._isConfigured = true;
     }

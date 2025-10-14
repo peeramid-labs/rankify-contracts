@@ -2764,6 +2764,69 @@ describe(scriptName, () => {
         });
       });
     });
+    describe.only('Join by master operator tests', () => {
+      it('Only owner should add a whitelisted game master', async () => {
+        const { owner } = await getNamedAccounts();
+        const oSigner = await hre.ethers.getSigner(owner);
+        await expect(rankifyInstance.connect(oSigner).addWhitelistedGM(adr.gameMaster1.address)).to.emit(
+          rankifyInstance,
+          'WhitelistedGMAdded',
+        );
+        await expect(
+          rankifyInstance.connect(adr.maliciousActor1.wallet).addWhitelistedGM(adr.gameMaster2.address),
+        ).to.be.revertedWith('LibDiamond: Must be contract owner');
+      });
+      it('Only owner should remove a whitelisted game master', async () => {
+        const { owner } = await getNamedAccounts();
+        const oSigner = await hre.ethers.getSigner(owner);
+        await expect(rankifyInstance.connect(oSigner).addWhitelistedGM(adr.gameMaster1.address)).to.emit(
+          rankifyInstance,
+          'WhitelistedGMAdded',
+        );
+        await expect(
+          rankifyInstance.connect(adr.maliciousActor1.wallet).removeWhitelistedGM(adr.gameMaster2.address),
+        ).to.be.revertedWith('LibDiamond: Must be contract owner');
+        await expect(rankifyInstance.connect(oSigner).removeWhitelistedGM(adr.gameMaster2.address)).to.emit(
+          rankifyInstance,
+          'WhitelistedGMRemoved',
+        );
+      });
+      it('Whitelisted operators can join the game for players', async () => {
+        const { owner } = await getNamedAccounts();
+        const oSigner = await hre.ethers.getSigner(owner);
+        const s1 = await simulator.signJoiningGame({
+          gameId: 1,
+          participant: adr.players[0].wallet,
+          signer: simulator.adr.gameMaster1,
+        });
+        await expect(
+          rankifyInstance
+            .connect(adr.gameMaster1)
+            .joinGameByMaster(
+              1,
+              s1.signature,
+              s1.gmCommitment,
+              s1.deadline,
+              s1.participantPubKey,
+              adr.players[0].wallet.address,
+            ),
+        ).to.be.revertedWith('not whitelisted joiner');
+        await rankifyInstance.connect(oSigner).addWhitelistedGM(adr.gameMaster1.address);
+        await simulator.rankifyInstance.connect(simulator.adr.gameCreator1.wallet).openRegistration(1);
+        await expect(
+          rankifyInstance
+            .connect(adr.gameMaster1)
+            .joinGameByMaster(
+              1,
+              s1.signature,
+              s1.gmCommitment,
+              s1.deadline,
+              s1.participantPubKey,
+              adr.players[0].wallet.address,
+            ),
+        ).to.emit(rankifyInstance, 'PlayerJoined');
+      });
+    });
   });
 });
 describe(scriptName + '::Multiple games were played', () => {

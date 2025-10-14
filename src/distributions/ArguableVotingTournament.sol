@@ -9,11 +9,13 @@ import "../facets/RankifyInstanceMainFacet.sol";
 import "../facets/RankifyInstanceRequirementsFacet.sol";
 import "../facets/RankifyInstanceGameMastersFacet.sol";
 import "../facets/ScoreGetterFacet.sol";
+import "../facets/OwnersFacet.sol";
 import "../initializers/RankifyInstanceInit.sol";
 import "../vendor/diamond/interfaces/IDiamondCut.sol";
 import "@peeramid-labs/eds/src/libraries/LibSemver.sol";
 import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 import {UBI} from "../UBI.sol";
+
 /**
  * @title ArguableVotingTournament Distribution
  * @notice This contract implements a diamond distribution for the Ethereum Distribution System (EDS).
@@ -33,6 +35,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
     OwnershipFacet private immutable _OwnershipFacet;
     address private immutable _initializer;
     ScoreGetterFacet private immutable _ScoreGetterFacet;
+    RankifyOwnersFacet private immutable _owners;
     UBI private immutable _ubi;
 
     ShortString private immutable distributionName;
@@ -60,6 +63,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         address OwnershipFacet;
         address ScoreGetterFacet;
         address UBI;
+        address RankifyOwnersFacet;
     }
 
     /**
@@ -86,6 +90,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         _OwnershipFacet = OwnershipFacet(addresses.OwnershipFacet);
         _ScoreGetterFacet = ScoreGetterFacet(addresses.ScoreGetterFacet);
         distributionName = ShortStrings.toShortString(_distributionName);
+        _owners = RankifyOwnersFacet(addresses.RankifyOwnersFacet);
         // console.log(LibSemver.toString())
         distributionVersion = LibSemver.toUint256(version);
         _ubi = UBI(addresses.UBI);
@@ -104,7 +109,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         address owner = abi.decode(ownerEncoded, (address));
         (address[] memory _instances, , ) = super._instantiate();
         address diamond = _instances[0];
-        IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](9);
+        IDiamondCut.FacetCut[] memory facetCuts = new IDiamondCut.FacetCut[](10);
 
         bytes4[] memory loupeSelectors = new bytes4[](4);
         loupeSelectors[0] = DiamondLoupeFacet.facets.selector;
@@ -126,7 +131,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: EIP712InspectorFacetSelectors
         });
-        bytes4[] memory RankifyInstanceMainFacetSelectors = new bytes4[](36);
+        bytes4[] memory RankifyInstanceMainFacetSelectors = new bytes4[](37);
         RankifyInstanceMainFacetSelectors[0] = RankifyInstanceMainFacet.cancelGame.selector;
         RankifyInstanceMainFacetSelectors[1] = RankifyInstanceMainFacet.gameCreator.selector;
         RankifyInstanceMainFacetSelectors[2] = RankifyInstanceMainFacet.createGame.selector;
@@ -163,6 +168,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         RankifyInstanceMainFacetSelectors[33] = RankifyInstanceMainFacet.canEndProposingStage.selector;
         RankifyInstanceMainFacetSelectors[34] = RankifyInstanceMainFacet.isProposingStage.selector;
         RankifyInstanceMainFacetSelectors[35] = RankifyInstanceMainFacet.isVotingStage.selector;
+        RankifyInstanceMainFacetSelectors[36] = RankifyInstanceMainFacet.joinGameByMaster.selector;
 
         facetCuts[2] = IDiamondCut.FacetCut({
             facetAddress: address(_RankifyMainFacet),
@@ -252,8 +258,18 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: UBIFacetSelectors
         });
 
+        bytes4[] memory OwnersFacetSelectors = new bytes4[](3);
+        OwnersFacetSelectors[0] = RankifyOwnersFacet.addWhitelistedGM.selector;
+        OwnersFacetSelectors[1] = RankifyOwnersFacet.removeWhitelistedGM.selector;
+        OwnersFacetSelectors[2] = RankifyOwnersFacet.isWhitelistedGM.selector;
+        facetCuts[9] = IDiamondCut.FacetCut({
+            facetAddress: address(_owners),
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: OwnersFacetSelectors
+        });
+
         super.initialize(DiamondCutFacet(diamond), facetCuts, "");
-        address[] memory returnValue = new address[](10);
+        address[] memory returnValue = new address[](11);
         returnValue[0] = diamond;
         returnValue[1] = facetCuts[0].facetAddress;
         returnValue[2] = facetCuts[1].facetAddress;
@@ -264,6 +280,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         returnValue[7] = facetCuts[6].facetAddress;
         returnValue[8] = facetCuts[7].facetAddress;
         returnValue[9] = facetCuts[8].facetAddress;
+        returnValue[10] = facetCuts[9].facetAddress;
 
         //renouncing ownership
         OwnershipFacet(diamond).transferOwnership(owner);
