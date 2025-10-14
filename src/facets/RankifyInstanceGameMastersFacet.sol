@@ -183,20 +183,22 @@ contract RankifyInstanceGameMastersFacet is DiamondReentrancyGuard, EIP712 {
             );
         }
         // If sender is not the voter, verify voter's signature
-        bytes32 voterDigest = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    keccak256("AuthorizeVoteSubmission(uint256 gameId,string sealedBallotId,bytes32 ballotHash)"),
-                    gameId,
-                    keccak256(bytes(sealedBallotId)),
-                    ballotHash
+        if (msg.sender != voter) {
+            bytes32 voterDigest = _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        keccak256("AuthorizeVoteSubmission(uint256 gameId,string sealedBallotId,bytes32 ballotHash)"),
+                        gameId,
+                        keccak256(bytes(sealedBallotId)),
+                        ballotHash
+                    )
                 )
-            )
-        );
-        require(
-            SignatureChecker.isValidSignatureNow(voter, voterDigest, voterSignature),
-            IErrors.invalidECDSARecoverSigner(voterDigest, "Invalid voter signature")
-        );
+            );
+            require(
+                SignatureChecker.isValidSignatureNow(voter, voterDigest, voterSignature),
+                IErrors.invalidECDSARecoverSigner(voterDigest, "Invalid voter signature")
+            );
+        }
 
         LibRankify.GameState storage game = gameId.getGameState();
         game.ballotHashes[voter] = ballotHash;

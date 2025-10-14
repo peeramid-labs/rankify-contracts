@@ -126,7 +126,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     from: deployer,
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
   });
-
+  const RankifyOwnerFacetDeployment = await deploy('RankifyOwnersFacet', {
+    from: deployer,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
+  });
   const ScoreGetterFacetDeployment = await deploy('ScoreGetterFacet', {
     from: deployer,
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
@@ -145,6 +148,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     OwnershipFacet: OwnershipFacetDeployment.address,
     ScoreGetterFacet: ScoreGetterFacetDeployment.address,
     UBI: ubi.address,
+    RankifyOwnersFacet: RankifyOwnerFacetDeployment.address,
   };
 
   const arguableVotingTournamentDeployment = await deploy('ArguableVotingTournament', {
