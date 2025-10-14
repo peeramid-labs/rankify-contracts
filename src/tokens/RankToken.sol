@@ -9,6 +9,7 @@ import "@peeramid-labs/eds/src/libraries/LibMiddleware.sol";
 import {IERC1155} from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
 //ToDo: it was planned to make it track for highest token users hold (their rank), right now it's not implemented. Yet.
 
 /**
@@ -17,6 +18,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
  * @notice RankToken is a composite ERC1155 token that is used to track user ranks
  */
 contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpgradeable {
+    event URIUpdated(string newURI, string indexed hash);
+    event ContractURIUpdated(string newURI, string indexed hash);
     struct Storage {
         string _contractURI;
     }
@@ -132,9 +135,11 @@ contract RankToken is LockableERC1155, IRankToken, ERC7746Middleware, OwnableUpg
 
     function setContractURI(string memory uri_) public onlyOwner {
         getStorage()._contractURI = uri_;
+        emit ContractURIUpdated(uri_, uri_);
     }
 
     function setURI(string memory uri_) public onlyOwner {
         _setURI(uri_);
+        emit URIUpdated(uri_, uri_);
     }
 }

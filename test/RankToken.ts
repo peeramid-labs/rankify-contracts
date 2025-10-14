@@ -2,9 +2,7 @@ import { ethers, getNamedAccounts, network } from 'hardhat';
 import { expect } from 'chai';
 import hre, { deployments } from 'hardhat';
 import { setupTest } from './utils';
-import { RankifyDiamondInstance } from '../types/artifacts/hardhat-diamond-abi/HardhatDiamondABI.sol';
-import { RankToken } from '../types/artifacts/src/tokens/RankToken';
-import { Rankify } from '../types/artifacts/src/tokens/';
+import { RankifyDiamondInstance, RankToken, Rankify, Governor } from '../types';
 import addDistribution from '../scripts/addDistribution';
 import { getCodeIdFromArtifact } from '../scripts/getCodeId';
 import { MAODistribution } from '../types/artifacts/src/distributions/MAODistribution';
@@ -16,6 +14,7 @@ let adr: AdrSetupResult;
 let env: EnvSetupResult;
 let rankifyInstance: RankifyDiamondInstance;
 let rankToken: RankToken;
+let governance: Governor;
 
 describe('Rank Token Test', async function () {
   beforeEach(async function () {
@@ -68,6 +67,10 @@ describe('Rank Token Test', async function () {
       'RankifyDiamondInstance',
       parseInstantiated(evts[0].args.instances).ACIDInstance,
     )) as RankifyDiamondInstance;
+    governance = (await ethers.getContractAt(
+      'Governor',
+      parseInstantiated(evts[0].args.instances).governor,
+    )) as Governor;
     await network.provider.send('hardhat_setBalance', [rankifyInstance.address, '0x9000000000000000000']);
     await env.rankifyToken
       .connect(adr.gameCreator1.wallet)
@@ -201,6 +204,34 @@ describe('Rank Token Test', async function () {
             .safeTransferFrom(adr.players[0].wallet.address, adr.players[1].wallet.address, 1, 4, '0x'),
         ).to.be.revertedWithCustomError(rankToken, 'insufficient');
       });
+    });
+  });
+  describe('URI tests', () => {
+    it('Only owner can set URI', async () => {
+      await adr.players[0].wallet.sendTransaction({
+        to: governance.address,
+        value: ethers.utils.parseEther('0.1'),
+      });
+      await expect(
+        rankToken.connect(adr.players[0].wallet).setURI('https://example.com'),
+      ).to.be.revertedWithCustomError(rankToken, 'OwnableUnauthorizedAccount');
+      expect(
+        await rankToken.connect(await ethers.getImpersonatedSigner(governance.address)).setURI('https://example.com'),
+      ).to.be.emit(rankToken, 'URIUpdated');
+    });
+    it('Only owner can set ContractURI', async () => {
+      await adr.players[0].wallet.sendTransaction({
+        to: governance.address,
+        value: ethers.utils.parseEther('0.1'),
+      });
+      await expect(
+        rankToken.connect(adr.players[0].wallet).setContractURI('https://example.com'),
+      ).to.be.revertedWithCustomError(rankToken, 'OwnableUnauthorizedAccount');
+      expect(
+        await rankToken
+          .connect(await ethers.getImpersonatedSigner(governance.address))
+          .setContractURI('https://example.com'),
+      ).to.be.emit(rankToken, 'URIUpdated');
     });
   });
 });
