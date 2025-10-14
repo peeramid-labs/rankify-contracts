@@ -2764,7 +2764,7 @@ describe(scriptName, () => {
         });
       });
     });
-    describe.only('Join by master operator tests', () => {
+    describe('Join by master operator tests', () => {
       it('Only owner should add a whitelisted game master', async () => {
         const { owner } = await getNamedAccounts();
         const oSigner = await hre.ethers.getSigner(owner);
