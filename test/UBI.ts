@@ -16,6 +16,29 @@ import addDistribution from '../scripts/addDistribution';
 import { constantParams } from '../scripts/EnvironmentSimulator';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
+function getShortStringBytes32(text: string) {
+  // 1. Convert the string to a UTF-8 byte array
+  const utf8Bytes = ethers.utils.toUtf8Bytes(text);
+  const len = utf8Bytes.length;
+
+  // 2. Check if the string is too long
+  if (len > 31) {
+    throw new Error(`String "${text}" is too long for a bytes32. Maximum length is 31 bytes.`);
+  }
+
+  // 3. Create a 32-byte array, initialized to zeros
+  const bytes32Array = new Uint8Array(32);
+
+  // 4. Copy the string's bytes into the start of the array
+  bytes32Array.set(utf8Bytes);
+
+  // 5. Set the last byte to the length of the string
+  bytes32Array[31] = len;
+
+  // 6. Convert the byte array to a hex string
+  return ethers.utils.hexlify(bytes32Array);
+}
+
 export function parseShortString(bytes32: string): string {
   const lastByteHex = bytes32.slice(-2);
   const encodedLength = parseInt(lastByteHex, 16);
@@ -152,7 +175,7 @@ describe('UBI contract', async function () {
       },
     };
     const ownerIs = await ethers.getSigner(owner);
-    const dn = await env.mockShortStrings.getShortStringBytes32(NEW_DOMAIN_NAME1);
+    const dn = getShortStringBytes32(NEW_DOMAIN_NAME1);
     await mp
       .connect(ownerIs)
       .initializeDomain(
