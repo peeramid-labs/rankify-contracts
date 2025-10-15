@@ -7,6 +7,7 @@ import "./tokens/DistributableGovernanceERC20.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {LibUBI} from "./libraries/LibUBI.sol";
+import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 /**
  * @title Universal Basic Income (UBI) Contract
@@ -18,6 +19,7 @@ import {LibUBI} from "./libraries/LibUBI.sol";
  * The contract is upgradeable and pausable.
  */
 contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
+    using ShortStrings for ShortString;
     /**
      * @notice Error thrown when a user without a valid Multipass record tries to interact with the contract.
      * @param recordFound Whether a Multipass record was found for the sender.
@@ -412,5 +414,9 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
         claimedToday = s.lastClaimedAt[user] == currentDay() ? true : false;
         supportSpent = s.supportSpent[user];
+    }
+
+    function getShortStringBytes32(string memory text) public pure returns (bytes32) {
+        return ShortString.unwrap(ShortStrings.toShortString(text));
     }
 }

@@ -236,7 +236,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: ScoreGetterFacetSelectors
         });
 
-        bytes4[] memory UBIFacetSelectors = new bytes4[](15);
+        bytes4[] memory UBIFacetSelectors = new bytes4[](16);
         UBIFacetSelectors[0] = UBI.claim.selector;
         UBIFacetSelectors[1] = UBI.support.selector;
         UBIFacetSelectors[2] = UBI.pause.selector;
@@ -252,6 +252,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         UBIFacetSelectors[12] = UBI.lastClaimedAt.selector;
         UBIFacetSelectors[13] = UBI.getCurrentDay.selector;
         UBIFacetSelectors[14] = UBI.getUserState.selector;
+        UBIFacetSelectors[15] = UBI.getShortStringBytes32.selector;
         facetCuts[8] = IDiamondCut.FacetCut({
             facetAddress: address(_ubi),
             action: IDiamondCut.FacetCutAction.Add,
