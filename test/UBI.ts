@@ -481,7 +481,7 @@ describe('UBI contract', async function () {
     });
 
     describe('Failure and Edge Cases', () => {
-      it('should revert if a user tries to support without having claimed on the current day', async () => {
+      it('should not revert if a user tries to support without having claimed on the current day', async () => {
         await expect(
           ubi.connect(adr.players[2].wallet).support([
             {
@@ -489,7 +489,7 @@ describe('UBI contract', async function () {
               amount: 3,
             },
           ]),
-        ).to.be.revertedWith('First must claim');
+        ).to.emit(ubi, 'ProposalLifetimeScore');
       });
 
       it('should revert if a user tries to support their own proposal', async () => {

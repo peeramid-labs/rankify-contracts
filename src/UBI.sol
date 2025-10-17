@@ -221,7 +221,6 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
                 emit ProposedTime(hash, s.proposalGlobalStats[hash].proposedTimes);
             }
         }
-        s.supportSpent[msg.sender] = 0; // reset support levels spent today
         s.token.mint(msg.sender, s.dailyClaimAmount);
         emit Claimed(msg.sender, s.dailyClaimAmount);
     }
@@ -272,11 +271,10 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
             require(proposalExists, "Proposal is not in daily menu :(");
             address proposer = s.daily[day - 1].proposals[voteElement.proposal].proposer;
             require(voteElement.amount < s.dailySupportAmount, "Daily support limit exceeded");
-            require(s.lastClaimedAt[msg.sender] == day, "First must claim");
             require(proposer != msg.sender, "Cannot support yourself");
             require(voteElement.amount < 10000, "amount too large");
-            s.supportSpent[msg.sender] += voteElement.amount * voteElement.amount;
-            require(s.supportSpent[msg.sender] <= s.dailySupportAmount, "Daily support limit exceeded");
+            s.supportSpent[day][msg.sender] += voteElement.amount * voteElement.amount;
+            require(s.supportSpent[day][msg.sender] <= s.dailySupportAmount, "Daily support limit exceeded");
             address user = msg.sender;
             uint256 decimals = s.token.decimals();
             s.token.mint(proposer, voteElement.amount * 10 ** decimals);
@@ -412,8 +410,9 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
      */
     function getUserState(address user) public view returns (bool claimedToday, uint256 supportSpent) {
         LibUBI.UBIStorage storage s = LibUBI.getStorage();
-        claimedToday = s.lastClaimedAt[user] == currentDay() ? true : false;
-        supportSpent = s.supportSpent[user];
+        uint256 day = currentDay();
+        claimedToday = s.lastClaimedAt[user] == day ? true : false;
+        supportSpent = s.supportSpent[day][user];
     }
 
     function getShortStringBytes32(string memory text) public pure returns (bytes32) {

@@ -58,7 +58,7 @@ library LibUBI {
         uint256 dailyClaimAmount;
         uint256 dailySupportAmount;
         mapping(address => uint256) lastClaimedAt;
-        mapping(address => uint256) supportSpent;
+        mapping(uint256 day => mapping(address => uint256)) supportSpent;
         mapping(uint256 day => Daily) daily;
         mapping(bytes32 proposalHash => ProposalGlobalStats stats) proposalGlobalStats;
         uint256 lastProposalDay;
