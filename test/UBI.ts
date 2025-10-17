@@ -259,6 +259,26 @@ describe('UBI contract', async function () {
   // =================================================================
   describe('claim() - UBI Distribution and Proposing', () => {
     describe('Happy Paths', () => {
+      it('allows claim onboarding bonus', async () => {
+        const player0BalanceBefore = await paymentToken.balanceOf(adr.players[0].wallet.address);
+        // 1. Player 0 calls claim() with "gm"
+        // Expect Claimed and ProposingByAddress events to be emitted
+        expect(await ubi.connect(adr.players[0].wallet).onboardingBonusClaimed(adr.players[0].wallet.address)).to.be
+          .false;
+        await expect(ubi.connect(adr.players[0].wallet).claimOnboardingBonus(adr.players[0].wallet.address)).to.emit(
+          ubi,
+          'OnboardingBonusClaimed',
+        );
+        // 2. Expect Player 0's token balance to increase by dailyClaimAmount
+        expect(await paymentToken.balanceOf(adr.players[0].wallet.address)).to.be.equal(
+          player0BalanceBefore.add(ethers.utils.parseUnits('16', decimals)),
+        );
+        await expect(
+          ubi.connect(adr.players[0].wallet).claimOnboardingBonus(adr.players[0].wallet.address),
+        ).to.to.be.revertedWith('already claimed');
+        expect(await ubi.connect(adr.players[0].wallet).onboardingBonusClaimed(adr.players[0].wallet.address)).to.be
+          .true;
+      });
       it('should allow a valid Multipass holder to claim for the first time on a given day', async () => {
         const player0BalanceBefore = await paymentToken.balanceOf(adr.players[0].wallet.address);
         // 1. Player 0 calls claim() with "gm"
