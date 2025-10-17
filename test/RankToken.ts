@@ -215,8 +215,8 @@ describe('Rank Token Test', async function () {
       await expect(
         rankToken.connect(adr.players[0].wallet).setURI('https://example.com'),
       ).to.be.revertedWithCustomError(rankToken, 'OwnableUnauthorizedAccount');
-      expect(
-        await rankToken.connect(await ethers.getImpersonatedSigner(governance.address)).setURI('https://example.com'),
+      await expect(
+        rankToken.connect(await ethers.getImpersonatedSigner(governance.address)).setURI('https://example.com'),
       ).to.emit(rankToken, 'URIUpdated');
     });
     it('Only owner can set ContractURI', async () => {
