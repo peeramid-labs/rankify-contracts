@@ -63,6 +63,7 @@ library LibUBI {
         mapping(bytes32 proposalHash => ProposalGlobalStats stats) proposalGlobalStats;
         uint256 lastProposalDay;
         address pauser;
+        mapping(address => bool) claimedOnboardingBonus;
     }
     function getStorage() internal pure returns (UBIStorage storage s) {
         bytes32 position = UBIStorageLocation;

@@ -245,6 +245,38 @@ contract UBI is ReentrancyGuardUpgradeable, PausableUpgradeable {
         _unpause();
     }
 
+    event OnboardingBonusClaimed(address indexed user);
+
+    /**
+     * @notice Allows a user to claim their onboarding bonus.
+     * @dev The onboarding bonus is a one-time reward for new users.
+     * The bonus is claimed by calling this function.
+     * The bonus is added to the user's balance.
+     * The bonus is only claimable once.
+     * @param user The address of the user claiming the bonus.
+     */
+    function claimOnboardingBonus(address user) public nonReentrant {
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
+        require(s.claimedOnboardingBonus[user] == false, "already claimed");
+        LibMultipass.NameQuery memory q = LibMultipass.NameQuery({
+            domainName: s.domainName,
+            wallet: user,
+            targetDomain: "",
+            name: "",
+            id: ""
+        });
+        (bool exists, LibMultipass.Record memory record) = s.multipass.resolveRecord(q);
+        require(exists && record.validUntil > block.timestamp, InvalidSender(exists, record.validUntil));
+        s.claimedOnboardingBonus[user] = true;
+        s.token.mint(user, s.dailyClaimAmount);
+        emit OnboardingBonusClaimed(user);
+    }
+
+    function onboardingBonusClaimed(address user) public view returns (bool) {
+        LibUBI.UBIStorage storage s = LibUBI.getStorage();
+        return s.claimedOnboardingBonus[user];
+    }
+
     /**
      * @notice Allows a user to support one or more proposals from the previous day.
      * @dev This function implements a quadratic voting mechanism where the cost to support is the square of the amount.
