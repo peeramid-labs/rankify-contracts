@@ -1,5 +1,57 @@
 # rankify-contracts
 
+## 0.17.0
+
+### Minor Changes
+
+- [#233](https://github.com/peeramid-labs/rankify-contracts/pull/233) [`7e6ae884226882fb6cdb71be259a8a73c139e7e5`](https://github.com/peeramid-labs/rankify-contracts/commit/7e6ae884226882fb6cdb71be259a8a73c139e7e5) Thanks [@peersky](https://github.com/peersky)! - ## Introduced UBI based fellowships
+
+  - New contract introduced: [UBI.sol](./src/UBI.sol): It may be used as either facet or standalone.
+  - This UBI contract uses [Multipass](https://github.com/peeramid-labs/multipass/) as dependency - any registered user on domain is qualified for daily credits.
+  - Deployment scripts were added that install UBI as facet on every new fellowship.
+  - Now it is possible to instantiate MAO without specifying paymentToken. In such a case, a new token will be deployed named as `<Derived Token Name> ACID` (Autonomous competence Identification).
+
+- [#233](https://github.com/peeramid-labs/rankify-contracts/pull/233) [`7e6ae884226882fb6cdb71be259a8a73c139e7e5`](https://github.com/peeramid-labs/rankify-contracts/commit/7e6ae884226882fb6cdb71be259a8a73c139e7e5) Thanks [@peersky](https://github.com/peersky)! - ## Implement whitelisted GM player joining
+
+  Introduce `RankifyOwnersFacet` to allow the contract owner to whitelist
+  game masters. Whitelisted GMs can now use `joinGameByMaster` to onboard
+  players into games, abstracting the `msg.sender` for funding. This
+  refactors the existing `joinGame` into a shared `_join` helper.
+
+  Also reduce Solidity optimizer runs from 2000 to 200.
+
+### Patch Changes
+
+- [#233](https://github.com/peeramid-labs/rankify-contracts/pull/233) [`7e6ae884226882fb6cdb71be259a8a73c139e7e5`](https://github.com/peeramid-labs/rankify-contracts/commit/7e6ae884226882fb6cdb71be259a8a73c139e7e5) Thanks [@peersky](https://github.com/peersky)! - Emit RankifyInstanceInitialized event
+
+  The `RankifyInstanceInitialized` event is emitted upon successful initialization of
+  a Rankify instance. This provides on-chain visibility and facilitates external
+  monitoring and integration. It includes the address of the initialized instance
+  and its initialization parameters.
+
+  ```
+  event RankifyInstanceInitialized(address indexed rankifyInstance, contractInitializer parameters);
+  ```
+
+- [#233](https://github.com/peeramid-labs/rankify-contracts/pull/233) [`7e6ae884226882fb6cdb71be259a8a73c139e7e5`](https://github.com/peeramid-labs/rankify-contracts/commit/7e6ae884226882fb6cdb71be259a8a73c139e7e5) Thanks [@peersky](https://github.com/peersky)! - setURI and setContractURI on rankToken now emits events:
+
+  ```solidity
+  event URIUpdated(string newURI, string indexed hash);
+  event ContractURIUpdated(string newURI, string indexed hash);
+  ```
+
+- [#233](https://github.com/peeramid-labs/rankify-contracts/pull/233) [`7e6ae884226882fb6cdb71be259a8a73c139e7e5`](https://github.com/peeramid-labs/rankify-contracts/commit/7e6ae884226882fb6cdb71be259a8a73c139e7e5) Thanks [@peersky](https://github.com/peersky)! - # Delegation system support
+  When a voter calls `submitVote` directly, their transaction signature
+  implicitly authorizes the submission, making an additional EIP-712
+  signature redundant.
+
+  We removed this check.
+
+  This marks the full reliance on `msg.sender` as authority to act on players behalf, WITHOUT need to explcitly sign the transactions by EOA.
+  It is expected that delegation to authorize player actions is built upon by a smart-wallet that IS `msg.sender` "wrapper".
+
+- [#233](https://github.com/peeramid-labs/rankify-contracts/pull/233) [`7e6ae884226882fb6cdb71be259a8a73c139e7e5`](https://github.com/peeramid-labs/rankify-contracts/commit/7e6ae884226882fb6cdb71be259a8a73c139e7e5) Thanks [@peersky](https://github.com/peersky)! - canStart method now correctly respects msg.sender being creator
+
 ## 0.16.0
 
 ### Minor Changes
