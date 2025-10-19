@@ -331,7 +331,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         (address[] memory tokenInstances, , ) = createOrg(args.govSettings);
         (address[] memory RankifyInstances, , ) = createRankify(
             args.rankifySettings,
-        tokenInstances[0],
+            tokenInstances[0],
             args.govSettings.tokenName,
             args.govSettings.tokenSymbol,
             tokenInstances[2],
