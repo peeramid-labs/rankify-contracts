@@ -15,6 +15,7 @@ import "../vendor/diamond/interfaces/IDiamondCut.sol";
 import "@peeramid-labs/eds/src/libraries/LibSemver.sol";
 import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 import {UBI} from "../UBI.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 /**
  * @title ArguableVotingTournament Distribution
@@ -236,7 +237,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
             functionSelectors: ScoreGetterFacetSelectors
         });
 
-        bytes4[] memory UBIFacetSelectors = new bytes4[](16);
+        bytes4[] memory UBIFacetSelectors = new bytes4[](17);
         UBIFacetSelectors[0] = UBI.claim.selector;
         UBIFacetSelectors[1] = UBI.support.selector;
         UBIFacetSelectors[2] = UBI.pause.selector;
@@ -253,6 +254,7 @@ contract ArguableVotingTournament is InitializedDiamondDistribution {
         UBIFacetSelectors[13] = UBI.getCurrentDay.selector;
         UBIFacetSelectors[14] = UBI.getUserState.selector;
         UBIFacetSelectors[15] = UBI.getShortStringBytes32.selector;
+        UBIFacetSelectors[16] = PausableUpgradeable.paused.selector;
         facetCuts[8] = IDiamondCut.FacetCut({
             facetAddress: address(_ubi),
             action: IDiamondCut.FacetCutAction.Add,
