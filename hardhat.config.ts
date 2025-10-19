@@ -233,7 +233,7 @@ export default {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 2000,
+            runs: 200,
           },
         },
       },
@@ -242,7 +242,7 @@ export default {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 2000,
+            runs: 200,
           },
         },
       },
@@ -268,6 +268,10 @@ export default {
         'RankifyInstanceRequirementsFacet',
         'RankifyInstanceGameMastersFacet',
         'ScoreGetterFacet',
+        'UBI',
+        'DiamondClonable',
+        'RankifyInstanceInit',
+        'RankifyOwnersFacet',
       ],
       strict: false,
       filter(abiElement: unknown, index: number, abi: unknown[], fullyQualifiedName: string) {
@@ -277,7 +281,10 @@ export default {
     },
   ],
   typechain: {
-    externalArtifacts: ['abi/hardhat-diamond-abi/HardhatDiamondABI.sol/RankifyDiamondInstance.json'],
+    externalArtifacts: [
+      'abi/hardhat-diamond-abi/HardhatDiamondABI.sol/RankifyDiamondInstance.json',
+      'node_modules/@peeramid-labs/multipass/artifacts/src/Multipass.sol/Multipass.json',
+    ],
     outDir: 'types',
     target: 'ethers-v5',
     alwaysGenerateOverloads: true, // should overloads with full signatures like deposit(uint256) be generated always, even if there are no overloads?
@@ -304,6 +311,10 @@ export default {
       {
         artifacts: 'node_modules/@peeramid-labs/eds/artifacts',
         deploy: 'node_modules/@peeramid-labs/eds/deploy',
+      },
+      {
+        artifacts: 'node_modules/@peeramid-labs/multipass/artifacts',
+        deploy: 'node_modules/@peeramid-labs/multipass/deploy',
       },
     ],
   },

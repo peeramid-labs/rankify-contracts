@@ -126,7 +126,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     from: deployer,
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
   });
-
+  const RankifyOwnerFacetDeployment = await deploy('RankifyOwnersFacet', {
+    from: deployer,
+    skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
+  });
   const ScoreGetterFacetDeployment = await deploy('ScoreGetterFacet', {
     from: deployer,
     skipIfAlreadyDeployed: skipDistributionIfAlreadyDeployed,
@@ -134,7 +137,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       LibRankify: libRankifyDeployment.address,
     },
   });
-
+  const ubi = await deploy('UBI', { from: deployer, args: [true] });
+  const mp = await deployments.get('Multipass');
   const addresses: ArguableVotingTournament.ArguableTournamentAddressesStruct = {
     loupeFacet: loupeFacetDeployment.address,
     inspectorFacet: inspectorFacetDeployment.address,
@@ -143,6 +147,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     RankifyGMFacet: RankifyGMFacetDeployment.address,
     OwnershipFacet: OwnershipFacetDeployment.address,
     ScoreGetterFacet: ScoreGetterFacetDeployment.address,
+    UBI: ubi.address,
+    RankifyOwnersFacet: RankifyOwnerFacetDeployment.address,
   };
 
   const arguableVotingTournamentDeployment = await deploy('ArguableVotingTournament', {
@@ -225,6 +231,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   });
 
   const rankifyToken = await deployments.get('Rankify');
+
   const proposalIntegrity18Groth16VerifierDeployment = await deployments.get('ProposalsIntegrity15Groth16Verifier');
   const result = await deploy('MAODistribution', {
     from: deployer,
@@ -239,6 +246,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       _distributionName, // These could be other, currently duplicates with dependency, good as long as not used
       _distributionVersion,
       constantParams.RInstance_MIN_PLAYERS,
+      mp.address,
     ],
   });
 
@@ -260,5 +268,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 };
 
 export default func;
-func.dependencies = ['ERC7744', 'sacm', 'distributor', 'rankify', 'verifiers'];
+func.dependencies = ['multipass', 'ERC7744', 'sacm', 'distributor', 'rankify', 'verifiers'];
 func.tags = ['MAO'];

@@ -5,6 +5,7 @@ export interface MAOInstances {
   ACIDInstance: string;
   ACIDAccessManager: string;
   rankToken: string;
+  paymentToken: string;
 }
 
 export const parseInstantiated = (instances: string[]): MAOInstances => {
@@ -15,5 +16,6 @@ export const parseInstantiated = (instances: string[]): MAOInstances => {
     ACIDInstance: instances[3],
     ACIDAccessManager: instances[4],
     rankToken: instances[5],
+    paymentToken: instances[6],
   };
 };

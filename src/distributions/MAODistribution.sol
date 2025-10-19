@@ -19,6 +19,8 @@ import {ShortStrings, ShortString} from "@openzeppelin/contracts/utils/ShortStri
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {DistributableGovernanceERC20} from "../tokens/DistributableGovernanceERC20.sol";
 import {Governor} from "../Governor.sol";
+import {IMultipass} from "@peeramid-labs/multipass/src/interfaces/IMultipass.sol";
+
 struct MAOApp {
     IRankifyInstance fellowship;
     RankToken rankToken;
@@ -26,6 +28,7 @@ struct MAOApp {
     IGovernor DAO;
     SimpleAccessManager rankTokenManager;
     SimpleAccessManager govTokenManager;
+    DistributableGovernanceERC20 paymentToken;
 }
 
 /**
@@ -36,6 +39,8 @@ struct MAOApp {
  * @author Peeramid Labs, 2024
  */
 contract MAODistribution is IDistribution, CodeIndexer {
+    using ShortStrings for ShortString;
+    error DomainNotActive(string domain);
     struct UserRankifySettings {
         uint256 principalCost;
         uint96 principalTimeConstant;
@@ -73,6 +78,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
     address private immutable _poseidon6;
     address private immutable _poseidon2;
     address private immutable _DAO;
+    address private immutable _multipass;
 
     /**
      * @notice Initializes the contract with the provided parameters and performs necessary checks.
@@ -86,6 +92,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
      * @param distributionName Name identifier for this distribution
      * @param distributionVersion Semantic version information as LibSemver.Version struct
      * @param minParticipantsInCircle Minimum number of participants in a circle
+     * @param multipass multipass ID lookup registry deployment address
      */
     constructor(
         address[] memory zkpVerifier,
@@ -96,7 +103,8 @@ contract MAODistribution is IDistribution, CodeIndexer {
         bytes32 DAOId,
         string memory distributionName,
         LibSemver.Version memory distributionVersion,
-        uint256 minParticipantsInCircle
+        uint256 minParticipantsInCircle,
+        address multipass
     ) {
         require(minParticipantsInCircle > 2, "minParticipantsInCircle must be greater than 2");
         _minParticipantsInCircle = minParticipantsInCircle;
@@ -142,6 +150,9 @@ contract MAODistribution is IDistribution, CodeIndexer {
             ERC165Checker.supportsInterface(_accessManagerBase, type(IERC7746).interfaceId),
             "Access manager does not support IERC7746"
         );
+
+        require(multipass != address(0), "multipass address required");
+        _multipass = multipass;
     }
 
     function createOrg(GovernanceArgs memory args) internal returns (address[] memory instances, bytes32, uint256) {
@@ -184,70 +195,111 @@ contract MAODistribution is IDistribution, CodeIndexer {
     function createRankify(
         UserRankifySettings memory args,
         address derivedToken,
-        address governor
+        string memory derivedTokenName,
+        string memory derivedTokenSymbol,
+        address governor,
+        string memory orgName,
+        uint256[] memory preMintAmounts,
+        address[] memory preMintReceivers
     ) internal returns (address[] memory instances, bytes32, uint256) {
         address rankToken = _rankTokenBase.clone();
-
-        bytes4[] memory rankTokenSelectors = new bytes4[](6);
-        rankTokenSelectors[0] = RankToken.mint.selector;
-        rankTokenSelectors[1] = RankToken.lock.selector;
-        rankTokenSelectors[2] = RankToken.unlock.selector;
-        rankTokenSelectors[3] = RankToken.batchMint.selector;
-        rankTokenSelectors[4] = RankToken.setURI.selector;
-        rankTokenSelectors[5] = RankToken.setContractURI.selector;
         SimpleAccessManager rankTokenAccessManager = SimpleAccessManager(_accessManagerBase.clone());
 
-        SimpleAccessManager.SimpleAccessManagerInitializer[]
-            memory RankTokenAccessSettings = new SimpleAccessManager.SimpleAccessManagerInitializer[](6);
+        {
+            SimpleAccessManager.SimpleAccessManagerInitializer[]
+                memory RankTokenAccessSettings = new SimpleAccessManager.SimpleAccessManagerInitializer[](6);
 
-        RankTokenAccessSettings[0].selector = RankToken.mint.selector;
-        RankTokenAccessSettings[0].disallowedAddresses = new address[](1);
-        RankTokenAccessSettings[0].distributionComponentsOnly = true;
+            RankTokenAccessSettings[0].selector = RankToken.mint.selector;
+            RankTokenAccessSettings[0].disallowedAddresses = new address[](1);
+            RankTokenAccessSettings[0].distributionComponentsOnly = true;
 
-        RankTokenAccessSettings[1].selector = RankToken.lock.selector;
-        RankTokenAccessSettings[1].disallowedAddresses = new address[](1);
-        RankTokenAccessSettings[1].distributionComponentsOnly = true;
+            RankTokenAccessSettings[1].selector = RankToken.lock.selector;
+            RankTokenAccessSettings[1].disallowedAddresses = new address[](1);
+            RankTokenAccessSettings[1].distributionComponentsOnly = true;
 
-        RankTokenAccessSettings[2].selector = RankToken.unlock.selector;
-        RankTokenAccessSettings[2].disallowedAddresses = new address[](1);
-        RankTokenAccessSettings[2].distributionComponentsOnly = true;
+            RankTokenAccessSettings[2].selector = RankToken.unlock.selector;
+            RankTokenAccessSettings[2].disallowedAddresses = new address[](1);
+            RankTokenAccessSettings[2].distributionComponentsOnly = true;
 
-        RankTokenAccessSettings[3].selector = RankToken.batchMint.selector;
-        RankTokenAccessSettings[3].disallowedAddresses = new address[](1);
-        RankTokenAccessSettings[3].distributionComponentsOnly = true;
+            RankTokenAccessSettings[3].selector = RankToken.batchMint.selector;
+            RankTokenAccessSettings[3].disallowedAddresses = new address[](1);
+            RankTokenAccessSettings[3].distributionComponentsOnly = true;
 
-        RankTokenAccessSettings[4].selector = RankToken.setURI.selector;
-        RankTokenAccessSettings[4].distributionComponentsOnly = true;
+            RankTokenAccessSettings[4].selector = RankToken.setURI.selector;
+            RankTokenAccessSettings[4].distributionComponentsOnly = true;
 
-        RankTokenAccessSettings[5].selector = RankToken.setContractURI.selector;
-        RankTokenAccessSettings[5].distributionComponentsOnly = true;
+            RankTokenAccessSettings[5].selector = RankToken.setContractURI.selector;
+            RankTokenAccessSettings[5].distributionComponentsOnly = true;
 
-        rankTokenAccessManager.initialize(RankTokenAccessSettings, rankToken, IDistributor(msg.sender)); // msg.sender must be IDistributor or it will revert
+            rankTokenAccessManager.initialize(RankTokenAccessSettings, rankToken, IDistributor(msg.sender)); // msg.sender must be IDistributor or it will revert
+        }
         RankToken(rankToken).initialize(
             args.rankTokenURI,
             args.rankTokenContractURI,
             address(rankTokenAccessManager),
             governor
         );
-
+        address owner = DAODistributor(msg.sender).owner();
         (
             address[] memory RankifyDistrAddresses,
             bytes32 RankifyDistributionName,
             uint256 RankifyDistributionVersion
-        ) = _RankifyDistributionBase.instantiate(abi.encode(DAODistributor(msg.sender).owner()));
+        ) = _RankifyDistributionBase.instantiate(abi.encode(owner));
+        address paymentToken = args.paymentToken;
 
+        if (
+            paymentToken == address(0)
+        ) // if payment not provided - create new bootstrap token and use multipass as source of UBI
+
+        {
+            bytes32 domainName = ShortString.unwrap(ShortStrings.toShortString(string.concat(orgName, ".mao")));
+            {
+                require(
+                    IMultipass(_multipass).getDomainState(domainName).isActive,
+                    DomainNotActive(ShortString.wrap(domainName).toString())
+                );
+            }
+            {
+                SimpleAccessManager bootTokenAccessManager = SimpleAccessManager(_accessManagerBase.clone());
+
+                SimpleAccessManager.SimpleAccessManagerInitializer[]
+                    memory bootTokenAccessManagerSettings = new SimpleAccessManager.SimpleAccessManagerInitializer[](1);
+
+                bootTokenAccessManagerSettings[0].selector = DistributableGovernanceERC20.mint.selector;
+                bootTokenAccessManagerSettings[0].disallowedAddresses = new address[](1);
+                bootTokenAccessManagerSettings[0].distributionComponentsOnly = true;
+                paymentToken = _governanceERC20Base.clone();
+                bootTokenAccessManager.initialize(
+                    bootTokenAccessManagerSettings,
+                    paymentToken,
+                    IDistributor(msg.sender)
+                ); // msg.sender must be IDistributor or it will revert
+                DistributableGovernanceERC20(paymentToken).initialize(
+                    string.concat(derivedTokenName, " ACID"),
+                    string.concat(derivedTokenSymbol, " ACID"),
+                    MintSettings({receivers: preMintReceivers, amounts: preMintAmounts}),
+                    address(bootTokenAccessManager)
+                );
+            }
+        }
         RankifyInstanceInit.contractInitializer memory RankifyInit = RankifyInstanceInit.contractInitializer({
             rewardToken: rankToken,
             principalCost: args.principalCost,
             principalTimeConstant: args.principalTimeConstant,
             minimumParticipantsInCircle: _minParticipantsInCircle,
-            paymentToken: args.paymentToken,
+            paymentToken: paymentToken,
             beneficiary: governor,
             derivedToken: derivedToken,
             proposalIntegrityVerifier: _proposalIntegrityVerifier,
             poseidon5: _poseidon5,
             poseidon6: _poseidon6,
-            poseidon2: _poseidon2
+            poseidon2: _poseidon2,
+            multipass: IMultipass(_multipass),
+            ubiToken: DistributableGovernanceERC20(paymentToken),
+            pauser: owner,
+            dailyClaim: 16 * 10 ** DistributableGovernanceERC20(paymentToken).decimals(),
+            dailySupport: 16,
+            domainName: ShortString.unwrap(ShortStrings.toShortString(string.concat(orgName, ".mao")))
         });
 
         RankifyInstanceInit(RankifyDistrAddresses[0]).init(
@@ -255,10 +307,11 @@ contract MAODistribution is IDistribution, CodeIndexer {
             LibSemver.toString(LibSemver.parse(RankifyDistributionVersion)),
             RankifyInit
         );
-        address[] memory returnValue = new address[](3);
+        address[] memory returnValue = new address[](4);
         returnValue[0] = RankifyDistrAddresses[0]; // Diamond Proxy
         returnValue[1] = address(rankTokenAccessManager);
         returnValue[2] = rankToken;
+        returnValue[3] = args.paymentToken == address(0) ? paymentToken : address(0);
 
         return (returnValue, RankifyDistributionName, RankifyDistributionVersion);
     }
@@ -275,12 +328,16 @@ contract MAODistribution is IDistribution, CodeIndexer {
         bytes calldata data
     ) public override returns (address[] memory instances, bytes32 distributionName, uint256 distributionVersion) {
         DistributorArguments memory args = abi.decode(data, (DistributorArguments));
-
         (address[] memory tokenInstances, , ) = createOrg(args.govSettings);
         (address[] memory RankifyInstances, , ) = createRankify(
             args.rankifySettings,
             tokenInstances[0],
-            tokenInstances[2]
+            args.govSettings.tokenName,
+            args.govSettings.tokenSymbol,
+            tokenInstances[2],
+            args.govSettings.orgName,
+            args.govSettings.preMintAmounts,
+            args.govSettings.preMintReceivers
         );
 
         address[] memory returnValue = new address[](tokenInstances.length + RankifyInstances.length);
@@ -325,6 +382,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
         app.fellowship = IRankifyInstance(appComponents[3]);
         app.rankTokenManager = SimpleAccessManager(appComponents[4]);
         app.rankToken = RankToken(appComponents[5]);
+        app.paymentToken = DistributableGovernanceERC20(appComponents[6]);
         return app;
     }
 }
