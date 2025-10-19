@@ -1572,7 +1572,7 @@ describe(scriptName, () => {
               let checkVotes: MockVote[];
               beforeEach(async () => {
                 const playersCnt = await rankifyInstance.getPlayers(1).then(players => players.length);
-                rankifyInstance.connect(adr.gameMaster1).endProposing(
+                await rankifyInstance.connect(adr.gameMaster1).endProposing(
                   1,
                   await simulator
                     .getProposalsIntegrity({
@@ -1678,7 +1678,7 @@ describe(scriptName, () => {
 
               beforeEach(async () => {
                 const players = simulator.getPlayers(simulator.adr, RInstance_MIN_PLAYERS, 0);
-                rankifyInstance.connect(adr.gameMaster1).endProposing(
+                await rankifyInstance.connect(adr.gameMaster1).endProposing(
                   1,
                   await simulator
                     .getProposalsIntegrity({
