@@ -198,7 +198,9 @@ contract MAODistribution is IDistribution, CodeIndexer {
         string memory derivedTokenName,
         string memory derivedTokenSymbol,
         address governor,
-        string memory orgName
+        string memory orgName,
+        uint256[] memory preMintAmounts,
+        address[] memory preMintReceivers
     ) internal returns (address[] memory instances, bytes32, uint256) {
         address rankToken = _rankTokenBase.clone();
         SimpleAccessManager rankTokenAccessManager = SimpleAccessManager(_accessManagerBase.clone());
@@ -275,7 +277,7 @@ contract MAODistribution is IDistribution, CodeIndexer {
                 DistributableGovernanceERC20(paymentToken).initialize(
                     string.concat(derivedTokenName, " ACID"),
                     string.concat(derivedTokenSymbol, " ACID"),
-                    MintSettings({receivers: new address[](0), amounts: new uint256[](0)}),
+                    MintSettings({receivers: preMintReceivers, amounts: preMintAmounts}),
                     address(bootTokenAccessManager)
                 );
             }
@@ -329,11 +331,13 @@ contract MAODistribution is IDistribution, CodeIndexer {
         (address[] memory tokenInstances, , ) = createOrg(args.govSettings);
         (address[] memory RankifyInstances, , ) = createRankify(
             args.rankifySettings,
-            tokenInstances[0],
+        tokenInstances[0],
             args.govSettings.tokenName,
             args.govSettings.tokenSymbol,
             tokenInstances[2],
-            args.govSettings.orgName
+            args.govSettings.orgName,
+            args.govSettings.preMintAmounts,
+            args.govSettings.preMintReceivers
         );
 
         address[] memory returnValue = new address[](tokenInstances.length + RankifyInstances.length);
