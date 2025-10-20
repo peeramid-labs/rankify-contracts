@@ -1,5 +1,11 @@
 # rankify-contracts
 
+## 0.17.2
+
+### Patch Changes
+
+- [`77cf604143c8d0b590c6e5965ed9184abaece47b`](https://github.com/peeramid-labs/rankify-contracts/commit/77cf604143c8d0b590c6e5965ed9184abaece47b) Thanks [@peersky](https://github.com/peersky)! - distribution artifacts updated
+
 ## 0.17.1
 
 ### Patch Changes
